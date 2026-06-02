@@ -82,7 +82,9 @@ runs:
         CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y
         EOF
           else
-            :
+            cat >> $DEFCONFIG <<-'EOF'
+        # CONFIG_KSU_KPROBES_KSUD is not set
+        EOF
           fi
         fi
         

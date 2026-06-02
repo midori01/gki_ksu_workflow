@@ -137,7 +137,7 @@ jobs:
         run: |
           mkdir -p kernel_workspace && cd kernel_workspace
           MIDORI_MIRROR="https://github.com/MidoriKSU/dami-kernel-build/releases/download/${{ steps.cfg.outputs.mirror_tag }}"
-          CLANG_TAR="${{ steps.cfg.outputs.clang_version }}.tar.gz"
+          CLANG_TAR="clang-${{ steps.cfg.outputs.clang_version }}.tar.gz"
           KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}.tar.gz"
           if [ "${{ inputs.source_mirror }}" = "google" ]; then
             GOOGLE_REF=$([ "${{ steps.cfg.outputs.r_version }}" = "none" ] && echo "heads" || echo "tags")
@@ -148,7 +148,7 @@ jobs:
           aria2c -s16 -x16 -k1M "$MIDORI_MIRROR/$CLANG_TAR" -o clang.tar.gz && mkdir -p clang && tar -xzf clang.tar.gz -C clang && rm clang.tar.gz &
           aria2c -s16 -x16 -k1M "$MIDORI_MIRROR/build-tools.tar.gz" -o build-tools.tar.gz && mkdir -p build-tools && tar -xzf build-tools.tar.gz -C build-tools && rm build-tools.tar.gz &
           if [ "${{ steps.cfg.outputs.rust_enabled }}" = "true" ]; then
-            RUST_TAR="${{ steps.cfg.outputs.rust_version }}.tar.gz"
+            RUST_TAR="rust-${{ steps.cfg.outputs.rust_version }}.tar.gz"
             aria2c -s16 -x16 -k1M "$MIDORI_MIRROR/clang-tools.tar.gz" -o clang-tools.tar.gz && mkdir -p clang-tools && tar -xzf clang-tools.tar.gz -C clang-tools && rm clang-tools.tar.gz &
             aria2c -s16 -x16 -k1M "$MIDORI_MIRROR/$RUST_TAR" -o rust.tar.gz && mkdir -p rust && tar -xzf rust.tar.gz -C rust && rm rust.tar.gz &
           fi

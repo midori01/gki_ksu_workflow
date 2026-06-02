@@ -2,9 +2,10 @@
 
 # 🌀 GKI KSU Workflow
 
-![Android](https://img.shields.io/badge/Android-16-3DDC84?style=for-the-badge&logo=android&logoColor=white)
-![Kernel](https://img.shields.io/badge/Kernel-GKI_6.1_~_6.12-2F363D?style=for-the-badge&logo=linux&logoColor=white)
+![Android](https://img.shields.io/badge/Android-GKI-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![Kernel](https://img.shields.io/badge/Kernel-6.1_~_6.12-2F363D?style=for-the-badge&logo=linux&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Arch-arm64-blue?style=for-the-badge)
+![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 
 *Automated GitHub Actions CI/CD pipeline for compiling and distributing GKI kernels.*
 

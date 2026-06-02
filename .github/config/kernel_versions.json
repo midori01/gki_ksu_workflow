@@ -1,30 +1,40 @@
 {
   "6.1": {
     "android_version": "android14",
-    "default_sub_level": "162",
+    "default_sub_level": "173",
     "revisions": {
       "162": {
         "asb_date": "2026-03",
         "default_r": "r14",
         "supported_r": ["r14", "none"]
+      },
+       "173": {
+        "asb_date": "lts",
+        "default_r": "none",
+        "supported_r": ["none"]
       }
     },
-    "default_clang": "clang-r510928",
+    "default_clang": "r487747c",
     "rust": false,
     "mirror_tag": "6.1",
     "anykernel_branch": "pixel"
   },
   "6.6": {
     "android_version": "android15",
-    "default_sub_level": "127",
+    "default_sub_level": "139",
     "revisions": {
       "127": {
         "asb_date": "2026-04",
         "default_r": "r14",
         "supported_r": ["r14", "r13", "none"]
+      },
+       "139": {
+        "asb_date": "lts",
+        "default_r": "none",
+        "supported_r": ["none"]
       }
     },
-    "default_clang": "clang-r510928",
+    "default_clang": "r510928",
     "rust": false,
     "mirror_tag": "6.6",
     "anykernel_branch": "pixel"
@@ -39,9 +49,9 @@
         "supported_r": ["r58", "none"]
       }
     },
-    "default_clang": "clang-r536225",
+    "default_clang": "r536225",
     "rust": true,
-    "default_rust": "rust-1.82.0",
+    "default_rust": "1.82.0",
     "mirror_tag": "1.0",
     "anykernel_branch": "xiaomi"
   }

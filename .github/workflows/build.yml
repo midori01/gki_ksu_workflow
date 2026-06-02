@@ -1,4 +1,5 @@
 name: Build and Release
+run-name: ${{ inputs.kernel_version == 'all' && (inputs.ksu_variant == 'all' && 'All Kernels - All Variants' || format('All Kernels - {0}', inputs.ksu_variant)) || (inputs.ksu_variant == 'all' && format('Kernel {0} - All Variants', inputs.kernel_version) || format('Kernel {0} - {1}', inputs.kernel_version, inputs.ksu_variant)) }}
 
 on:
   workflow_dispatch:
@@ -16,7 +17,7 @@ on:
       source_mirror:
         description: 'Kernel Source'
         required: true
-        default: 'midori'
+        default: 'google'
         type: choice
         options:
           - google
@@ -338,7 +339,7 @@ jobs:
           out() { echo "$1" >> $GITHUB_OUTPUT; }
           ksu_line() {
             local tag=$1 repo=$2 file=$3
-            [ -f "$file" ] && [[ "$variant" =~ ^(all|$tag)$ ]] || return
+            [ -f "$file" ] && [[ "$variant" =~ ^(all|$tag)$ ]] || return 0
             out "${tag,,}=- **$tag**: [\`$(short_sha "$file")\`](https://github.com/$repo/commit/$(cat "$file")) \`$(cat "${file%_commit}_date")\`"
           }
           if [ -f "commit_info/susfs_commit" ]; then
@@ -347,9 +348,10 @@ jobs:
             out "susfs_url=https://gitlab.com/simonpunk/susfs4ksu/-/commit/$sha"
             out "susfs_date=\`$(cat commit_info/susfs_date)\`"
           fi
-          ksu_line MidoriSU midori01/KernelSU commit_info/midorisu_ksu_commit && {
+          if [ -f "commit_info/midorisu_ksu_commit" ] && [ -f "commit_info/ksu_commit_count" ]; then
             out "driver_version=$((30000 + $(cat commit_info/ksu_commit_count)))"
-          }
+          fi
+          ksu_line MidoriSU midori01/KernelSU commit_info/midorisu_ksu_commit
           ksu_line MidoriXX "$(cat commit_info/midorixx_ksu_repo 2>/dev/null)" commit_info/midorixx_ksu_commit
           ksu_line MidoriRE "$(cat commit_info/midorire_ksu_repo 2>/dev/null)" commit_info/midorire_ksu_commit
 
@@ -367,14 +369,13 @@ jobs:
             - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version }}`　**KSUD Version**: `${{ env.KSUD_VERSION }}`
             - **Manager 1**: `${{ env.MIDORISU_APK }}`
             - **Manager 2**: `${{ env.MIDORIRE_APK }}`
-            - **Compiler**: `${{ steps.meta.outputs.clang_version }}`${{ steps.meta.outputs.rust_version && format('　**Rust**: `{0}`', steps.meta.outputs.rust_version) || '' }}
             - **Kernel Name (Spoofed)**: `${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ inputs.kernel_localversion }}`
             - **Build Time (Spoofed)**: `${{ inputs.build_timestamp }}`
             - **Builder (Spoofed)**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
             - **Docker**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅　**BBR**: ✅　**IPSET**: ✅
             - **eBPF**: ${{ env.EBPF_FILE && format('✅ `({0})`', env.EBPF_FILE) || '❌' }}
             - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}
-            - **Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}
+            - **Ccache**: ${{ inputs.use_ccache && '✅' || '❌' }}　**LLVM Clang**: `${{ steps.meta.outputs.clang_version }}`${{ steps.meta.outputs.rust_version && format('　**Rust**: `{0}`', steps.meta.outputs.rust_version) || '' }}
           files: |
             release_zips/*.zip
             release_zips/*.apk
