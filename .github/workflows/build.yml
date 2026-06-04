@@ -4,6 +4,14 @@ run-name: ${{ inputs.kernel_version == 'all' && (inputs.ksu_variant == 'all' && 
 on:
   workflow_dispatch:
     inputs:
+      source_mirror:
+        description: 'Kernel Source'
+        required: true
+        default: 'midori'
+        type: choice
+        options:
+          - midori
+          - google
       kernel_version:
         description: 'Kernel Version'
         required: true
@@ -14,14 +22,6 @@ on:
           - '6.1'
           - '6.6'
           - '6.12'
-      source_mirror:
-        description: 'Kernel Source'
-        required: true
-        default: 'midori'
-        type: choice
-        options:
-          - google
-          - midori
       ksu_variant:
         description: 'KernelSU Variant'
         required: true
@@ -58,6 +58,15 @@ on:
           - 'midori01/ReSukiSU:main'
           - 'midori01/ReSukiSU:test'
           - 'ReSukiSU/ReSukiSU:main'
+      hook_mode:
+        description: "Hook Mode"
+        required: true
+        default: 'manual (MidoriXX & MidoriRE)'
+        type: choice
+        options:
+          - 'manual (MidoriXX & MidoriRE)'
+          - 'hookless (MidoriXX 6.12 only)'
+          - 'tracepoint (MidoriRE only)'
       use_ccache:
         description: 'Ccache Speedup'
         required: true
@@ -79,18 +88,10 @@ on:
         default: true
         type: boolean
       susfs_commit:
-        description: 'SUSFS Commit (Leave blank for latest)'
+        description: 'SUSFS Commit Hash (Leave blank for latest)'
         required: false
         default: ''
         type: string
-      hook_mode:
-        description: "MidoriXX Hook Mode (hookless only for 6.12)"
-        required: true
-        default: "manual"
-        type: choice
-        options:
-          - manual
-          - hookless
       kernel_localversion:
         description: 'Spoof Kernel Name'
         required: true
@@ -138,6 +139,7 @@ jobs:
       build_matrix: ${{ steps.config.outputs.build_matrix }}
       metadata: ${{ steps.config.outputs.metadata }}
       kernel_versions: ${{ steps.config.outputs.kernel_versions }}
+      hook_mode_val: ${{ steps.config.outputs.hook_mode_val }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
@@ -213,6 +215,14 @@ jobs:
           echo "metadata=$(jq -sc '.' /tmp/metadata.json)" >> $GITHUB_OUTPUT
           echo "build_matrix=$matrix" >> $GITHUB_OUTPUT
 
+          case "${{ inputs.hook_mode }}" in
+            'manual (MidoriXX & MidoriRE)') hook_mode_val="manual" ;;
+            'hookless (MidoriXX 6.12 only)') hook_mode_val="hookless" ;;
+            'tracepoint (MidoriRE only)') hook_mode_val="tracepoint" ;;
+            *) hook_mode_val="manual" ;;
+          esac
+          echo "hook_mode_val=$hook_mode_val" >> $GITHUB_OUTPUT
+
   build:
     name: "${{ matrix.kernel_version }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}"
     needs: setup
@@ -237,7 +247,7 @@ jobs:
       midorisu_branch: ${{ inputs.midorisu_branch }}
       midorixx_branch: ${{ inputs.midorixx_branch }}
       midorire_branch: ${{ inputs.midorire_branch }}
-      hook_mode: ${{ inputs.hook_mode }}
+      hook_mode: ${{ needs.setup.outputs.hook_mode_val }}
 
   build_scene_hider:
     name: "eBPF ${{ matrix.kernel_version }}"

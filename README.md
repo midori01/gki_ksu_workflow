@@ -37,12 +37,15 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | `MidoriXX-DS` | [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | Manual* |
 | `MidoriXX-SUSFS` | [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | Manual* |
 | `MidoriXX-SUSFS-DS` | [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | Manual* |
-| `MidoriRE` | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ❌ | Manual |
-| `MidoriRE-DS` | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | Manual |
-| `MidoriRE-SUSFS` | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | Inline |
-| `MidoriRE-SUSFS-DS` | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ✅ | Inline |
+| `MidoriRE` | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ❌ | Manual* |
+| `MidoriRE-DS` | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | Manual* |
+| `MidoriRE-SUSFS` | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | Inline* |
+| `MidoriRE-SUSFS-DS` | [ReSukiSU/ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ✅ | Inline* |
 
-> \* **MidoriXX Hook Strategy:** Runtime-configurable via `hook_mode`. Supports `manual` (default) or `hookless`. SUSFS integration uses de-inlined hooks.
+> \* **MidoriXX & MidoriRE Hook Strategy:** Runtime-configurable via `hook_mode`.
+> - `manual` — default for both variants
+> - `hookless` — MidoriXX 6.12 only
+> - `tracepoint` — MidoriRE only
 
 > [!TIP]
 > **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With all 3 variants selected, this yields **3 builds per kernel version**. Choosing `all` from the `kernel_version` dropdown compiles 6.1, 6.6 and 6.12 in parallel for a total of **9 concurrent jobs**.
@@ -58,6 +61,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | **De-inlined** | SUSFS hooks applied via kernel source patching rather than inline `#ifdef` blocks. | Cleaner separation of SUSFS logic from core kernel subsystems. Used by MidoriXX-SUSFS variants. |
 | **Manual** | Static kernel source patching. | Custom hooks injected at compile time into core kernel subsystems. Used by MidoriRE (non-SUSFS) and MidoriXX (default). |
 | **Hookless** | Pure KernelSU built-in mechanisms. Enables `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`. | Zero kernel source modification. Relies entirely on KernelSU's internal hooking infrastructure. Available for MidoriXX via `hook_mode: hookless`. |
+| **Tracepoint** | KernelSU tracepoint-based hooking via `CONFIG_KSU_TRACEPOINT_HOOK`. | Zero kernel source modification. Relies on tracepoint infrastructure. Available for MidoriRE via `hook_mode: tracepoint`. |
 
 ---
 

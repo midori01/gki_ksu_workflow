@@ -187,11 +187,11 @@ jobs:
         working-directory: kernel_workspace/common
         run: |
           SUSFS_DIR="${{ github.workspace }}/susfs4ksu"
+          git clone https://gitlab.com/simonpunk/susfs4ksu "$SUSFS_DIR"
           if [ -n "${{ inputs.susfs_commit }}" ]; then
-            git clone https://gitlab.com/simonpunk/susfs4ksu "$SUSFS_DIR"
             git -C "$SUSFS_DIR" checkout "${{ inputs.susfs_commit }}"
           else
-            git clone --depth=1 --branch="gki-${{ steps.cfg.outputs.kmi_version }}" https://gitlab.com/simonpunk/susfs4ksu "$SUSFS_DIR"
+            git -C "$SUSFS_DIR" checkout "gki-${{ steps.cfg.outputs.kmi_version }}"
           fi
           cp "$SUSFS_DIR"/kernel_patches/fs/* fs/
           cp "$SUSFS_DIR"/kernel_patches/include/linux/* include/linux/
@@ -209,17 +209,20 @@ jobs:
               ;;
           esac
 
-      - name: Setup Manual Hooks (MidoriXX)
-        if: inputs.variant == 'MidoriXX' && inputs.hook_mode != 'hookless'
+      - name: Setup Manual Hooks
+        if: >-
+          (inputs.variant == 'MidoriXX' && inputs.hook_mode != 'hookless') ||
+          (inputs.variant == 'MidoriRE' && inputs.hook_mode == 'manual' && inputs.use_susfs != true)
         working-directory: kernel_workspace/common
         run: |
-          patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/scope-min-manual-hooks-v2.2.patch"
-
-      - name: Setup Manual Hooks (MidoriRE)
-        if: inputs.variant == 'MidoriRE' && inputs.use_susfs != true
-        working-directory: kernel_workspace/common
-        run: |
-          patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/resukisu-manual-hooks.patch"
+          case "${{ inputs.variant }}" in
+            MidoriXX)
+              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/scope-min-manual-hooks-v2.2.patch"
+              ;;
+            MidoriRE)
+              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/resukisu-manual-hooks.patch"
+              ;;
+          esac
 
       - name: Setup Droidspaces
         if: inputs.use_droidspaces
