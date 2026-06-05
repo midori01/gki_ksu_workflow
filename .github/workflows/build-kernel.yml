@@ -12,6 +12,10 @@ on:
       use_droidspaces:
         required: true
         type: boolean
+      use_rekernel:
+        required: false
+        type: boolean
+        default: true
       use_susfs:
         required: true
         type: boolean
@@ -231,6 +235,18 @@ jobs:
           patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/fix_sysvipc_kabi.patch"
           patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/ntsync_base_compat.patch"
 
+      - name: Setup ReKernel
+        if: inputs.use_rekernel
+        working-directory: kernel_workspace/common
+        run: |
+          REKERNEL_DIR="${{ github.workspace }}/Re-Kernel"
+          git clone --depth=1 https://github.com/Sakion-Team/Re-Kernel.git "$REKERNEL_DIR"
+          cp -r "$REKERNEL_DIR"/LKM-Source drivers/rekernel
+          sed -i 's/depends on MODULES/depends on KSU/' drivers/rekernel/Kconfig
+          sed -i 's/obj-m := rekernel.o/obj-y := rekernel.o/' drivers/rekernel/Makefile
+          grep -q "rekernel" drivers/Makefile || echo 'obj-$(CONFIG_REKERNEL) += rekernel/' >> drivers/Makefile
+          grep -q "drivers/rekernel/Kconfig" drivers/Kconfig || sed -i '/endmenu/i source "drivers/rekernel/Kconfig"' drivers/Kconfig
+
       - name: Inject Kernel Configs
         uses: ./.github/actions/kernel-config
         with:
@@ -240,6 +256,7 @@ jobs:
           enable_susfs: ${{ inputs.use_susfs }}
           localversion: ${{ inputs.kernel_localversion }}
           use_droidspaces: ${{ inputs.use_droidspaces }}
+          use_rekernel: ${{ inputs.use_rekernel }}
           hook_mode: ${{ inputs.hook_mode }}
 
       - name: Save Commit Info

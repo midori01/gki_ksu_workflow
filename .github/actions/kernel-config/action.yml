@@ -22,6 +22,10 @@ inputs:
     description: 'Set to "true" to inject Droidspaces configs'
     required: false
     default: 'false'
+  use_rekernel:
+    description: 'Set to "true" to inject ReKernel configs'
+    required: false
+    default: 'false'
   localversion:
     description: 'Kernel Localversion String'
     required: true
@@ -127,6 +131,13 @@ runs:
         CONFIG_DEVTMPFS=y
         CONFIG_NTSYNC=y
         # CONFIG_ANDROID_PARANOID_NETWORK is not set
+        EOF
+        fi
+        
+        if [ "${{ inputs.use_rekernel }}" = "true" ]; then
+          cat >> $DEFCONFIG <<-'EOF'
+        CONFIG_REKERNEL=y
+        CONFIG_REKERNEL_NETWORK=y
         EOF
         fi
         

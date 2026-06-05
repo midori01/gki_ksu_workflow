@@ -77,6 +77,11 @@ on:
         required: true
         default: true
         type: boolean
+      use_rekernel:
+        description: 'ReKernel'
+        required: true
+        default: true
+        type: boolean
       build_scene_hider:
         description: 'eBPF (Scene Hider)'
         required: true
@@ -234,6 +239,7 @@ jobs:
       kernel_version: ${{ matrix.kernel_version }}
       variant: ${{ matrix.variant }}
       use_droidspaces: ${{ matrix.droidspaces }}
+      use_rekernel: ${{ inputs.use_rekernel }}
       use_susfs: ${{ matrix.susfs }}
       source_mirror: ${{ inputs.source_mirror }}
       use_ccache: ${{ inputs.use_ccache }}
@@ -380,10 +386,11 @@ jobs:
             - **Kernel Name (Spoofed)**: `${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ inputs.kernel_localversion }}`
             - **Build Time (Spoofed)**: `${{ inputs.build_timestamp }}`
             - **Builder (Spoofed)**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
-            - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅　**BBR**: ✅　**IPSET**: ✅
+            - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**ReKernel**: ${{ inputs.use_rekernel && '✅' || '❌' }}
+            - **TMPFS**: ✅　**BBR**: ✅　**IPSET**: ✅　**Ccache**: ${{ inputs.use_ccache && '✅' || '❌' }}
             - **eBPF**: ${{ env.EBPF_FILE && format('✅ `({0})`', env.EBPF_FILE) || '❌' }}
             - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}
-            - **Ccache**: ${{ inputs.use_ccache && '✅' || '❌' }}　**LLVM Clang**: `${{ steps.meta.outputs.clang_version }}`${{ steps.meta.outputs.rust_version && format('　**Rust**: `{0}`', steps.meta.outputs.rust_version) || '' }}
+            - **LLVM Clang**: `${{ steps.meta.outputs.clang_version }}`${{ steps.meta.outputs.rust_version && format('　**Rust**: `{0}`', steps.meta.outputs.rust_version) || '' }}
           files: |
             release_zips/*.zip
             release_zips/*.apk
