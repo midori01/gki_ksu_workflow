@@ -41,7 +41,6 @@ on:
         type: choice
         options:
           - 'midori01/KernelSU:main'
-          - 'midori01/KernelSU:test'
       midorixx_branch:
         description: 'MidoriXX Source'
         required: true
@@ -51,7 +50,6 @@ on:
           - 'backslashxx/KernelSU:master'
           - 'backslashxx/KernelSU:staging'
           - 'MidoriKSU/KernelSU:main'
-          - 'MidoriKSU/KernelSU:test'
       midorire_branch:
         description: 'MidoriRE Source'
         required: true
@@ -60,7 +58,6 @@ on:
         options:
           - 'ReSukiSU/ReSukiSU:main'
           - 'midori01/ReSukiSU:main'
-          - 'midori01/ReSukiSU:test'
       midorinx_branch:
         description: 'MidoriNX Source'
         required: true
@@ -69,7 +66,6 @@ on:
         options:
           - 'KernelSU-Next/KernelSU-Next:dev'
           - 'midori01/KernelSU-Next:main'
-          - 'midori01/KernelSU-Next:test'
       midoriog_branch:
         description: 'MidoriOG Source'
         required: true

@@ -1,6 +1,6 @@
-From: midori01 <midori01@users.noreply.github.com>
-Date: Sat, 30 May 2026 07:43:55 +0900
-Subject: [PATCH] Update latest SUSFS KSU-side patch for latest MidoriSU
+From: midori01 <lv@lvlv.lv>
+Date: Fri, 12 Jun 2026 21:50:12 +0900
+Subject: [PATCH] Enable SUSFS for MidoriSU
 
 ---
  kernel/Kbuild                     |  12 -
@@ -17,7 +17,7 @@ Subject: [PATCH] Update latest SUSFS KSU-side patch for latest MidoriSU
  kernel/hook/setuid_hook.h         |   3 -
  kernel/include/ksu.h              |   1 -
  kernel/policy/allowlist.c         |   9 +-
- kernel/policy/app_profile.c       |  20 +-
+ kernel/policy/app_profile.c       |  23 +-
  kernel/policy/app_profile.h       |   2 +-
  kernel/runtime/boot_event.c       |   6 +-
  kernel/runtime/ksud.h             |  17 +-
@@ -27,13 +27,13 @@ Subject: [PATCH] Update latest SUSFS KSU-side patch for latest MidoriSU
  kernel/selinux/selinux.h          |   8 +
  kernel/sulog/event.c              |  77 +++---
  kernel/sulog/event.h              |  10 +-
- kernel/supercall/dispatch.c       | 167 ++++++++----
+ kernel/supercall/dispatch.c       | 170 +++++++-----
  kernel/supercall/supercall.c      |  53 ++--
  kernel/supercall/supercall.h      |   1 +
- 27 files changed, 814 insertions(+), 942 deletions(-)
+ 27 files changed, 813 insertions(+), 949 deletions(-)
 
 diff --git a/kernel/Kbuild b/kernel/Kbuild
-index 88145377..18c25f2c 100644
+index 1d48298f..f9e796d5 100644
 --- a/kernel/Kbuild
 +++ b/kernel/Kbuild
 @@ -4,24 +4,12 @@ kernelsu-objs += feature/kernel_umount.o
@@ -170,10 +170,10 @@ index c7701661..5c169f59 100644
 +
  endmenu
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 9ffda567..e64e93fb 100644
+index 51d275a8..3f09a311 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -22,4 +22,14 @@ format:
+@@ -24,4 +24,14 @@ format:
  check-format:
  	find . \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format --dry-run --Werror
  
@@ -1637,10 +1637,10 @@ index 95c9edb1..7f2870a8 100644
  extern struct selinux_policy *backup_sepolicy;
  extern bool ksu_no_custom_rc;
 diff --git a/kernel/policy/allowlist.c b/kernel/policy/allowlist.c
-index 27186264..b458d22d 100644
+index 29732c2b..f20bb671 100644
 --- a/kernel/policy/allowlist.c
 +++ b/kernel/policy/allowlist.c
-@@ -308,14 +308,7 @@ bool ksu_uid_should_umount(uid_t uid)
+@@ -296,14 +296,7 @@ bool ksu_uid_should_umount(uid_t uid)
  {
      struct app_profile *profile;
      bool res;
@@ -1657,7 +1657,7 @@ index 27186264..b458d22d 100644
      return !__ksu_is_allow_uid(uid);
  #else
 diff --git a/kernel/policy/app_profile.c b/kernel/policy/app_profile.c
-index 1b9f506a..7da23cf5 100644
+index 01ac883b..ab23b421 100644
 --- a/kernel/policy/app_profile.c
 +++ b/kernel/policy/app_profile.c
 @@ -14,7 +14,6 @@
@@ -1686,30 +1686,38 @@ index 1b9f506a..7da23cf5 100644
      struct root_profile *profile = NULL;
      struct user_struct *new_user;
  
-@@ -117,7 +114,7 @@ int escape_with_root_profile(void)
+@@ -117,11 +114,6 @@ int escape_with_root_profile(void)
          return -ENOMEM;
      }
  
 -    if (cred->euid.val == 0) {
-+    if (susfs_is_current_ksu_domain()) {
-         pr_warn("Already root, don't escape!\n");
+-        pr_warn("Already root, don't escape!\n");
+-        goto out_abort_creds;
+-    }
+-
+     if (test_thread_flag(TIF_KSU_DISABLE_ESCAPE_WITH_ROOT)) {
+         pr_warn("TIF_KSU_DISABLE_ESCAPE_WITH_ROOT found, don't escape!\n");
          goto out_abort_creds;
-     }
-@@ -179,11 +176,8 @@ int escape_with_root_profile(void)
+@@ -184,16 +176,13 @@ int escape_with_root_profile(void)
  
      commit_creds(cred);
  
 -    disable_seccomp();
--
--    for_each_thread (p, t) {
--        ksu_set_task_tracepoint_flag(t);
--    }
 +    if (likely(test_thread_flag(TIF_SECCOMP)))
 +        disable_seccomp();
  
+     if (profile->flags & FLAG_KSU_NO_NEW_PRIVS) {
+         set_thread_flag(TIF_KSU_DISABLE_ESCAPE_WITH_ROOT);
+     }
+ 
+-    for_each_thread (p, t) {
+-        ksu_set_task_tracepoint_flag(t);
+-    }
+-
      setup_mount_ns(profile->namespaces);
      ksu_put_root_profile(profile);
-@@ -196,14 +190,16 @@ out_abort_creds:
+     return 0;
+@@ -205,14 +194,16 @@ out_abort_creds:
      return ret;
  }
  
@@ -1729,10 +1737,10 @@ index 1b9f506a..7da23cf5 100644
 +    return 0;
  }
 diff --git a/kernel/policy/app_profile.h b/kernel/policy/app_profile.h
-index 5f67ed59..bd89937a 100644
+index 5a4097ae..f63c84a8 100644
 --- a/kernel/policy/app_profile.h
 +++ b/kernel/policy/app_profile.h
-@@ -4,6 +4,6 @@
+@@ -8,6 +8,6 @@
  // Escalate current process to root with the appropriate profile
  int escape_with_root_profile(void);
  
@@ -2451,18 +2459,18 @@ index 635ec01c..90183361 100644
  int ksu_sulog_emit_grant_root(int retval, __u32 uid, __u32 euid, gfp_t gfp);
  
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 680816f7..b038f073 100644
+index c2243dcb..3214381c 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
-@@ -3,6 +3,8 @@
- #include <linux/slab.h>
+@@ -4,6 +4,8 @@
  #include <linux/uaccess.h>
  #include <linux/version.h>
+ #include <linux/thread_info.h>
 +#include <linux/namei.h>
 +#include <linux/susfs.h>
- 
  #include "uapi/supercall.h"
  #include "supercall/internal.h"
+ #include "arch.h" // IWYU pragma: keep
 @@ -16,7 +18,6 @@
  #include "manager/manager_identity.h"
  #include "selinux/selinux.h"
@@ -2481,7 +2489,17 @@ index 680816f7..b038f073 100644
  #ifdef EXPECTED_SIZE2
      cmd.flags |= KSU_GET_INFO_FLAG_PR_BUILD;
  #endif
-@@ -89,12 +87,8 @@ static int do_report_event(void __user *arg)
+@@ -82,9 +80,6 @@ static int do_get_info_legacy(void __user *arg)
+     if (is_manager()) {
+         cmd.flags |= KSU_GET_INFO_FLAG_MANAGER;
+     }
+-    if (ksu_late_loaded) {
+-        cmd.flags |= KSU_GET_INFO_FLAG_LATE_LOAD;
+-    }
+ #ifdef EXPECTED_SIZE2
+     cmd.flags |= KSU_GET_INFO_FLAG_PR_BUILD;
+ #endif
+@@ -117,12 +112,8 @@ static int do_report_event(void __user *arg)
          static bool post_fs_data_lock = false;
          if (!post_fs_data_lock) {
              post_fs_data_lock = true;
@@ -2496,7 +2514,7 @@ index 680816f7..b038f073 100644
          }
          break;
      }
-@@ -102,12 +96,9 @@ static int do_report_event(void __user *arg)
+@@ -130,12 +121,9 @@ static int do_report_event(void __user *arg)
          static bool boot_complete_lock = false;
          if (!boot_complete_lock) {
              boot_complete_lock = true;
@@ -2512,7 +2530,7 @@ index 680816f7..b038f073 100644
          }
          break;
      }
-@@ -352,7 +343,6 @@ static int do_set_app_profile(void __user *arg)
+@@ -380,7 +368,6 @@ static int do_set_app_profile(void __user *arg)
      ret = ksu_set_app_profile(&cmd.profile);
      if (!ret) {
          ksu_persistent_allow_list();
@@ -2520,7 +2538,7 @@ index 680816f7..b038f073 100644
      }
      return ret;
  }
-@@ -429,49 +419,32 @@ static int do_manage_mark(void __user *arg)
+@@ -457,49 +444,32 @@ static int do_manage_mark(void __user *arg)
      }
  
      switch (cmd.operation) {
@@ -2591,7 +2609,7 @@ index 680816f7..b038f073 100644
      }
      if (copy_to_user(arg, &cmd, sizeof(cmd))) {
          pr_err("manage_mark: copy_to_user failed\n");
-@@ -481,6 +454,90 @@ static int do_manage_mark(void __user *arg)
+@@ -509,6 +479,90 @@ static int do_manage_mark(void __user *arg)
      return 0;
  }
  
