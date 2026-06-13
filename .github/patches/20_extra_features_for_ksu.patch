@@ -1,17 +1,17 @@
 From: midori01 <lv@lvlv.lv>
-Date: Thu, 11 Jun 2026 06:20:53 +0900
-Subject: [PATCH] Enable hook type and SUSFS version display for tiann/KernelSU
+Date: Sat, 13 Jun 2026 19:00:00 +0900
+Subject: [PATCH] Enable extra features for MidoriOG
 
 ---
- kernel/supercall/dispatch.c | 48 +++++++++++++++++++++++++++++++++++++
- uapi/supercall.h            | 10 ++++++++
- 2 files changed, 58 insertions(+)
+ kernel/supercall/dispatch.c | 65 +++++++++++++++++++++++++++++++++++++
+ uapi/supercall.h            | 15 +++++++++
+ 2 files changed, 80 insertions(+)
 
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 68c333f1..a2829e3a 100644
+index 68c333f1..2a3abaee 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
-@@ -688,6 +688,42 @@ static int do_disable_escape_to_root(void __user *arg)
+@@ -688,6 +688,53 @@ static int do_disable_escape_to_root(void __user *arg)
      return 0;
  }
  
@@ -51,10 +51,21 @@ index 68c333f1..a2829e3a 100644
 +    return 0;
 +}
 +
++static int do_get_driver_name(void __user *arg)
++{
++    struct ksu_driver_name_cmd cmd = { 0 };
++    strscpy(cmd.name, "TIANN", sizeof(cmd.name));
++
++    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
++        return -EFAULT;
++    }
++    return 0;
++}
++
  // IOCTL handlers mapping table
  // clang-format off
  static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
-@@ -835,6 +871,18 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
+@@ -835,6 +882,24 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
          .handler = do_disable_escape_to_root, 
          .perm_check = only_root 
      },
@@ -70,14 +81,20 @@ index 68c333f1..a2829e3a 100644
 +        .handler = do_get_susfs_version,
 +        .perm_check = manager_or_root
 +    },
++    {
++        .cmd = KSU_IOCTL_DRIVER_NAME,
++        .name = "DRIVER_NAME",
++        .handler = do_get_driver_name,
++        .perm_check = manager_or_root
++    },
      {
          .cmd = 0,
          .name = NULL,
 diff --git a/uapi/supercall.h b/uapi/supercall.h
-index 8f345086..0987d785 100644
+index 8f345086..994769ec 100644
 --- a/uapi/supercall.h
 +++ b/uapi/supercall.h
-@@ -144,6 +144,14 @@ struct ksu_get_sulog_fd_cmd {
+@@ -144,6 +144,18 @@ struct ksu_get_sulog_fd_cmd {
      __u32 flags; /* Input: reserved for future use, must be 0 */
  };
  
@@ -89,15 +106,20 @@ index 8f345086..0987d785 100644
 +    char version[32];
 +};
 +
++struct ksu_driver_name_cmd {
++    char name[32];
++};
++
  static const __u8 KSU_UMOUNT_WIPE = 0; /* ignore everything and wipe list */
  static const __u8 KSU_UMOUNT_ADD = 1; /* add entry (path + flags) */
  static const __u8 KSU_UMOUNT_DEL = 2; /* delete entry, strcmp */
-@@ -176,5 +184,7 @@ static const __u32 KSU_IOCTL_ADD_TRY_UMOUNT = _IOC(_IOC_WRITE, 'K', 18, 0);
+@@ -176,5 +188,8 @@ static const __u32 KSU_IOCTL_ADD_TRY_UMOUNT = _IOC(_IOC_WRITE, 'K', 18, 0);
  static const __u32 KSU_IOCTL_SET_INIT_PGRP = _IO('K', 19);
  static const __u32 KSU_IOCTL_GET_SULOG_FD = _IOW('K', 20, struct ksu_get_sulog_fd_cmd);
  static const __u32 KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT = _IO('K', 21);
 +static const __u32 KSU_IOCTL_HOOK_TYPE = _IOC(_IOC_READ, 'K', 101, 0);
 +static const __u32 KSU_IOCTL_SUSFS_VERSION = _IOC(_IOC_READ, 'K', 102, 0);
++static const __u32 KSU_IOCTL_DRIVER_NAME = _IOC(_IOC_READ, 'K', 103, 0);
  
  #endif
 -- 

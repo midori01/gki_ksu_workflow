@@ -1,0 +1,105 @@
+From: midori01 <lv@lvlv.lv>
+Date: Sat, 13 Jun 2026 19:00:00 +0900
+Subject: [PATCH] Enable extra features for MidoriRE
+
+---
+ kernel/supercall/dispatch.c | 40 +++++++++++++++++++++++++++++++++++++
+ uapi/supercall.h            | 10 ++++++++++
+ 2 files changed, 50 insertions(+)
+
+diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
+index 09ab8adc..02fc6c4b 100644
+--- a/kernel/supercall/dispatch.c
++++ b/kernel/supercall/dispatch.c
+@@ -6,6 +6,7 @@
+ #include <linux/uaccess.h>
+ #include <linux/version.h>
+ #ifdef CONFIG_KSU_SUSFS
++#include <linux/susfs.h>
+ #include <linux/susfs_def.h>
+ #endif
+ 
+@@ -870,6 +871,33 @@ static int do_get_hook_type(void __user *arg)
+     return 0;
+ }
+ 
++static int do_get_susfs_version(void __user *arg)
++{
++    struct ksu_susfs_version_cmd cmd = { 0 };
++
++#ifdef CONFIG_KSU_SUSFS
++    strscpy(cmd.version, SUSFS_VERSION, sizeof(cmd.version));
++#else
++    strscpy(cmd.version, "Not supported", sizeof(cmd.version));
++#endif
++
++    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
++        return -EFAULT;
++    }
++    return 0;
++}
++
++static int do_get_driver_name(void __user *arg)
++{
++    struct ksu_driver_name_cmd cmd = { 0 };
++    strscpy(cmd.name, "RESUKI", sizeof(cmd.name));
++
++    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
++        return -EFAULT;
++    }
++    return 0;
++}
++
+ static int do_dynamic_manager(void __user *arg)
+ {
+ #ifdef CONFIG_KSU_DISABLE_MANAGER
+@@ -1294,6 +1322,18 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
+         .handler = do_get_hook_type, 
+         .perm_check = manager_or_root 
+     },
++    {
++        .cmd = KSU_IOCTL_SUSFS_VERSION,
++        .name = "SUSFS_VERSION",
++        .handler = do_get_susfs_version,
++        .perm_check = manager_or_root
++    },
++    {
++        .cmd = KSU_IOCTL_DRIVER_NAME,
++        .name = "DRIVER_NAME",
++        .handler = do_get_driver_name,
++        .perm_check = manager_or_root
++    },
+     { 
+         .cmd = KSU_IOCTL_DYNAMIC_MANAGER,
+         .name = "SET_DYNAMIC_MANAGER",
+diff --git a/uapi/supercall.h b/uapi/supercall.h
+index f74d39e3..5a7d9ab0 100644
+--- a/uapi/supercall.h
++++ b/uapi/supercall.h
+@@ -162,6 +162,14 @@ struct ksu_hook_type_cmd {
+     char hook_type[32]; // Output: hook type string
+ };
+ 
++struct ksu_susfs_version_cmd {
++    char version[32];
++};
++
++struct ksu_driver_name_cmd {
++    char name[32];
++};
++
+ DEFINE_KSU_UAPI_CONST(__u8, DYNAMIC_MANAGER_OP_SET, 0)
+ DEFINE_KSU_UAPI_CONST(__u8, DYNAMIC_MANAGER_OP_GET, 1)
+ DEFINE_KSU_UAPI_CONST(__u8, DYNAMIC_MANAGER_OP_WIPE, 2)
+@@ -222,6 +230,8 @@ DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_GET_SULOG_FD, _IOW('K', 20, struct ksu_ge
+ DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_GET_FULL_VERSION, _IOC(_IOC_READ, 'K', 100, 0))
+ DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_HOOK_TYPE, _IOC(_IOC_READ, 'K', 101, 0))
+ // 102 = ENABLE_KPM (KernelPatch Module),deprecated
++DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_SUSFS_VERSION, _IOC(_IOC_READ, 'K', 102, 0))
++DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_DRIVER_NAME, _IOC(_IOC_READ, 'K', 104, 0))
+ DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_DYNAMIC_MANAGER, _IOC(_IOC_READ | _IOC_WRITE, 'K', 103, 0))
+ // 104 = old get_managers, deprecated
+ DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_GET_MANAGERS, _IOC(_IOC_READ | _IOC_WRITE, 'K', 105, 0))
+-- 
+2.54.0
+

@@ -1,6 +1,6 @@
 From: midori01 <lv@lvlv.lv>
-Date: Wed, 10 Jun 2026 15:31:50 +0900
-Subject: [PATCH] Enable SUSFS and KSU toolkit for KernelSU-Next
+Date: Sat, 13 Jun 2026 19:00:00 +0900
+Subject: [PATCH] Enable SUSFS, KSU toolkit, and extra features for MidoriNX
 
 ---
  kernel/Kbuild                      |  75 ++++++---
@@ -26,12 +26,13 @@ Subject: [PATCH] Enable SUSFS and KSU toolkit for KernelSU-Next
  kernel/selinux/rules.c             |  22 +++
  kernel/selinux/selinux.c           | 244 ++++++++++++++++++++---------
  kernel/selinux/selinux.h           |  10 ++
- kernel/supercall/dispatch.c        | 191 +++++++++++++++++++++-
+ kernel/setup.sh                    |   2 +-
+ kernel/supercall/dispatch.c        | 208 +++++++++++++++++++++++-
  kernel/supercall/internal.h        |   2 +
  kernel/supercall/supercall.c       | 192 ++++++++++++++---------
  kernel/supercall/supercall.h       |   4 +
- uapi/supercall.h                   |  15 +-
- 28 files changed, 1521 insertions(+), 321 deletions(-)
+ uapi/supercall.h                   |  20 ++-
+ 29 files changed, 1544 insertions(+), 322 deletions(-)
 
 diff --git a/kernel/Kbuild b/kernel/Kbuild
 index a762c917..fba22ce9 100644
@@ -2532,8 +2533,21 @@ index a17ed226..325b4305 100644
 +#endif
 +
  #endif
+diff --git a/kernel/setup.sh b/kernel/setup.sh
+index 292e2c02..1ad82cfd 100755
+--- a/kernel/setup.sh
++++ b/kernel/setup.sh
+@@ -2,7 +2,7 @@
+ set -eu
+ 
+ GKI_ROOT=$(pwd)
+-OWNER="KernelSU-Next"
++OWNER="midori01"
+ REPO="$OWNER"
+ 
+ display_usage() {
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index e1801e83..108220d5 100644
+index e1801e83..86d97e78 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -4,6 +4,13 @@
@@ -2644,7 +2658,7 @@ index e1801e83..108220d5 100644
          break;
      }
      default: {
-@@ -658,24 +700,46 @@ static int add_try_umount(void __user *arg)
+@@ -658,24 +700,57 @@ static int add_try_umount(void __user *arg)
      return 0;
  }
  
@@ -2658,13 +2672,13 @@ index e1801e83..108220d5 100644
  #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 -    strscpy(cmd.mode, "Tracepoint", sizeof(cmd.mode));
 +    strscpy(cmd.hook_type, "Tracepoint", sizeof(cmd.hook_type));
- #else
--    strscpy(cmd.mode, "Kprobes", sizeof(cmd.mode));
++#else
 +    strscpy(cmd.hook_type, "Kprobes", sizeof(cmd.hook_type));
 +#endif
 +#elif defined(CONFIG_HAVE_SYSCALL_TRACEPOINTS) || defined(CONFIG_KPROBES)
 +    strscpy(cmd.hook_type, "Hybrid", sizeof(cmd.hook_type));
-+#else
+ #else
+-    strscpy(cmd.mode, "Kprobes", sizeof(cmd.mode));
 +    strscpy(cmd.hook_type, "Inline", sizeof(cmd.hook_type));
  #endif
  
@@ -2693,10 +2707,21 @@ index e1801e83..108220d5 100644
 +    return 0;
 +}
 +
++static int do_get_driver_name(void __user *arg)
++{
++    struct ksu_driver_name_cmd cmd = { 0 };
++    strscpy(cmd.name, "NEXT", sizeof(cmd.name));
++
++    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
++        return -EFAULT;
++    }
++    return 0;
++}
++
  static int do_get_version_tag(void __user *arg)
  {
      struct ksu_get_version_tag_cmd cmd = {0};
-@@ -853,9 +917,15 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
+@@ -853,9 +928,21 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
          .perm_check = only_root
      },
      {
@@ -2712,10 +2737,16 @@ index e1801e83..108220d5 100644
 +        .cmd = KSU_IOCTL_SUSFS_VERSION,
 +        .name = "SUSFS_VERSION",
 +        .handler = do_get_susfs_version,
++        .perm_check = manager_or_root
++    },
++    {
++        .cmd = KSU_IOCTL_DRIVER_NAME,
++        .name = "DRIVER_NAME",
++        .handler = do_get_driver_name,
          .perm_check = manager_or_root
      },
      {
-@@ -919,3 +989,108 @@ void ksu_supercall_cleanup_state(void)
+@@ -919,3 +1006,108 @@ void ksu_supercall_cleanup_state(void)
      }
      up_write(&mount_list_lock);
  }
@@ -3156,10 +3187,10 @@ index fbedd11f..50a35a0f 100644
  void ksu_supercalls_exit(void);
  #endif // __KSU_H_SUPERCALL
 diff --git a/uapi/supercall.h b/uapi/supercall.h
-index 4eb62a7b..12e91419 100644
+index 4eb62a7b..46966444 100644
 --- a/uapi/supercall.h
 +++ b/uapi/supercall.h
-@@ -123,14 +123,18 @@ struct ksu_manage_mark_cmd {
+@@ -123,14 +123,22 @@ struct ksu_manage_mark_cmd {
      __u32 result; /* Output: for get operation - mark status or reg_count */
  };
  
@@ -3179,10 +3210,14 @@ index 4eb62a7b..12e91419 100644
 +    char version[32];
 +};
 +
++struct ksu_driver_name_cmd {
++    char name[32];
++};
++
  static const __u32 KSU_MARK_GET = 1;
  static const __u32 KSU_MARK_MARK = 2;
  static const __u32 KSU_MARK_UNMARK = 3;
-@@ -174,7 +178,8 @@ static const __u32 KSU_IOCTL_MANAGE_MARK = _IOC(_IOC_READ | _IOC_WRITE, 'K', 16,
+@@ -174,7 +182,9 @@ static const __u32 KSU_IOCTL_MANAGE_MARK = _IOC(_IOC_READ | _IOC_WRITE, 'K', 16,
  static const __u32 KSU_IOCTL_NUKE_EXT4_SYSFS = _IOC(_IOC_WRITE, 'K', 17, 0);
  static const __u32 KSU_IOCTL_ADD_TRY_UMOUNT = _IOC(_IOC_WRITE, 'K', 18, 0);
  static const __u32 KSU_IOCTL_SET_INIT_PGRP = _IO('K', 19);
@@ -3190,6 +3225,7 @@ index 4eb62a7b..12e91419 100644
  static const __u32 KSU_IOCTL_GET_VERSION_TAG = _IOC(_IOC_READ, 'K', 99, 0);
 +static const __u32 KSU_IOCTL_HOOK_TYPE = _IOC(_IOC_READ, 'K', 101, 0);
 +static const __u32 KSU_IOCTL_SUSFS_VERSION = _IOC(_IOC_READ, 'K', 102, 0);
++static const __u32 KSU_IOCTL_DRIVER_NAME = _IOC(_IOC_READ, 'K', 104, 0);
  
  #endif
 -- 

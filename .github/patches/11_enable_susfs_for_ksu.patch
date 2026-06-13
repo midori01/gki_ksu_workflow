@@ -1,6 +1,6 @@
 From: midori01 <lv@lvlv.lv>
-Date: Thu, 11 Jun 2026 11:10:54 +0900
-Subject: [PATCH] Enable SUSFS for backslashxx/KernelSU
+Date: Sat, 13 Jun 2026 19:00:00 +0900
+Subject: [PATCH] Enable SUSFS for MidoriXX
 
 ---
  kernel/Kconfig                 | 98 +++++++++++++++++++++++++++++++++

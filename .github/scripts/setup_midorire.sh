@@ -30,4 +30,6 @@ sed -i "s|^KSU_VERSION := .*|KSU_VERSION := ${NEW_KSU_VERSION}|" KernelSU/kernel
 sed -i "s|^REPO_NAME := .*|REPO_NAME := MidoriRE|" KernelSU/kernel/Kbuild
 sed -i 's|^\(\s*default "%TAG_NAME%\).*|\1-midori-build@%REPO_NAME%"|' KernelSU/kernel/Kconfig
 
+patch -p1 -d KernelSU < "${GITHUB_WORKSPACE}/.github/patches/22_extra_features_for_ksu.patch"
+
 echo "[+] MidoriRE setup complete."
