@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sat, 13 Jun 2026 19:00:00 +0900
+Date: Thu, 18 Jun 2026 13:28:34 +0900
 Subject: [PATCH] Enable extra features for MidoriOG
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] Enable extra features for MidoriOG
  2 files changed, 80 insertions(+)
 
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 68c333f1..2a3abaee 100644
+index 68c333f1..ccf7183f 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -688,6 +688,53 @@ static int do_disable_escape_to_root(void __user *arg)
@@ -91,7 +91,7 @@ index 68c333f1..2a3abaee 100644
          .cmd = 0,
          .name = NULL,
 diff --git a/uapi/supercall.h b/uapi/supercall.h
-index 8f345086..994769ec 100644
+index 8f345086..5b0a803c 100644
 --- a/uapi/supercall.h
 +++ b/uapi/supercall.h
 @@ -144,6 +144,18 @@ struct ksu_get_sulog_fd_cmd {
@@ -119,7 +119,7 @@ index 8f345086..994769ec 100644
  static const __u32 KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT = _IO('K', 21);
 +static const __u32 KSU_IOCTL_HOOK_TYPE = _IOC(_IOC_READ, 'K', 101, 0);
 +static const __u32 KSU_IOCTL_SUSFS_VERSION = _IOC(_IOC_READ, 'K', 102, 0);
-+static const __u32 KSU_IOCTL_DRIVER_NAME = _IOC(_IOC_READ, 'K', 103, 0);
++static const __u32 KSU_IOCTL_DRIVER_NAME = _IOC(_IOC_READ, 'K', 104, 0);
  
  #endif
 -- 

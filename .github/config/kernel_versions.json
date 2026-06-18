@@ -6,9 +6,9 @@
     "revisions": {
       "162": {
         "asb_date": "2026-03",
-        "default_r": "r15",
+        "default_r": "r16",
         "supported_r": [
-          "r15",
+          "r16",
           "none"
         ]
       },
@@ -32,9 +32,9 @@
     "revisions": {
       "127": {
         "asb_date": "2026-04",
-        "default_r": "r16",
+        "default_r": "r17",
         "supported_r": [
-          "r16",
+          "r17",
           "none"
         ]
       },

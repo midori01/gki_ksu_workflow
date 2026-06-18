@@ -7,7 +7,7 @@ on:
       source_mirror:
         description: 'Kernel Source'
         required: true
-        default: 'midori'
+        default: 'google'
         type: choice
         options:
           - midori
@@ -49,7 +49,7 @@ on:
         options:
           - 'backslashxx/KernelSU:master'
           - 'backslashxx/KernelSU:staging'
-          - 'MidoriKSU/KernelSU:main'
+          - 'midori01/KernelSU:xx'
       midorire_branch:
         description: 'MidoriRE Source'
         required: true
@@ -73,6 +73,7 @@ on:
         type: choice
         options:
           - 'tiann/KernelSU:main'
+          - 'midori01/KernelSU:tiann'
       hook_mode:
         description: "Hook Mode"
         required: true
@@ -118,14 +119,14 @@ on:
         default: ''
         type: string
       kernel_localversion:
-        description: 'Spoof Kernel Name'
-        required: true
-        default: '-midori-susfs-droidspaces'
+        description: 'Spoof Kernel Name (Leave blank for auto)'
+        required: false
+        default: ''
         type: string
       build_timestamp:
-        description: 'Spoof Build Time'
-        required: true
-        default: 'Mon Feb 02 02:02:02 JST 2026'
+        description: 'Spoof Build Time (Leave blank for now)'
+        required: false
+        default: ''
         type: string
       build_user:
         description: 'Spoof Build User'
@@ -138,9 +139,9 @@ on:
         default: 'build-host'
         type: string
       build_epoch:
-        description: 'SOURCE_DATE_EPOCH'
-        required: true
-        default: '1764155774'
+        description: 'SOURCE_DATE_EPOCH (Leave blank for now)'
+        required: false
+        default: ''
         type: string
       release_type:
         description: 'Release Type'
@@ -170,6 +171,9 @@ jobs:
       metadata: ${{ steps.config.outputs.metadata }}
       kernel_versions: ${{ steps.config.outputs.kernel_versions }}
       hook_mode_val: ${{ steps.config.outputs.hook_mode_val }}
+      kernel_localversion: ${{ steps.config.outputs.kernel_localversion }}
+      build_timestamp: ${{ steps.config.outputs.build_timestamp }}
+      build_epoch: ${{ steps.config.outputs.build_epoch }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
@@ -186,6 +190,23 @@ jobs:
             kvs='["${{ inputs.kernel_version }}"]'
           fi
           echo "kernel_versions=$kvs" >> $GITHUB_OUTPUT
+
+          SUFFIX="-midori"
+          [ "${{ inputs.enable_susfs }}" = "true" ] && SUFFIX="${SUFFIX}-susfs"
+          [ "${{ inputs.use_droidspaces }}" = "true" ] && SUFFIX="${SUFFIX}-droidspaces"
+          echo "kernel_localversion=${{ inputs.kernel_localversion || 'SUFFIX_PLACEHOLDER' }}" | sed "s/SUFFIX_PLACEHOLDER/$SUFFIX/" >> $GITHUB_OUTPUT
+
+          if [ -z "${{ inputs.build_timestamp }}" ] || [ "${{ inputs.build_timestamp }}" = "''" ]; then
+            echo "build_timestamp=$(TZ='UTC' date +'%a %b %d %H:%M:%S UTC %Y')" >> $GITHUB_OUTPUT
+          else
+            echo "build_timestamp=${{ inputs.build_timestamp }}" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -z "${{ inputs.build_epoch }}" ] || [ "${{ inputs.build_epoch }}" = "''" ]; then
+            echo "build_epoch=$(date +%s)" >> $GITHUB_OUTPUT
+          else
+            echo "build_epoch=${{ inputs.build_epoch }}" >> $GITHUB_OUTPUT
+          fi
 
           rm -f /tmp/metadata.json
           echo "$kvs" | jq -r '.[]' > /tmp/kvs.txt
@@ -273,9 +294,9 @@ jobs:
       use_ccache: ${{ inputs.use_ccache }}
       susfs_commit: ${{ inputs.susfs_commit }}
       build_ebpf: ${{ inputs.build_scene_hider }}
-      kernel_localversion: ${{ inputs.kernel_localversion }}
-      build_epoch: ${{ inputs.build_epoch }}
-      build_timestamp: ${{ inputs.build_timestamp }}
+      kernel_localversion: ${{ needs.setup.outputs.kernel_localversion }}
+      build_epoch: ${{ needs.setup.outputs.build_epoch }}
+      build_timestamp: ${{ needs.setup.outputs.build_timestamp }}
       build_user: ${{ inputs.build_user }}
       build_host: ${{ inputs.build_host }}
       midorisu_branch: ${{ inputs.midorisu_branch }}
@@ -409,8 +430,8 @@ jobs:
             ${{ steps.ksu_info.outputs.susfs_url && format('- **SUSFS**: [{0}]({1}) {2}', steps.ksu_info.outputs.susfs_commit, steps.ksu_info.outputs.susfs_url, steps.ksu_info.outputs.susfs_date) || '' }}
             - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version || env.KSUD_VERSION }}`　**KSUD Version**: `${{ env.KSUD_VERSION }}`
             - **Manager**: `${{ env.MIDORISU_APK }}`
-            - **Spoofed uname**: `${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ inputs.kernel_localversion }}`
-            - **Spoofed Build Time**: `${{ inputs.build_timestamp }}`
+            - **Spoofed uname**: `${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ needs.setup.outputs.kernel_localversion }}`
+            - **Spoofed Build Time**: `${{ needs.setup.outputs.build_timestamp }}`
             - **Spoofed Builder**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
             - **Unicode Bypass**: ${{ inputs.unicode_bypass_fix && '`✅ Fixed`' || '`❌ Vulnerable`' }}　**Re:Kernel**: ${{ inputs.use_rekernel && '`✅ Built-in`' || '❌' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**Ccache**: ${{ inputs.use_ccache && '`✅ Enabled`' || '`❌ Disabled`' }}

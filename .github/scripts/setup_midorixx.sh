@@ -13,17 +13,14 @@ if [ -f "KernelSU/kernel/manager/apk_sign.c" ]; then
   echo -e "bool is_manager_apk(char *path)\n{\n\tchar pkg[KSU_MAX_PACKAGE_NAME];\n\tif (get_pkg_from_apk_path(pkg, path) < 0) {\n\t\treturn false;\n\t}\n\treturn strcmp(pkg, \"com.midori.supermanager\") == 0 ||\n\t       strcmp(pkg, \"com.midori.su.manager\") == 0;\n}" >> KernelSU/kernel/manager/apk_sign.c
 fi
 
-git clone --bare https://github.com/midori01/KernelSU.git /tmp/midorisu
-COMMIT_COUNT=$(git -C /tmp/midorisu rev-list --count HEAD)
-rm -rf /tmp/midorisu
+NEW_KSU_VERSION="${KSU_VERSION:-0}"
 
-NEW_KSU_VERSION=$((30999 + COMMIT_COUNT))
 echo "[+] Dynamic KSU_VERSION (based on MidoriSU): $NEW_KSU_VERSION"
 
 if [ -f "KernelSU/kernel/Makefile" ]; then
   sed -i "s/-DKSU_VERSION=[0-9]*/-DKSU_VERSION=$NEW_KSU_VERSION/g" KernelSU/kernel/Makefile
 fi
 
-patch -p1 -d KernelSU < "${GITHUB_WORKSPACE}/.github/patches/21_extra_features_for_ksu.patch"
+patch -p1 -d KernelSU --forward < "${GITHUB_WORKSPACE}/.github/patches/21_extra_features_for_ksu.patch" || true
 
 echo "[+] MidoriXX setup complete."

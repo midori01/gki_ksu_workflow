@@ -1,11 +1,10 @@
 From: midori01 <lv@lvlv.lv>
-Date: Fri, 12 Jun 2026 21:50:12 +0900
+Date: Tue, 16 Jun 2026 18:33:17 +0900
 Subject: [PATCH] Enable SUSFS for MidoriSU
 
 ---
  kernel/Kbuild                     |  12 -
  kernel/Kconfig                    |  92 ++++++-
- kernel/Makefile                   |  10 +
  kernel/core/init.c                | 103 ++------
  kernel/feature/adb_root.c         |  54 ++--
  kernel/feature/adb_root.h         |   2 +-
@@ -30,7 +29,7 @@ Subject: [PATCH] Enable SUSFS for MidoriSU
  kernel/supercall/dispatch.c       | 170 +++++++-----
  kernel/supercall/supercall.c      |  53 ++--
  kernel/supercall/supercall.h      |   1 +
- 27 files changed, 813 insertions(+), 949 deletions(-)
+ 26 files changed, 803 insertions(+), 949 deletions(-)
 
 diff --git a/kernel/Kbuild b/kernel/Kbuild
 index 1d48298f..f9e796d5 100644
@@ -169,25 +168,6 @@ index c7701661..5c169f59 100644
 +endmenu
 +
  endmenu
-diff --git a/kernel/Makefile b/kernel/Makefile
-index 51d275a8..3f09a311 100644
---- a/kernel/Makefile
-+++ b/kernel/Makefile
-@@ -24,4 +24,14 @@ format:
- check-format:
- 	find . \( -name "*.c" -o -name "*.h" \) -print0 | xargs -0 clang-format --dry-run --Werror
- 
-+## For susfs stuff ##
-+ifeq ($(shell test -e $(srctree)/fs/susfs.c; echo $$?),0)
-+$(eval SUSFS_VERSION=$(shell cat $(srctree)/include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g'))
-+$(info )
-+$(info -- SUSFS_VERSION: $(SUSFS_VERSION))
-+else
-+$(info -- You have not integrated susfs in your kernel yet.)
-+$(info -- Read: https://gitlab.com/simonpunk/susfs4ksu)
-+endif
-+
- # Keep a new line here!! Because someone may append config
 diff --git a/kernel/core/init.c b/kernel/core/init.c
 index a88af14b..84ac2e88 100644
 --- a/kernel/core/init.c
@@ -2459,7 +2439,7 @@ index 635ec01c..90183361 100644
  int ksu_sulog_emit_grant_root(int retval, __u32 uid, __u32 euid, gfp_t gfp);
  
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index c2243dcb..3214381c 100644
+index 39d9f486..2c3579b8 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -4,6 +4,8 @@

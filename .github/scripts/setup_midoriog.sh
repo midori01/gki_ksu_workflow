@@ -3,8 +3,6 @@ set -eu
 
 echo "[+] Setting up MidoriOG (Change Manager and VersionCode)..."
 
-sed -i '/^ccflags-y.*KSU_KERNEL_DIR/c\ccflags-y += -I$(srctree)/$(src) -I$(srctree)/$(src)/include -I$(src) -I$(src)/include' KernelSU/kernel/Kbuild
-
 if [ -f "KernelSU/kernel/manager/apk_sign.c" ]; then
   sed -i 's/unsigned char buffer\[0x11\] = { 0 };/return true;\n\tunsigned char buffer[0x11] = { 0 };/g' KernelSU/kernel/manager/apk_sign.c
   sed -i '/^bool is_manager_apk/,/^}$/d' KernelSU/kernel/manager/apk_sign.c
@@ -22,15 +20,12 @@ bool is_manager_apk(char *path)
 EOF
 fi
 
-git clone --bare https://github.com/midori01/KernelSU.git /tmp/midorisu
-COMMIT_COUNT=$(git -C /tmp/midorisu rev-list --count HEAD)
-rm -rf /tmp/midorisu
+NEW_KSU_VERSION="${KSU_VERSION:-0}"
 
-NEW_KSU_VERSION=$((30999 + COMMIT_COUNT))
 echo "[+] Dynamic KSU_VERSION (based on MidoriSU): $NEW_KSU_VERSION"
 
 sed -i "s|^\$(eval KSU_VERSION=.*|KSU_VERSION := ${NEW_KSU_VERSION}|" KernelSU/kernel/Kbuild
 
-patch -p1 -d KernelSU < "${GITHUB_WORKSPACE}/.github/patches/20_extra_features_for_ksu.patch"
+patch -p1 -d KernelSU --forward < "${GITHUB_WORKSPACE}/.github/patches/20_extra_features_for_ksu.patch" || true
 
 echo "[+] MidoriOG setup complete."

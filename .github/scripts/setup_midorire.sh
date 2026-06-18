@@ -19,17 +19,14 @@ bool is_manager_apk(char *path, u8 *signature_index)
 EOF
 fi
 
-git clone --bare https://github.com/midori01/KernelSU.git /tmp/midorisu
-COMMIT_COUNT=$(git -C /tmp/midorisu rev-list --count HEAD)
-rm -rf /tmp/midorisu
+NEW_KSU_VERSION="${KSU_VERSION:-0}"
 
-NEW_KSU_VERSION=$((30999 + COMMIT_COUNT))
 echo "[+] Dynamic KSU_VERSION (based on MidoriSU): $NEW_KSU_VERSION"
 
 sed -i "s|^KSU_VERSION := .*|KSU_VERSION := ${NEW_KSU_VERSION}|" KernelSU/kernel/Kbuild
 sed -i "s|^REPO_NAME := .*|REPO_NAME := MidoriRE|" KernelSU/kernel/Kbuild
 sed -i 's|^\(\s*default "%TAG_NAME%\).*|\1-midori-build@%REPO_NAME%"|' KernelSU/kernel/Kconfig
 
-patch -p1 -d KernelSU < "${GITHUB_WORKSPACE}/.github/patches/22_extra_features_for_ksu.patch"
+patch -p1 -d KernelSU --forward < "${GITHUB_WORKSPACE}/.github/patches/22_extra_features_for_ksu.patch" || true
 
 echo "[+] MidoriRE setup complete."

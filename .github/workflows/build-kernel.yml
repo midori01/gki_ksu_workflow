@@ -151,8 +151,8 @@ jobs:
             -o keep_comments_cpp=true \
             -o "cache_dir=${{ env.CCACHE_DIR }}" \
             -o "base_dir=${{ github.workspace }}" \
-            -o file_clone=true \
-            -o hard_link=true \
+            -o file_clone=false \
+            -o hard_link=false \
             -z
 
       - name: Download Toolchains & Kernel Source
@@ -185,11 +185,19 @@ jobs:
       - name: Setup KernelSU
         working-directory: kernel_workspace/common
         run: |
+          echo "[+] Fetching commit count from MidoriSU..."
+          COMMIT_COUNT=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/midori01/KernelSU/commits?per_page=1" \
+            -I 2>&1 | grep "link:" | grep -oP '&page=\K\d+(?=>; rel="last")')
+          COMMIT_COUNT=${COMMIT_COUNT:-0}
+          KSU_VERSION=$((30999 + COMMIT_COUNT))
+          echo "[+] KSU_VERSION=$KSU_VERSION"
+          export KSU_VERSION
           case "${{ inputs.variant }}" in
             MidoriSU)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_branch }}"
               git clone --branch="${BRANCH}" "https://github.com/${REPO}.git" KernelSU
-              sed -i '/^ccflags-y.*KSU_KERNEL_DIR/c\ccflags-y += -I$(srctree)/$(src) -I$(srctree)/$(src)/include -I$(src) -I$(src)/include' KernelSU/kernel/Kbuild
               ;;
             MidoriXX)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorixx_branch }}"
@@ -212,6 +220,7 @@ jobs:
               bash "${{ github.workspace }}/.github/scripts/setup_midoriog.sh"
               ;;
           esac
+          sed -i '/^ccflags-y.*KSU_KERNEL_DIR/c\ccflags-y += -I$(srctree)/$(src) -I$(srctree)/$(src)/include -I$(src) -I$(src)/include' KernelSU/kernel/Kbuild || true
           ln -sf ../KernelSU/kernel drivers/kernelsu
           grep -q "kernelsu" drivers/Makefile || echo 'obj-$(CONFIG_KSU) += kernelsu/' >> drivers/Makefile
           grep -q "drivers/kernelsu/Kconfig" drivers/Kconfig || sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' drivers/Kconfig
@@ -381,7 +390,7 @@ jobs:
           export KBUILD_BUILD_USER="${{ inputs.build_user }}"
           make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
           make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
-          [ "${{ inputs.use_ccache }}" = "true" ] && ccache -s
+          [ "${{ inputs.use_ccache }}" = "true" ] && ccache -s || true
 
       - name: Export vmlinux for eBPF
         if: inputs.build_ebpf

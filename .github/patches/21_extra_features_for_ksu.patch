@@ -1,14 +1,14 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sat, 13 Jun 2026 19:00:00 +0900
+Date: Thu, 18 Jun 2026 15:49:27 +0900
 Subject: [PATCH] Enable extra features for MidoriXX
 
 ---
  kernel/include/uapi/supercall.h | 15 +++++++++
- kernel/supercall/dispatch.c     | 54 +++++++++++++++++++++++++++++++++
- 2 files changed, 69 insertions(+)
+ kernel/supercall/dispatch.c     | 60 +++++++++++++++++++++++++++++++++
+ 2 files changed, 75 insertions(+)
 
 diff --git a/kernel/include/uapi/supercall.h b/kernel/include/uapi/supercall.h
-index 839b2503..7af21f33 100644
+index 839b2503..c5f189a6 100644
 --- a/kernel/include/uapi/supercall.h
 +++ b/kernel/include/uapi/supercall.h
 @@ -139,6 +139,18 @@ struct ksu_get_sulog_fd_cmd {
@@ -40,10 +40,10 @@ index 839b2503..7af21f33 100644
  
  #endif
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 014291a8..33bb5cee 100644
+index 014291a8..d9c546e3 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
-@@ -690,6 +690,57 @@ static int do_disable_escape_to_root(void __user *arg)
+@@ -690,6 +690,63 @@ static int do_disable_escape_to_root(void __user *arg)
  	return 0;
  }
  
@@ -52,7 +52,13 @@ index 014291a8..33bb5cee 100644
 +    struct ksu_hook_type_cmd cmd = { 0 };
 +
 +#if defined(CONFIG_KSU_SUSFS)
-+    const char *type = "De-inlined";
++    #if defined(CONFIG_KSU_HACK_ARM64_BRANCH_LINK) || defined(CONFIG_KSU_TAMPER_SYSCALL_TABLE)
++        const char *type = "De-inlined (Hookless)";
++    #elif defined(CONFIG_KSU_KPROBES_KSUD)
++        const char *type = "De-inlined (Hybrid)";
++    #else
++        const char *type = "De-inlined (Manual)";
++    #endif
 +#elif defined(CONFIG_KSU_HACK_ARM64_BRANCH_LINK) || defined(CONFIG_KSU_TAMPER_SYSCALL_TABLE)
 +    const char *type = "Hookless";
 +#elif defined(CONFIG_KSU_KPROBES_KSUD)
@@ -101,7 +107,7 @@ index 014291a8..33bb5cee 100644
  // IOCTL handlers mapping table
  static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
  	{ .cmd = KSU_IOCTL_GRANT_ROOT, .name = "GRANT_ROOT", .handler = do_grant_root, .perm_check = allowed_for_su },
-@@ -716,6 +767,9 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
+@@ -716,6 +773,9 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
  	{ .cmd = KSU_IOCTL_SET_INIT_PGRP, .name = "SET_INIT_PGRP", .handler = do_set_init_pgrp, .perm_check = only_root },
  	{ .cmd = KSU_IOCTL_GET_SULOG_FD, .name = "GET_SULOG_FD", .handler = do_get_sulog_fd, .perm_check = only_root },
  	{ .cmd = KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT, .name = "DISABLE_ESCAPE_TO_ROOT", .handler = do_disable_escape_to_root, .perm_check = only_root },
