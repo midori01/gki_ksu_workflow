@@ -1,6 +1,6 @@
 From: midori01 <lv@lvlv.lv>
-Date: Wed, 17 Jun 2026 20:43:47 +0900
-Subject: [PATCH] Enable SUSFS for XX
+Date: Fri, 19 Jun 2026 09:41:33 +0900
+Subject: [PATCH] Enable SUSFS for MidoriXX
 
 ---
  kernel/Kconfig               | 90 +++++++++++++++++++++++++++++++++
@@ -14,7 +14,7 @@ Subject: [PATCH] Enable SUSFS for XX
  8 files changed, 374 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/Kconfig b/kernel/Kconfig
-index 7ef29318..30d8ee10 100644
+index 1c9baa76..0a01e625 100644
 --- a/kernel/Kconfig
 +++ b/kernel/Kconfig
 @@ -82,4 +82,94 @@ config KSU_LSM_SECURITY_HOOKS
@@ -213,10 +213,10 @@ index 041c06e6..547a2515 100644
  
  	ksu_file_wrapper_init();
 diff --git a/kernel/selinux/rules.c b/kernel/selinux/rules.c
-index e05e5f68..bd96eeb1 100644
+index 12a7a170..ffe073c6 100644
 --- a/kernel/selinux/rules.c
 +++ b/kernel/selinux/rules.c
-@@ -192,6 +192,14 @@ do_stop_machine:
+@@ -199,6 +199,14 @@ do_stop_machine:
  out_flush:
  	smp_mb();
  	reset_avc_cache();
@@ -360,7 +360,7 @@ index cbeac553..b59a48e7 100644
  
  void setenforce(bool);
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 853f7e02..63b917d7 100644
+index 014291a8..2e4df838 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -1,3 +1,11 @@
