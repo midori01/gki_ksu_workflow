@@ -1,49 +1,40 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sat, 20 Jun 2026 14:50:28 +0900
-Subject: [PATCH] Enable extra features for MidoriSU-NX
+Date: Sun, 21 Jun 2026 10:19:49 +0900
+Subject: [PATCH] Enable extra features for MidoriSU-KO
 
 ---
- kernel/supercall/dispatch.c | 61 ++++++++++++++++++++++++++++++++-----
- uapi/supercall.h            | 16 ++++++++--
- 2 files changed, 66 insertions(+), 11 deletions(-)
+ kernel/supercall/dispatch.c | 65 +++++++++++++++++++++++++++++++++++++
+ uapi/supercall.h            | 15 +++++++++
+ 2 files changed, 80 insertions(+)
 
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 902631d9..46e3354b 100644
+index 294c75b9..39d9f486 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
-@@ -690,24 +690,57 @@ static int add_try_umount(void __user *arg)
+@@ -753,6 +753,53 @@ static int do_disable_escape_to_root(void __user *arg)
      return 0;
  }
  
--static int do_get_hook_mode(void __user *arg)
 +static int do_get_hook_type(void __user *arg)
- {
--    struct ksu_get_hook_mode_cmd cmd = {0};
-+    struct ksu_hook_type_cmd cmd = {0};
- 
-+#ifndef CONFIG_KSU_SUSFS
- #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
--    strscpy(cmd.mode, "Tracepoint", sizeof(cmd.mode));
-+    strscpy(cmd.hook_type, "Tracepoint", sizeof(cmd.hook_type));
- #else
--    strscpy(cmd.mode, "Kprobes", sizeof(cmd.mode));
-+    strscpy(cmd.hook_type, "Kprobes", sizeof(cmd.hook_type));
-+#endif
-+#elif defined(CONFIG_HAVE_SYSCALL_TRACEPOINTS) || defined(CONFIG_KPROBES)
-+    strscpy(cmd.hook_type, "Hybrid", sizeof(cmd.hook_type));
++{
++    struct ksu_hook_type_cmd cmd = { 0 };
++
++#ifdef CONFIG_KSU_SUSFS
++    const char *type = "Inline";
 +#else
-+    strscpy(cmd.hook_type, "Inline", sizeof(cmd.hook_type));
- #endif
- 
-     if (copy_to_user(arg, &cmd, sizeof(cmd))) {
--        pr_err("get_hook_mode: copy_to_user failed\n");
++    const char *type = "Kprobes";
++#endif
++
++    strscpy(cmd.hook_type, type, sizeof(cmd.hook_type));
++
++    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
 +        pr_err("get_hook_type: copy_to_user failed\n");
-         return -EFAULT;
-     }
- 
-     return 0;
- }
- 
++        return -EFAULT;
++    }
++
++    return 0;
++}
++
 +static int do_get_susfs_version(void __user *arg)
 +{
 +    struct ksu_susfs_version_cmd cmd = { 0 };
@@ -63,7 +54,7 @@ index 902631d9..46e3354b 100644
 +static int do_get_driver_name(void __user *arg)
 +{
 +    struct ksu_driver_name_cmd cmd = { 0 };
-+    strscpy(cmd.name, "NEXT", sizeof(cmd.name));
++    strscpy(cmd.name, "KOW", sizeof(cmd.name));
 +
 +    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
 +        return -EFAULT;
@@ -71,16 +62,14 @@ index 902631d9..46e3354b 100644
 +    return 0;
 +}
 +
- static int do_get_version_tag(void __user *arg)
- {
-     struct ksu_get_version_tag_cmd cmd = {0};
-@@ -926,9 +959,21 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
+ // IOCTL handlers mapping table
+ // clang-format off
+ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
+@@ -900,6 +947,24 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
+         .handler = do_disable_escape_to_root, 
          .perm_check = only_root 
      },
-     {
--        .cmd = KSU_IOCTL_GET_HOOK_MODE,
--        .name = "GET_HOOK_MODE",
--        .handler = do_get_hook_mode,
++    {
 +        .cmd = KSU_IOCTL_HOOK_TYPE,
 +        .name = "HOOK_TYPE",
 +        .handler = do_get_hook_type,
@@ -96,19 +85,19 @@ index 902631d9..46e3354b 100644
 +        .cmd = KSU_IOCTL_DRIVER_NAME,
 +        .name = "DRIVER_NAME",
 +        .handler = do_get_driver_name,
-         .perm_check = manager_or_root
-     },
++        .perm_check = manager_or_root
++    },
      {
+         .cmd = 0,
+         .name = NULL,
 diff --git a/uapi/supercall.h b/uapi/supercall.h
-index 3559b7c1..56d9b8e2 100644
+index 8f345086..5b0a803c 100644
 --- a/uapi/supercall.h
 +++ b/uapi/supercall.h
-@@ -133,8 +133,16 @@ struct ksu_manage_mark_cmd {
-     __u32 result; /* Output: for get operation - mark status or reg_count */
+@@ -144,6 +144,18 @@ struct ksu_get_sulog_fd_cmd {
+     __u32 flags; /* Input: reserved for future use, must be 0 */
  };
  
--struct ksu_get_hook_mode_cmd {
--    char mode[16];
 +struct ksu_hook_type_cmd {
 +    char hook_type[32];
 +};
@@ -119,18 +108,18 @@ index 3559b7c1..56d9b8e2 100644
 +
 +struct ksu_driver_name_cmd {
 +    char name[32];
- };
- 
- struct ksu_get_version_tag_cmd {
-@@ -192,7 +200,9 @@ static const __u32 KSU_IOCTL_ADD_TRY_UMOUNT = _IOC(_IOC_WRITE, 'K', 18, 0);
++};
++
+ static const __u8 KSU_UMOUNT_WIPE = 0; /* ignore everything and wipe list */
+ static const __u8 KSU_UMOUNT_ADD = 1; /* add entry (path + flags) */
+ static const __u8 KSU_UMOUNT_DEL = 2; /* delete entry, strcmp */
+@@ -176,5 +188,8 @@ static const __u32 KSU_IOCTL_ADD_TRY_UMOUNT = _IOC(_IOC_WRITE, 'K', 18, 0);
  static const __u32 KSU_IOCTL_SET_INIT_PGRP = _IO('K', 19);
  static const __u32 KSU_IOCTL_GET_SULOG_FD = _IOW('K', 20, struct ksu_get_sulog_fd_cmd);
  static const __u32 KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT = _IO('K', 21);
--static const __u32 KSU_IOCTL_GET_HOOK_MODE = _IOC(_IOC_READ, 'K', 98, 0);
 +static const __u32 KSU_IOCTL_HOOK_TYPE = _IOC(_IOC_READ, 'K', 101, 0);
 +static const __u32 KSU_IOCTL_SUSFS_VERSION = _IOC(_IOC_READ, 'K', 102, 0);
 +static const __u32 KSU_IOCTL_DRIVER_NAME = _IOC(_IOC_READ, 'K', 104, 0);
- static const __u32 KSU_IOCTL_GET_VERSION_TAG = _IOC(_IOC_READ, 'K', 99, 0);
  
  #endif
 -- 

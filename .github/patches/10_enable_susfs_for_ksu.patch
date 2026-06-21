@@ -1,10 +1,10 @@
 From: midori01 <lv@lvlv.lv>
 Date: Fri, 19 Jun 2026 23:00:59 +0900
-Subject: [PATCH] Enable SUSFS for MidoriSU
+Subject: [PATCH] Enable SUSFS for MidoriSU-KO
 
 ---
  kernel/Kbuild                      |  12 -
- kernel/Kconfig                     |  92 ++++++-
+ kernel/Kconfig                     | 102 ++++++-
  kernel/core/init.c                 | 103 ++-----
  kernel/feature/adb_root.c          |  54 ++--
  kernel/feature/adb_root.h          |   2 +-
@@ -16,13 +16,15 @@ Subject: [PATCH] Enable SUSFS for MidoriSU
  kernel/hook/setuid_hook.h          |   3 -
  kernel/hook/syscall_event_bridge.c |  24 +-
  kernel/include/ksu.h               |   1 -
+ kernel/manager/throne_tracker.c    |  84 +++++-
+ kernel/manager/throne_tracker.h    |  49 +++-
  kernel/policy/allowlist.c          |   9 +-
  kernel/policy/app_profile.c        |  23 +-
  kernel/policy/app_profile.h        |   2 +-
  kernel/runtime/boot_event.c        |   6 +-
  kernel/runtime/ksud.h              |  17 +-
  kernel/runtime/ksud_integration.c  | 219 +++++----------
- kernel/selinux/rules.c             |   2 +
+ kernel/selinux/rules.c             |  13 +
  kernel/selinux/selinux.c           |  82 ++++++
  kernel/selinux/selinux.h           |   8 +
  kernel/sulog/event.c               |  77 +++---
@@ -30,7 +32,7 @@ Subject: [PATCH] Enable SUSFS for MidoriSU
  kernel/supercall/dispatch.c        | 170 ++++++++----
  kernel/supercall/supercall.c       |  53 ++--
  kernel/supercall/supercall.h       |   1 +
- 27 files changed, 812 insertions(+), 1027 deletions(-)
+ 29 files changed, 957 insertions(+), 1036 deletions(-)
 
 diff --git a/kernel/Kbuild b/kernel/Kbuild
 index 88145377..18c25f2c 100644
@@ -62,7 +64,7 @@ index 88145377..18c25f2c 100644
  ifneq ($(CONFIG_KSU_DISABLE_MANAGER),y)
  kernelsu-objs += manager/apk_sign.o
 diff --git a/kernel/Kconfig b/kernel/Kconfig
-index c7701661..5c169f59 100644
+index c7701661..12c59e37 100644
 --- a/kernel/Kconfig
 +++ b/kernel/Kconfig
 @@ -2,7 +2,6 @@ menu "KernelSU"
@@ -73,7 +75,24 @@ index c7701661..5c169f59 100644
  	default y
  	help
  	  Enable kernel-level root privileges on Android System.
-@@ -35,4 +34,95 @@ config KSU_DISABLE_POLICY
+@@ -11,6 +10,16 @@ config KSU
+ 	  To compile as a module, choose M here: the
+ 	  module will be called kernelsu.
+ 
++config KSU_THRONE_TRACKER_ALWAYS_THREADED
++	bool "Always run throne tracker in a kthread"
++	depends on KSU
++	default y
++	help
++	  Runs throne_tracker in a separate kthread, including the first run.
++	  Significantly decreases boot time, but may delay crowning slightly
++	  on some FDE / FBEv1 setups.
++	  If unsure, say n.
++
+ config KSU_DEBUG
+ 	bool "KernelSU debug mode"
+ 	depends on KSU
+@@ -35,4 +44,95 @@ config KSU_DISABLE_POLICY
  	  Escalation will always use the default full root profile, and
  	  non-root handling will follow the global umount policy only.
  
@@ -1731,6 +1750,202 @@ index 95c9edb1..7f2870a8 100644
  extern bool allow_shell;
  extern struct selinux_policy *backup_sepolicy;
  extern bool ksu_no_custom_rc;
+diff --git a/kernel/manager/throne_tracker.c b/kernel/manager/throne_tracker.c
+index 1ae6c24a..89bb95c1 100644
+--- a/kernel/manager/throne_tracker.c
++++ b/kernel/manager/throne_tracker.c
+@@ -5,7 +5,15 @@
+ #include <linux/string.h>
+ #include <linux/types.h>
+ #include <linux/version.h>
+-
++#ifdef CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED
++#include <linux/kthread.h>
++#include <linux/sched.h>
++#endif
++#include <linux/compiler.h>  // WRITE_ONCE
++#include <linux/delay.h>     // msleep
++#include <linux/preempt.h>   // in_atomic()
++#include <linux/irqflags.h>  // irqs_disabled()
++#include <linux/atomic.h>    // cmpxchg
+ #include "policy/allowlist.h"
+ #include "manager/apk_sign.h"
+ #include "klog.h" // IWYU pragma: keep
+@@ -185,7 +193,7 @@ void search_manager(const char *path, int depth, struct list_head *uid_data)
+             struct file *file;
+ 
+             if (!stop) {
+-                file = filp_open(pos->dirpath, O_RDONLY | O_NOFOLLOW, 0);
++                file = filp_open(pos->dirpath, O_RDONLY | O_NOFOLLOW | O_DIRECTORY, 0);
+                 if (IS_ERR(file)) {
+                     pr_err("Failed to open directory: %s, err: %ld\n", pos->dirpath, PTR_ERR(file));
+                     goto skip_iterate;
+@@ -243,11 +251,24 @@ static bool is_uid_exist(uid_t uid, char *package, void *data)
+     return exist;
+ }
+ 
+-void track_throne(bool prune_only)
++static void track_throne_function(bool prune_only)
+ {
+-    struct file *fp = filp_open(SYSTEM_PACKAGES_LIST_PATH, O_RDONLY, 0);
++	struct file *fp = NULL;
++	int t;
++	long err = -ENOENT;
++
++	// Retry (open; avoids races with pkg. mgr. packages.list update(s); hint: is_lock_held)
++	for (t = 0;
++		t < 10 && IS_ERR(fp = filp_open(SYSTEM_PACKAGES_LIST_PATH, O_RDONLY, 0));
++		t++) {
++			err = PTR_ERR(fp);
++			if (!is_lock_held(SYSTEM_PACKAGES_LIST_PATH) &&
++				err != -EBUSY && err != -EAGAIN && err != -ENOENT)
++					break;
++			msleep(100);
++	}
+     if (IS_ERR(fp)) {
+-        pr_err("%s: open " SYSTEM_PACKAGES_LIST_PATH " failed: %ld\n", __func__, PTR_ERR(fp));
++        pr_err("%s: open " SYSTEM_PACKAGES_LIST_PATH " failed: %ld\n", __func__, err);
+         return;
+     }
+ 
+@@ -271,7 +292,7 @@ void track_throne(bool prune_only)
+         }
+         buf[count] = '\0';
+ 
+-        struct uid_data *data = kzalloc(sizeof(struct uid_data), GFP_KERNEL);
++        struct uid_data *data = kzalloc(sizeof(*data), GFP_KERNEL);
+         if (!data) {
+             filp_close(fp, 0);
+             goto out;
+@@ -339,6 +360,57 @@ out:
+     }
+ }
+ 
++#ifdef CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED
++static struct task_struct *throne_thread;
++static int throne_tracker_thread(void *data);
++
++// Wrapper
++void track_throne(bool prune_only)
++{
++	struct task_struct *t;
++
++	/*
++	 * Single-flight; do nothing if thread running
++	 *                race closure via sentinel set: ERR_PTR(-EINPROGRESS)
++	 *
++	 */
++	if (cmpxchg(&throne_thread, NULL,
++			(struct task_struct *)ERR_PTR(-EINPROGRESS)) != NULL)
++		return;
++
++	t = kthread_run(throne_tracker_thread,
++			(void *)(unsigned long)prune_only,
++			"throne_tracker");
++
++	if (IS_ERR(t))
++		WRITE_ONCE(throne_thread, NULL);
++	else
++		WRITE_ONCE(throne_thread, t);
++}
++
++// Threaded
++static int throne_tracker_thread(void *data)
++{
++	bool prune_only = (bool)(unsigned long)data;
++
++	pr_info("%s: pid: %d started (prune_only=%d)\n",
++		__func__, current->pid, prune_only);
++
++	track_throne_function(prune_only);
++
++	// clear slot
++	WRITE_ONCE(throne_thread, NULL);
++
++	pr_info("%s: pid: %d exit\n", __func__, current->pid);
++	return 0;
++}
++#else
++void track_throne(bool prune_only)
++{
++	track_throne_function(prune_only);
++}
++#endif // CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED
++
+ void __init ksu_throne_tracker_init()
+ {
+     // nothing to do
+diff --git a/kernel/manager/throne_tracker.h b/kernel/manager/throne_tracker.h
+index 3ca346c1..8dc42d50 100644
+--- a/kernel/manager/throne_tracker.h
++++ b/kernel/manager/throne_tracker.h
+@@ -2,8 +2,10 @@
+ #define __KSU_H_UID_OBSERVER
+ 
+ #include <linux/types.h>
++#include <linux/namei.h>
++#include <linux/spinlock.h>
+ #ifdef CONFIG_KSU_DISABLE_MANAGER
+-static inline void ksu_throne_tracker_init()
++static inline void ksu_throne_tracker_init(void)
+ {
+ }
+ 
+@@ -16,11 +18,52 @@ static inline void track_throne(bool prune_only)
+     (void)prune_only;
+ }
+ #else
+-void ksu_throne_tracker_init();
++void ksu_throne_tracker_init(void);
+ 
+-void ksu_throne_tracker_exit();
++void ksu_throne_tracker_exit(void);
+ 
+ void track_throne(bool prune_only);
++
++/*
++ * small helper to check if lock is held / file stability
++ * false - file is stable
++ * true  - file is being deleted / renamed | written / replaced
++ *
++ */
++static inline bool is_lock_held(const char *path)
++{
++	struct path kpath;
++
++	// kern_path returns 0 on success
++	if (kern_path(path, 0, &kpath))
++		return true;
++
++	// just being defensive
++	if (!kpath.dentry) {
++		path_put(&kpath);
++		return true;
++	}
++
++	// Dentry (deleted / renamed)
++	if (!spin_trylock(&kpath.dentry->d_lock)) {
++		pr_info("%s: lock held, bail out!\n", __func__);
++		path_put(&kpath);
++		return true;
++	}
++
++	// trylock succeeded; no dentry locked
++
++	spin_unlock(&kpath.dentry->d_lock);
++
++	// Inode (written / replaced)
++	if (inode_is_locked(kpath.dentry->d_inode)) {
++		path_put(&kpath);
++		return true;
++	}
++
++	path_put(&kpath);
++	return false;
++}
+ #endif
+ 
+ #endif
 diff --git a/kernel/policy/allowlist.c b/kernel/policy/allowlist.c
 index 29732c2b..f20bb671 100644
 --- a/kernel/policy/allowlist.c
@@ -2248,10 +2463,26 @@ index 38d1476f..b2fbd294 100644
          free_module_rc();
      }
 diff --git a/kernel/selinux/rules.c b/kernel/selinux/rules.c
-index 762a7c55..250676f3 100644
+index 762a7c55..a0963a86 100644
 --- a/kernel/selinux/rules.c
 +++ b/kernel/selinux/rules.c
-@@ -160,6 +160,8 @@ void apply_kernelsu_rules()
+@@ -155,11 +155,24 @@ void apply_kernelsu_rules()
+     ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "getpgid");
+     ksu_allow(db, "system_server", KERNEL_SU_DOMAIN, "process", "sigkill");
+ 
++    // throne_tracker kthread; /data | /data/app traversal; apk / packages.list access
++    ksu_allow(db, "kernel", "kernel", "capability", "dac_read_search");
++    ksu_allow(db, "kernel", "system_data_file", "dir", "search");
++    ksu_allow(db, "kernel", "packages_list_file", "file", "read");
++    ksu_allow(db, "kernel", "packages_list_file", "file", "open");
++    ksu_allow(db, "kernel", "apk_data_file", "dir", "read");
++    ksu_allow(db, "kernel", "apk_data_file", "dir", "open");
++    ksu_allow(db, "kernel", "apk_data_file", "dir", "search");
++    ksu_allow(db, "kernel", "apk_data_file", "file", "read");
++    ksu_allow(db, "kernel", "apk_data_file", "file", "open");
++
+     rcu_assign_pointer(selinux_state.policy, pol);
+     synchronize_rcu();
      ksu_destroy_sepolicy(old_pol);
  
      reset_avc_cache();

@@ -1,6 +1,6 @@
 From: midori01 <lv@lvlv.lv>
 Date: Thu, 18 Jun 2026 07:44:12 +0900
-Subject: [PATCH] Enable KSU toolkit for MidoriOG (SUSFS)
+Subject: [PATCH] Enable KSU toolkit for MidoriSU-OG-SUSFS
 
 ---
  kernel/feature/sucompat.c    |   7 +-

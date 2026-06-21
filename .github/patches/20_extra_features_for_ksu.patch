@@ -1,6 +1,6 @@
 From: midori01 <lv@lvlv.lv>
 Date: Thu, 18 Jun 2026 13:28:34 +0900
-Subject: [PATCH] Enable extra features for MidoriOG
+Subject: [PATCH] Enable extra features for MidoriSU-OG
 
 ---
  kernel/supercall/dispatch.c | 65 +++++++++++++++++++++++++++++++++++++

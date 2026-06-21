@@ -8,7 +8,7 @@ inputs:
     description: 'Path to the build.config.gki file'
     required: true
   variant:
-    description: 'KSU variant (MidoriSU, MidoriXX, or MidoriRE)'
+    description: 'KSU variant (MidoriSU-KO, MidoriSU-XX, MidoriSU-RE, etc.)'
     required: true
   hook_mode:
     description: 'Hook mode'
@@ -83,7 +83,7 @@ runs:
         EOF
         
         case "${{ inputs.variant }}" in
-          MidoriXX)
+          MidoriSU-XX)
             if [ "${{ inputs.hook_mode }}" = "hookless" ]; then
               cat >> $DEFCONFIG <<-'EOF'
         CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y
@@ -94,7 +94,7 @@ runs:
         EOF
             fi
             ;;
-          MidoriRE)
+          MidoriSU-RE)
             if [ "${{ inputs.enable_susfs }}" = "true" ]; then
               cat >> $DEFCONFIG <<-'EOF'
         CONFIG_KSU_TOOLKIT_SUPPORT=y

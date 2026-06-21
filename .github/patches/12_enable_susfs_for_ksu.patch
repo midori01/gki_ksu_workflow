@@ -1,10 +1,10 @@
 From: midori01 <lv@lvlv.lv>
-Date: Fri, 19 Jun 2026 10:58:02 +0900
-Subject: [PATCH] Enable SUSFS, KSU toolkit, and extra features for MidoriNX
+Date: Sat, 20 Jun 2026 14:50:28 +0900
+Subject: [PATCH] Enable SUSFS and KSU toolkit for MidoriSU-NX
 
 ---
- kernel/Kbuild                      |  47 +++--
- kernel/Kconfig                     |  97 ++++++++-
+ kernel/Kbuild                      |  31 ++-
+ kernel/Kconfig                     | 107 +++++++++-
  kernel/core/init.c                 |  49 ++++-
  kernel/extras.c                    |  22 +-
  kernel/feature/adb_root.c          | 160 +++++++++++++-
@@ -30,15 +30,14 @@ Subject: [PATCH] Enable SUSFS, KSU toolkit, and extra features for MidoriNX
  kernel/selinux/selinux.h           |  10 +
  kernel/sulog/event.c               |  84 ++++++++
  kernel/sulog/event.h               |   4 +
- kernel/supercall/dispatch.c        | 208 +++++++++++++++++-
+ kernel/supercall/dispatch.c        | 147 +++++++++++++
  kernel/supercall/internal.h        |   2 +
  kernel/supercall/supercall.c       | 189 +++++++++++------
  kernel/supercall/supercall.h       |   4 +
- uapi/supercall.h                   |  16 +-
- 32 files changed, 1867 insertions(+), 358 deletions(-)
+ 31 files changed, 1801 insertions(+), 341 deletions(-)
 
 diff --git a/kernel/Kbuild b/kernel/Kbuild
-index 889d0306..e14efe46 100644
+index 889d0306..acc446da 100644
 --- a/kernel/Kbuild
 +++ b/kernel/Kbuild
 @@ -1,21 +1,36 @@
@@ -86,49 +85,8 @@ index 889d0306..e14efe46 100644
  kernelsu-objs += extras.o
  
  kernelsu-objs += infra/file_wrapper.o
-@@ -24,7 +39,7 @@ kernelsu-objs += infra/seccomp_cache.o
- kernelsu-objs += infra/su_mount_ns.o
- kernelsu-objs += infra/symbol_resolver.o
- 
--ifneq ($(CONFIG_KSU_DISABLE_MANAGER),y)
-+ifneq ($(strip $(CONFIG_KSU_DISABLE_MANAGER)),y)
- kernelsu-objs += manager/apk_sign.o
- kernelsu-objs += manager/pkg_observer.o
- kernelsu-objs += manager/throne_tracker.o
-@@ -53,13 +68,13 @@ kernelsu-objs += feature/adb_root.o
- kernelsu-objs += feature/selinux_hide.o
- 
- ifdef KBUILD_EXTMOD
--ifeq ($(CONFIG_KSU_DISABLE_MANAGER),y)
-+ifeq ($(strip $(CONFIG_KSU_DISABLE_MANAGER)),y)
- ccflags-y += -DCONFIG_KSU_DISABLE_MANAGER=1
- endif
--ifeq ($(CONFIG_KSU_DISABLE_POLICY),y)
-+ifeq ($(strip $(CONFIG_KSU_DISABLE_POLICY)),y)
- ccflags-y += -DCONFIG_KSU_DISABLE_POLICY=1
- endif
--ifeq ($(CONFIG_KSU_DEBUG),y)
-+ifeq ($(strip $(CONFIG_KSU_DEBUG)),y)
- ccflags-y += -DCONFIG_KSU_DEBUG=1
- endif
- endif
-@@ -88,8 +103,12 @@ KERNEL_GIT_ROOT := $(shell cd $(srctree) && $(LPATH) git rev-parse --show-toplev
- ifneq ($(GIT_ROOT),$(KERNEL_GIT_ROOT))
- # Only set version if it's a different repo from kernel
- $(shell cd $(GIT_ROOT) && [ -f .git/shallow ] && $(LPATH) git fetch --unshallow 2>/dev/null || true)
--KSU_GIT_VERSION := $(shell cd $(GIT_ROOT) && $(LPATH) git rev-list --count HEAD 2>/dev/null)
--KSU_GIT_TAG := $(shell cd $(GIT_ROOT) && $(LPATH) git describe --tags --abbrev=0 2>/dev/null)
-+# Get the base branch name by stripping suffixes (e.g., dev-susfs -> dev)
-+BASE_BRANCH := $(shell cd $(GIT_ROOT) && $(LPATH) git rev-parse --abbrev-ref HEAD | sed 's:-.*::' 2>/dev/null)
-+# Find the merge-base with the official origin branch to exclude local commits
-+BASE_COMMIT := $(shell cd $(GIT_ROOT) && $(LPATH) git merge-base HEAD refs/remotes/origin/$(BASE_BRANCH) 2>/dev/null || $(LPATH) git merge-base HEAD refs/remotes/origin/main 2>/dev/null || echo HEAD)
-+KSU_GIT_VERSION := $(shell cd $(GIT_ROOT) && $(LPATH) git rev-list --count $(BASE_COMMIT) 2>/dev/null)
-+KSU_GIT_TAG := $(shell cd $(GIT_ROOT) && $(LPATH) git describe --tags --abbrev=0 $(BASE_COMMIT) 2>/dev/null)
- KSU_GIT_VERSION_VALID := 1
- $(info -- KernelSU-Next Git repo detected at: $(GIT_ROOT))
- endif
 diff --git a/kernel/Kconfig b/kernel/Kconfig
-index c7701661..8c74d769 100644
+index c7701661..e4cf8442 100644
 --- a/kernel/Kconfig
 +++ b/kernel/Kconfig
 @@ -2,12 +2,12 @@ menu "KernelSU"
@@ -147,7 +105,24 @@ index c7701661..8c74d769 100644
  	  To compile as a module, choose M here: the
  	  module will be called kernelsu.
  
-@@ -35,4 +35,95 @@ config KSU_DISABLE_POLICY
+@@ -18,6 +18,16 @@ config KSU_DEBUG
+ 	help
+ 	  Enable KernelSU debug mode.
+ 
++config KSU_THRONE_TRACKER_ALWAYS_THREADED
++	bool "Always run throne tracker in a kthread"
++	depends on KSU
++	default y
++	help
++	  Runs throne_tracker in a separate kthread, including the first run.
++	  Significantly decreases boot time, but may delay crowning slightly
++	  on some FDE / FBEv1 setups.
++	  If unsure, say n.
++
+ config KSU_DISABLE_MANAGER
+ 	bool "Disable KernelSU manager integration"
+ 	depends on KSU
+@@ -35,4 +45,95 @@ config KSU_DISABLE_POLICY
  	  Escalation will always use the default full root profile, and
  	  non-root handling will follow the global umount policy only.
  
@@ -3012,7 +2987,7 @@ index 866fb6ad..5f4c50e1 100644
  int ksu_sulog_emit_grant_root(int retval, __u32 uid, __u32 euid, gfp_t gfp);
  
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 902631d9..c7f676dc 100644
+index 46e3354b..c7f676dc 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -5,6 +5,13 @@
@@ -3123,95 +3098,7 @@ index 902631d9..c7f676dc 100644
          break;
      }
      default: {
-@@ -690,24 +732,57 @@ static int add_try_umount(void __user *arg)
-     return 0;
- }
- 
--static int do_get_hook_mode(void __user *arg)
-+static int do_get_hook_type(void __user *arg)
- {
--    struct ksu_get_hook_mode_cmd cmd = {0};
-+    struct ksu_hook_type_cmd cmd = {0};
- 
-+#ifndef CONFIG_KSU_SUSFS
- #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
--    strscpy(cmd.mode, "Tracepoint", sizeof(cmd.mode));
-+    strscpy(cmd.hook_type, "Tracepoint", sizeof(cmd.hook_type));
- #else
--    strscpy(cmd.mode, "Kprobes", sizeof(cmd.mode));
-+    strscpy(cmd.hook_type, "Kprobes", sizeof(cmd.hook_type));
-+#endif
-+#elif defined(CONFIG_HAVE_SYSCALL_TRACEPOINTS) || defined(CONFIG_KPROBES)
-+    strscpy(cmd.hook_type, "Hybrid", sizeof(cmd.hook_type));
-+#else
-+    strscpy(cmd.hook_type, "Inline", sizeof(cmd.hook_type));
- #endif
- 
-     if (copy_to_user(arg, &cmd, sizeof(cmd))) {
--        pr_err("get_hook_mode: copy_to_user failed\n");
-+        pr_err("get_hook_type: copy_to_user failed\n");
-         return -EFAULT;
-     }
- 
-     return 0;
- }
- 
-+static int do_get_susfs_version(void __user *arg)
-+{
-+    struct ksu_susfs_version_cmd cmd = { 0 };
-+
-+#ifdef CONFIG_KSU_SUSFS
-+    strscpy(cmd.version, SUSFS_VERSION, sizeof(cmd.version));
-+#else
-+    strscpy(cmd.version, "Not supported", sizeof(cmd.version));
-+#endif
-+
-+    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-+        return -EFAULT;
-+    }
-+    return 0;
-+}
-+
-+static int do_get_driver_name(void __user *arg)
-+{
-+    struct ksu_driver_name_cmd cmd = { 0 };
-+    strscpy(cmd.name, "NEXT", sizeof(cmd.name));
-+
-+    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-+        return -EFAULT;
-+    }
-+    return 0;
-+}
-+
- static int do_get_version_tag(void __user *arg)
- {
-     struct ksu_get_version_tag_cmd cmd = {0};
-@@ -926,9 +1001,21 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
-         .perm_check = only_root 
-     },
-     {
--        .cmd = KSU_IOCTL_GET_HOOK_MODE,
--        .name = "GET_HOOK_MODE",
--        .handler = do_get_hook_mode,
-+        .cmd = KSU_IOCTL_HOOK_TYPE,
-+        .name = "HOOK_TYPE",
-+        .handler = do_get_hook_type,
-+        .perm_check = manager_or_root
-+    },
-+    {
-+        .cmd = KSU_IOCTL_SUSFS_VERSION,
-+        .name = "SUSFS_VERSION",
-+        .handler = do_get_susfs_version,
-+        .perm_check = manager_or_root
-+    },
-+    {
-+        .cmd = KSU_IOCTL_DRIVER_NAME,
-+        .name = "DRIVER_NAME",
-+        .handler = do_get_driver_name,
-         .perm_check = manager_or_root
-     },
-     {
-@@ -992,3 +1079,108 @@ void ksu_supercall_cleanup_state(void)
+@@ -1037,3 +1079,108 @@ void ksu_supercall_cleanup_state(void)
      }
      up_write(&mount_list_lock);
  }
@@ -3648,40 +3535,6 @@ index fbedd11f..50a35a0f 100644
  void ksu_supercalls_init(void);
  void ksu_supercalls_exit(void);
  #endif // __KSU_H_SUPERCALL
-diff --git a/uapi/supercall.h b/uapi/supercall.h
-index 3559b7c1..56d9b8e2 100644
---- a/uapi/supercall.h
-+++ b/uapi/supercall.h
-@@ -133,8 +133,16 @@ struct ksu_manage_mark_cmd {
-     __u32 result; /* Output: for get operation - mark status or reg_count */
- };
- 
--struct ksu_get_hook_mode_cmd {
--    char mode[16];
-+struct ksu_hook_type_cmd {
-+    char hook_type[32];
-+};
-+
-+struct ksu_susfs_version_cmd {
-+    char version[32];
-+};
-+
-+struct ksu_driver_name_cmd {
-+    char name[32];
- };
- 
- struct ksu_get_version_tag_cmd {
-@@ -192,7 +200,9 @@ static const __u32 KSU_IOCTL_ADD_TRY_UMOUNT = _IOC(_IOC_WRITE, 'K', 18, 0);
- static const __u32 KSU_IOCTL_SET_INIT_PGRP = _IO('K', 19);
- static const __u32 KSU_IOCTL_GET_SULOG_FD = _IOW('K', 20, struct ksu_get_sulog_fd_cmd);
- static const __u32 KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT = _IO('K', 21);
--static const __u32 KSU_IOCTL_GET_HOOK_MODE = _IOC(_IOC_READ, 'K', 98, 0);
-+static const __u32 KSU_IOCTL_HOOK_TYPE = _IOC(_IOC_READ, 'K', 101, 0);
-+static const __u32 KSU_IOCTL_SUSFS_VERSION = _IOC(_IOC_READ, 'K', 102, 0);
-+static const __u32 KSU_IOCTL_DRIVER_NAME = _IOC(_IOC_READ, 'K', 104, 0);
- static const __u32 KSU_IOCTL_GET_VERSION_TAG = _IOC(_IOC_READ, 'K', 99, 0);
- 
- #endif
 -- 
 2.54.0
 

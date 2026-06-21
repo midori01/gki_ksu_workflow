@@ -1,6 +1,6 @@
 From: midori01 <lv@lvlv.lv>
 Date: Thu, 18 Jun 2026 15:49:27 +0900
-Subject: [PATCH] Enable extra features for MidoriXX
+Subject: [PATCH] Enable extra features for MidoriSU-XX
 
 ---
  kernel/include/uapi/supercall.h | 15 +++++++++
