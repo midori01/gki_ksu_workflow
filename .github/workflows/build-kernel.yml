@@ -167,7 +167,7 @@ jobs:
           else
             KERNEL_BASE_URL="$MIDORI_MIRROR"
           fi
-          retry() { for i in $(seq 1 5); do "$@" && return 0; echo "Retry $i/5..."; sleep 20; done; return 1; }
+          retry() { for i in $(seq 1 30); do "$@" && return 0; echo "Retry $i/30..."; sleep 30; done; return 1; }
           retry aria2c -s16 -x16 -k1M "$MIDORI_MIRROR/$CLANG_TAR" -o clang.tar.gz &
           retry aria2c -s16 -x16 -k1M "$MIDORI_MIRROR/build-tools.tar.gz" -o build-tools.tar.gz &
           [ "${{ steps.cfg.outputs.rust_enabled }}" = "true" ] && {
@@ -180,7 +180,8 @@ jobs:
           wait
           rm -f *.tar.gz
           sed -i 's/ -dirty//g' common/scripts/setlocalversion
-          [ "${{ inputs.kernel_version }}" = "6.1" ] && rm -f common/android/abi_gki_protected_exports_* || true
+          sed -i '/^#ifdef USE_PKCS11_ENGINE$/,/^#endif$/c\static const char *key_pass;' common/certs/extract-cert.c
+          [ "${{ inputs.kernel_version }}" != "6.12" ] && rm -f common/android/abi_gki_protected_exports_* || true
 
       - name: Setup KernelSU
         working-directory: kernel_workspace/common

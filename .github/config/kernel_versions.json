@@ -1,8 +1,8 @@
 {
   "6.1": {
     "android_version": "android14",
-    "default_sub_level": "174",
-    "use_lts": true,
+    "default_sub_level": "162",
+    "use_lts": false,
     "revisions": {
       "162": {
         "asb_date": "2026-03",
@@ -27,8 +27,8 @@
   },
   "6.6": {
     "android_version": "android15",
-    "default_sub_level": "139",
-    "use_lts": true,
+    "default_sub_level": "127",
+    "use_lts": false,
     "revisions": {
       "127": {
         "asb_date": "2026-04",

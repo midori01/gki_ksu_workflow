@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Wed, 17 Jun 2026 07:41:50 +0900
+Date: Mon, 22 Jun 2026 21:34:02 +0900
 Subject: [PATCH] De-inlined SUSFS hooks for sultan-android14-6.1
 
 ---
@@ -17,10 +17,10 @@ Subject: [PATCH] De-inlined SUSFS hooks for sultan-android14-6.1
  fs/readdir.c          | 197 +++++++++++++++++++++++++++++++++++
  fs/stat.c             |  35 +++++++
  fs/statfs.c           |  45 ++++++++
- kernel/kallsyms.c     |  30 ++++++
+ kernel/kallsyms.c     |  31 ++++++
  kernel/sys.c          |  27 ++---
  mm/memory.c           |   8 ++
- 17 files changed, 1065 insertions(+), 17 deletions(-)
+ 17 files changed, 1066 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 78be582b5..ca17a064a 100644
@@ -1861,7 +1861,7 @@ index 96d1c3edf..b2c570aa1 100644
  	error = statfs_by_dentry(path->dentry, buf);
  	if (!error)
 diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
-index 824bcc7b5..376016cde 100644
+index 824bcc7b5..99c753390 100644
 --- a/kernel/kallsyms.c
 +++ b/kernel/kallsyms.c
 @@ -31,6 +31,9 @@
@@ -1874,7 +1874,7 @@ index 824bcc7b5..376016cde 100644
  
  #include "kallsyms_internal.h"
  
-@@ -856,8 +859,35 @@ static int s_show(struct seq_file *m, void *p)
+@@ -856,8 +859,36 @@ static int s_show(struct seq_file *m, void *p)
  		seq_printf(m, "%px %c %s\t[%s]\n", value,
  			   type, iter->name, iter->module_name);
  	} else
@@ -1893,6 +1893,7 @@ index 824bcc7b5..376016cde 100644
 +			susfs_starts_with(iter->name, "setup_selinux") ||
 +			susfs_starts_with(iter->name, "track_throne") ||
 +			susfs_starts_with(iter->name, "on_post_fs_data") ||
++			susfs_starts_with(iter->name, "try_umount") ||
 +			susfs_starts_with(iter->name, "kernelsu") ||
 +			susfs_starts_with(iter->name, "__initcall__kmod_kernelsu") ||
 +			susfs_starts_with(iter->name, "apply_kernelsu") ||
