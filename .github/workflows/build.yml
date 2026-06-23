@@ -1,5 +1,5 @@
 name: Build and Release
-run-name: ${{ inputs.kernel_version == 'all' && (inputs.ksu_variant == 'all' && 'All Kernels - All Variants' || format('All Kernels - {0}', inputs.ksu_variant)) || (inputs.ksu_variant == 'all' && format('Kernel {0} - All Variants', inputs.kernel_version) || format('Kernel {0} - {1}', inputs.kernel_version, inputs.ksu_variant)) }}
+run-name: ${{ format('{0}{1}', inputs.kernel_version == 'all' && inputs.ksu_variant == 'all' && 'All Kernels - All Variants' || inputs.kernel_version == 'all' && format('All Kernels - {0}', inputs.ksu_variant) || inputs.ksu_variant == 'all' && format('Kernel {0} - All Variants', inputs.kernel_version) || format('Kernel {0} - {1}', inputs.kernel_version, inputs.ksu_variant), inputs.ksu_debug && ' [DEBUG]' || '') }}
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
       source_mirror:
         description: 'Kernel Source'
         required: true
-        default: 'google'
+        default: 'midori'
         type: choice
         options:
           - midori
@@ -84,6 +84,11 @@ on:
           - 'manual (MidoriXX & MidoriRE)'
           - 'hookless (MidoriXX 6.12 only)'
           - 'tracepoint (MidoriRE only)'
+      ksu_debug:
+        description: 'KernelSU Debug'
+        required: true
+        default: false
+        type: boolean
       use_ccache:
         description: 'Ccache Speedup'
         required: true
@@ -303,6 +308,7 @@ jobs:
       midorisu_re_branch: ${{ inputs.midorisu_re_branch }}
       midorisu_xx_branch: ${{ inputs.midorisu_xx_branch }}
       hook_mode: ${{ needs.setup.outputs.hook_mode_val }}
+      ksu_debug: ${{ inputs.ksu_debug }}
 
   build_scene_hider:
     name: "eBPF ${{ matrix.kernel_version }}"
@@ -416,7 +422,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: "${{ needs.setup.outputs.release_tag }}-${{ matrix.kv }}"
-          name: "Midori Kernel - ${{ matrix.kv }}"
+          name: ${{ format('Midori Kernel - {0}{1}', matrix.kv, inputs.ksu_debug && ' [DEBUG]' || '') }}
           make_latest: ${{ matrix.kv == '6.12' || !contains(needs.setup.outputs.kernel_versions, ',') }}
           body: |
             - **Kernel Source**: [`${{ steps.meta.outputs.mirror_name }}`](${{ steps.meta.outputs.source_base_url }}/${{ steps.meta.outputs.android_version }}-${{ matrix.kv }}-${{ steps.meta.outputs.asb_date }}${{ steps.meta.outputs.r_suffix }}.tar.gz) `${{ steps.meta.outputs.android_version }}-${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ steps.meta.outputs.r_suffix }}`

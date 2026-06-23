@@ -14,6 +14,10 @@ inputs:
     description: 'Hook mode'
     required: false
     default: 'manual'
+  ksu_debug:
+    description: 'Set to "true" to enable KSU debug'
+    required: false
+    default: 'false'
   enable_susfs:
     description: 'Set to "true" to inject SuSFS configs'
     required: false
@@ -86,10 +90,12 @@ runs:
           MidoriSU-XX)
             if [ "${{ inputs.hook_mode }}" = "hookless" ]; then
               cat >> $DEFCONFIG <<-'EOF'
+        CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
         CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y
         EOF
             else
               cat >> $DEFCONFIG <<-'EOF'
+        CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
         # CONFIG_KSU_KPROBES_KSUD is not set
         EOF
             fi
@@ -121,6 +127,12 @@ runs:
             fi
             ;;
         esac
+        
+        if [ "${{ inputs.ksu_debug }}" = "true" ]; then
+          cat >> $DEFCONFIG <<-'EOF'
+        CONFIG_KSU_DEBUG=y
+        EOF
+        fi
         
         if [ "${{ inputs.use_droidspaces }}" = "true" ]; then
           cat >> $DEFCONFIG <<-'EOF'

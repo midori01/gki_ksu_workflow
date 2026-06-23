@@ -46,6 +46,10 @@ on:
       hook_mode:
         required: false
         type: string
+      ksu_debug:
+        required: false
+        type: boolean
+        default: false
       source_mirror:
         required: true
         type: string
@@ -316,6 +320,7 @@ jobs:
           use_droidspaces: ${{ inputs.use_droidspaces }}
           use_rekernel: ${{ inputs.use_rekernel }}
           hook_mode: ${{ inputs.hook_mode }}
+          ksu_debug: ${{ inputs.ksu_debug }}
 
       - name: Save Commit Info
         working-directory: kernel_workspace/common
