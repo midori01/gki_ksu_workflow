@@ -30,7 +30,7 @@ runs:
     - name: Restore attempt 1
       id: restore1
       continue-on-error: true
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       with:
         path: ${{ inputs.path }}
         key: ${{ inputs.key }}
@@ -55,7 +55,7 @@ runs:
       id: restore2
       if: steps.check1.outputs.hit == 'false'
       continue-on-error: true
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       with:
         path: ${{ inputs.path }}
         key: ${{ inputs.key }}
@@ -79,7 +79,7 @@ runs:
     - name: Restore attempt 3
       id: restore3
       if: steps.check1.outputs.hit == 'false' && steps.check2.outputs.hit == 'false'
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       with:
         path: ${{ inputs.path }}
         key: ${{ inputs.key }}

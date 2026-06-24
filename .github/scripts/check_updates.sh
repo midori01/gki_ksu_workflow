@@ -28,22 +28,36 @@ download_and_upload() {
   local tar_name="${android_ver}-${kv}-${asb_date}${r_suffix}.tar.gz"
   local google_url="https://android.googlesource.com/kernel/common/+archive/refs/tags/${tar_name}"
   local local_file="$TMP_DIR/${tar_name}"
+  local attempt=1
+  local max_attempts=3
+  local retry_delay=20
 
-  echo "  Downloading $tar_name ..."
-  if curl -fsSL --connect-timeout 30 "$google_url" -o "$local_file"; then
-    if [ -s "$local_file" ]; then
-      echo "  Uploading to release $release_tag ..."
-      if gh release upload "$release_tag" "$local_file" --repo "$REPO" --clobber; then
-        echo "  Done: $tar_name"
+  while [[ $attempt -le $max_attempts ]]; do
+    echo "  Downloading $tar_name (attempt $attempt/$max_attempts) ..."
+    if curl -fsSL --connect-timeout 30 "$google_url" -o "$local_file"; then
+      if [ -s "$local_file" ]; then
+        echo "  Uploading to release $release_tag ..."
+        if gh release upload "$release_tag" "$local_file" --repo "$REPO" --clobber; then
+          echo "  Done: $tar_name"
+          return 0
+        else
+          echo "  ERROR: Failed to upload $tar_name (attempt $attempt/$max_attempts)"
+        fi
       else
-        echo "  ERROR: Failed to upload $tar_name"
+        echo "  ERROR: Downloaded file is empty: $tar_name (attempt $attempt/$max_attempts)"
       fi
     else
-      echo "  ERROR: Downloaded file is empty: $tar_name"
+      echo "  ERROR: Failed to download $tar_name (attempt $attempt/$max_attempts)"
     fi
-  else
-    echo "  ERROR: Failed to download $tar_name"
-  fi
+
+    if [[ $attempt -lt $max_attempts ]]; then
+      echo "  Retrying in ${retry_delay}s..."
+      sleep "$retry_delay"
+    fi
+    ((attempt++))
+  done
+
+  return 1
 }
 
 download_lts_and_upload() {
@@ -51,22 +65,36 @@ download_lts_and_upload() {
   local tar_name="${android_ver}-${kv}-lts.tar.gz"
   local head_url="https://android.googlesource.com/kernel/common/+archive/refs/heads/${android_ver}-${kv}-lts.tar.gz"
   local local_file="$TMP_DIR/${tar_name}"
+  local attempt=1
+  local max_attempts=3
+  local retry_delay=20
 
-  echo "  Downloading LTS $tar_name ..."
-  if curl -fsSL --connect-timeout 30 "$head_url" -o "$local_file"; then
-    if [ -s "$local_file" ]; then
-      echo "  Uploading to release $release_tag ..."
-      if gh release upload "$release_tag" "$local_file" --repo "$REPO" --clobber; then
-        echo "  Done: $tar_name"
+  while [[ $attempt -le $max_attempts ]]; do
+    echo "  Downloading LTS $tar_name (attempt $attempt/$max_attempts) ..."
+    if curl -fsSL --connect-timeout 30 "$head_url" -o "$local_file"; then
+      if [ -s "$local_file" ]; then
+        echo "  Uploading to release $release_tag ..."
+        if gh release upload "$release_tag" "$local_file" --repo "$REPO" --clobber; then
+          echo "  Done: $tar_name"
+          return 0
+        else
+          echo "  ERROR: Failed to upload $tar_name (attempt $attempt/$max_attempts)"
+        fi
       else
-        echo "  ERROR: Failed to upload $tar_name"
+        echo "  ERROR: Downloaded file is empty: $tar_name (attempt $attempt/$max_attempts)"
       fi
     else
-      echo "  ERROR: Downloaded file is empty: $tar_name"
+      echo "  ERROR: Failed to download $tar_name (attempt $attempt/$max_attempts)"
     fi
-  else
-    echo "  ERROR: Failed to download $tar_name"
-  fi
+
+    if [[ $attempt -lt $max_attempts ]]; then
+      echo "  Retrying in ${retry_delay}s..."
+      sleep "$retry_delay"
+    fi
+    ((attempt++))
+  done
+
+  return 1
 }
 
 check_tag() {
@@ -114,20 +142,24 @@ check_tag() {
     echo "  Tag sub_level ($new_sub) < current default ($current_default), keeping default_sub_level."
   fi
 
-  jq --arg kv "$kv" \
-     --arg sub "$new_sub" \
-     --arg def "$new_default" \
-     --arg asb "$asb_date" \
-     --arg r "$new_r" \
-     '.[$kv].default_sub_level = $def |
-      .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r, "none"]}' \
-     "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
-
-  echo "  Updated JSON. Downloading source..."
   local r_suffix=""
   [[ "$new_r" != "none" ]] && r_suffix="_$new_r"
-  download_and_upload "source-$kv" "$kv" "$android_ver" "$asb_date" "$r_suffix"
-  NEEDS_COMMIT=true
+
+  if download_and_upload "source-$kv" "$kv" "$android_ver" "$asb_date" "$r_suffix"; then
+    jq --arg kv "$kv" \
+       --arg sub "$new_sub" \
+       --arg def "$new_default" \
+       --arg asb "$asb_date" \
+       --arg r "$new_r" \
+       '.[$kv].default_sub_level = $def |
+        .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r, "none"]}' \
+       "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+
+    echo "  Updated JSON."
+    NEEDS_COMMIT=true
+  else
+    echo "  Download/upload failed after 3 attempts, JSON NOT updated."
+  fi
 }
 
 check_lts() {
@@ -164,16 +196,19 @@ check_lts() {
 
   echo "  New LTS sub_level: $new_sub (was $current_sub)"
 
-  jq --arg kv "$kv" \
-     --arg sub "$new_sub" \
-     '.[$kv].default_sub_level = $sub |
-      .[$kv].revisions |= with_entries(select(.value.asb_date != "lts")) |
-      .[$kv].revisions[$sub] = {"asb_date": "lts", "default_r": "none", "supported_r": ["none"]}' \
-     "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+  if download_lts_and_upload "source-$kv" "$kv" "$android_ver"; then
+    jq --arg kv "$kv" \
+       --arg sub "$new_sub" \
+       '.[$kv].default_sub_level = $sub |
+        .[$kv].revisions |= with_entries(select(.value.asb_date != "lts")) |
+        .[$kv].revisions[$sub] = {"asb_date": "lts", "default_r": "none", "supported_r": ["none"]}' \
+       "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
 
-  echo "  Updated JSON. Downloading LTS source..."
-  download_lts_and_upload "source-$kv" "$kv" "$android_ver"
-  NEEDS_COMMIT=true
+    echo "  Updated JSON."
+    NEEDS_COMMIT=true
+  else
+    echo "  Download/upload failed after 3 attempts, JSON NOT updated."
+  fi
 }
 
 check_tag "6.12" "2025-06" "$SUB_612" "$R_612"

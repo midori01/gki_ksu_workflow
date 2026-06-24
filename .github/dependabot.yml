@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: /.github/actions/restore-cache-retry
+    schedule:
+      interval: daily
+    groups:
+      actions-restore-cache:
+        patterns:
+          - "*"
