@@ -177,7 +177,7 @@ jobs:
       build_epoch: ${{ steps.config.outputs.build_epoch }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - id: config
         name: Prepare build matrix and metadata
@@ -334,7 +334,7 @@ jobs:
         kv: ${{ fromJson(needs.setup.outputs.kernel_versions) }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Load metadata for ${{ matrix.kv }}
         id: meta
