@@ -427,7 +427,7 @@ jobs:
 
       - name: Save Ccache
         if: inputs.use_ccache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: .ccache-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
           key: gki-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.clang_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
