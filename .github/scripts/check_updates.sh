@@ -8,12 +8,11 @@ mkdir -p "$TMP_DIR"
 
 REPO="${GITHUB_REPOSITORY:-midori01/gki_ksu_workflow}"
 
-SUB_612=$(jq -r '.["6.12"].default_sub_level' "$CONFIG_FILE")
-R_612=$(jq -r ".[\"6.12\"].revisions[\"$SUB_612\"].default_r" "$CONFIG_FILE")
-
+TAG_DATES_612=$(jq -r '.["6.12"].revisions | to_entries[] | select(.value.asb_date != "lts") | .value.asb_date' "$CONFIG_FILE")
 TAG_DATES_66=$(jq -r '.["6.6"].revisions | to_entries[] | select(.value.asb_date != "lts") | .value.asb_date' "$CONFIG_FILE")
 TAG_DATES_61=$(jq -r '.["6.1"].revisions | to_entries[] | select(.value.asb_date != "lts") | .value.asb_date' "$CONFIG_FILE")
 
+SUB_612_LTS=$(jq -r '[.["6.12"].revisions | to_entries[] | select(.value.asb_date == "lts") | .key | tonumber] | max' "$CONFIG_FILE")
 SUB_66_LTS=$(jq -r '[.["6.6"].revisions | to_entries[] | select(.value.asb_date == "lts") | .key | tonumber] | max' "$CONFIG_FILE")
 SUB_61_LTS=$(jq -r '[.["6.1"].revisions | to_entries[] | select(.value.asb_date == "lts") | .key | tonumber] | max' "$CONFIG_FILE")
 
@@ -23,6 +22,11 @@ echo "=== Fetching tags from AOSP common kernel ==="
 git ls-remote --tags https://android.googlesource.com/kernel/common.git 2>/dev/null | \
   awk '{print $2}' | sed 's|refs/tags/||; s|\^{}||' | sort -Vu > "$TMP_DIR/all_tags.txt"
 
+check_file_in_release() {
+  local release_tag="$1" file_name="$2"
+  gh release view "$release_tag" --repo "$REPO" --json assets -q ".assets[].name" 2>/dev/null | grep -qFx "$file_name"
+}
+
 download_and_upload() {
   local release_tag="$1" kv="$2" android_ver="$3" asb_date="$4" r_suffix="$5"
   local tar_name="${android_ver}-${kv}-${asb_date}${r_suffix}.tar.gz"
@@ -31,6 +35,11 @@ download_and_upload() {
   local attempt=1
   local max_attempts=3
   local retry_delay=20
+
+  if check_file_in_release "$release_tag" "$tar_name"; then
+    echo "  File $tar_name already exists in release $release_tag, skipping."
+    return 0
+  fi
 
   while [[ $attempt -le $max_attempts ]]; do
     echo "  Downloading $tar_name (attempt $attempt/$max_attempts) ..."
@@ -68,6 +77,11 @@ download_lts_and_upload() {
   local attempt=1
   local max_attempts=3
   local retry_delay=20
+
+  if check_file_in_release "$release_tag" "$tar_name"; then
+    echo "  File $tar_name already exists in release $release_tag, skipping."
+    return 0
+  fi
 
   while [[ $attempt -le $max_attempts ]]; do
     echo "  Downloading LTS $tar_name (attempt $attempt/$max_attempts) ..."
@@ -123,12 +137,20 @@ check_tag() {
   new_r="${new_r#_}"
   [[ -z "$new_r" ]] && new_r="none"
 
-  if [[ "$new_r" == "$current_r" && "$new_sub" == "$current_sub" ]]; then
-    echo "  Up to date."
-    return
-  fi
+  local r_suffix=""
+  [[ "$new_r" != "none" ]] && r_suffix="_$new_r"
+  local tar_name="${android_ver}-${kv}-${asb_date}${r_suffix}.tar.gz"
 
-  echo "  New: sub=$new_sub r=$new_r"
+  if [[ "$new_r" == "$current_r" && "$new_sub" == "$current_sub" ]]; then
+    if check_file_in_release "source-$kv" "$tar_name"; then
+      echo "  Up to date and file exists in release."
+      return
+    else
+      echo "  JSON up to date, but file $tar_name missing in release. Will attempt download."
+    fi
+  else
+    echo "  New: sub=$new_sub r=$new_r"
+  fi
 
   local use_lts=$(jq -r ".[\"$kv\"].use_lts // false" "$CONFIG_FILE")
   local new_default="$new_sub"
@@ -142,21 +164,20 @@ check_tag() {
     echo "  Tag sub_level ($new_sub) < current default ($current_default), keeping default_sub_level."
   fi
 
-  local r_suffix=""
-  [[ "$new_r" != "none" ]] && r_suffix="_$new_r"
-
   if download_and_upload "source-$kv" "$kv" "$android_ver" "$asb_date" "$r_suffix"; then
-    jq --arg kv "$kv" \
-       --arg sub "$new_sub" \
-       --arg def "$new_default" \
-       --arg asb "$asb_date" \
-       --arg r "$new_r" \
-       '.[$kv].default_sub_level = $def |
-        .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r, "none"]}' \
-       "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    if [[ "$new_r" != "$current_r" || "$new_sub" != "$current_sub" ]]; then
+      jq --arg kv "$kv" \
+         --arg sub "$new_sub" \
+         --arg def "$new_default" \
+         --arg asb "$asb_date" \
+         --arg r "$new_r" \
+         '.[$kv].default_sub_level = $def |
+          .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r, "none"]}' \
+         "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
 
-    echo "  Updated JSON."
-    NEEDS_COMMIT=true
+      echo "  Updated JSON."
+      NEEDS_COMMIT=true
+    fi
   else
     echo "  Download/upload failed after 3 attempts, JSON NOT updated."
   fi
@@ -180,6 +201,7 @@ check_lts() {
   fi
 
   local android_ver=$(jq -r ".[\"$kv\"].android_version" "$CONFIG_FILE")
+  local tar_name="${android_ver}-${kv}-lts.tar.gz"
 
   local makefile_url="https://android.googlesource.com/kernel/common/+/refs/heads/${android_ver}-${kv}-lts/Makefile?format=TEXT"
   local new_sub=$(curl -s --connect-timeout 10 "$makefile_url" | base64 -d --ignore-garbage 2>/dev/null | grep '^SUBLEVEL = ' | head -n 1 | awk '{print $3}')
@@ -190,28 +212,39 @@ check_lts() {
   fi
 
   if [[ "$new_sub" -le "$current_sub" ]]; then
-    echo "  Up to date ($new_sub)."
-    return
+    if check_file_in_release "source-$kv" "$tar_name"; then
+      echo "  Up to date ($new_sub) and file exists in release."
+      return
+    else
+      echo "  LTS version unchanged ($new_sub), but file $tar_name missing in release. Will attempt download."
+    fi
+  else
+    echo "  New LTS sub_level: $new_sub (was $current_sub)"
   fi
 
-  echo "  New LTS sub_level: $new_sub (was $current_sub)"
-
   if download_lts_and_upload "source-$kv" "$kv" "$android_ver"; then
-    jq --arg kv "$kv" \
-       --arg sub "$new_sub" \
-       '.[$kv].default_sub_level = $sub |
-        .[$kv].revisions |= with_entries(select(.value.asb_date != "lts")) |
-        .[$kv].revisions[$sub] = {"asb_date": "lts", "default_r": "none", "supported_r": ["none"]}' \
-       "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+    if [[ "$new_sub" -gt "$current_sub" ]]; then
+      jq --arg kv "$kv" \
+         --arg sub "$new_sub" \
+         '.[$kv].default_sub_level = $sub |
+          .[$kv].revisions |= with_entries(select(.value.asb_date != "lts")) |
+          .[$kv].revisions[$sub] = {"asb_date": "lts", "default_r": "none", "supported_r": ["none"]}' \
+         "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
 
-    echo "  Updated JSON."
-    NEEDS_COMMIT=true
+      echo "  Updated JSON."
+      NEEDS_COMMIT=true
+    fi
   else
     echo "  Download/upload failed after 3 attempts, JSON NOT updated."
   fi
 }
 
-check_tag "6.12" "2025-06" "$SUB_612" "$R_612"
+for date in $TAG_DATES_612; do
+  sub=$(jq -r ".[\"6.12\"].revisions | to_entries[] | select(.value.asb_date == \"$date\") | .key" "$CONFIG_FILE")
+  r=$(jq -r ".[\"6.12\"].revisions[\"$sub\"].default_r" "$CONFIG_FILE")
+  check_tag "6.12" "$date" "$sub" "$r"
+done
+check_lts "6.12" "$SUB_612_LTS"
 
 for date in $TAG_DATES_66; do
   sub=$(jq -r ".[\"6.6\"].revisions | to_entries[] | select(.value.asb_date == \"$date\") | .key" "$CONFIG_FILE")

@@ -49,7 +49,7 @@ on:
         type: choice
         options:
           - 'KernelSU-Next/KernelSU-Next:dev'
-          - 'midori01/KernelSU-Next:main'
+          - 'midori01/KernelSU:next'
       midorisu_og_branch:
         description: 'MidoriSU-OG Source'
         required: true
