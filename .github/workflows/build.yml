@@ -78,12 +78,12 @@ on:
       hook_mode:
         description: "Hook Mode"
         required: true
-        default: 'manual (MidoriXX & MidoriRE)'
+        default: 'manual (XX & RE)'
         type: choice
         options:
-          - 'manual (MidoriXX & MidoriRE)'
-          - 'hookless (MidoriXX 6.12 only)'
-          - 'tracepoint (MidoriRE only)'
+          - 'manual (XX & RE)'
+          - 'hookless (XX 6.12 only)'
+          - 'tracepoint (RE only)'
       ksu_debug:
         description: 'KernelSU Debug'
         required: true
@@ -164,7 +164,11 @@ permissions:
   packages: write
 
 jobs:
+  fetch:
+    uses: ./.github/workflows/update.yml
+
   setup:
+    needs: fetch
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.config.outputs.release_tag }}
@@ -272,9 +276,9 @@ jobs:
           echo "build_matrix=$matrix" >> $GITHUB_OUTPUT
 
           case "${{ inputs.hook_mode }}" in
-            'manual (MidoriXX & MidoriRE)') hook_mode_val="manual" ;;
-            'hookless (MidoriXX 6.12 only)') hook_mode_val="hookless" ;;
-            'tracepoint (MidoriRE only)') hook_mode_val="tracepoint" ;;
+            'manual (XX & RE)') hook_mode_val="manual" ;;
+            'hookless (XX 6.12 only)') hook_mode_val="hookless" ;;
+            'tracepoint (RE only)') hook_mode_val="tracepoint" ;;
             *) hook_mode_val="manual" ;;
           esac
           echo "hook_mode_val=$hook_mode_val" >> $GITHUB_OUTPUT
@@ -341,6 +345,21 @@ jobs:
         run: |
           echo '${{ needs.setup.outputs.metadata }}' | jq -r '.[] | select(.kernel_version=="${{ matrix.kv }}")' > /tmp/meta.json
           while IFS='=' read -r key value; do echo "$key=$value" >> $GITHUB_OUTPUT; done < <(jq -r 'to_entries[] | "\(.key)=\(.value)"' /tmp/meta.json)
+          asb_date=$(jq -r '.asb_date' /tmp/meta.json)
+          android_ver=$(jq -r '.android_version' /tmp/meta.json)
+          sub_level=$(jq -r '.sub_level' /tmp/meta.json)
+          r_suffix=$(jq -r '.r_suffix' /tmp/meta.json)
+          mirror=$(jq -r '.mirror_name' /tmp/meta.json)
+          base_url=$(jq -r '.source_base_url' /tmp/meta.json)
+          if [ "$asb_date" = "lts" ]; then
+            tar_name="${android_ver}-${{ matrix.kv }}$([ "$mirror" = "Google" ] && echo "-lts" || echo ".${sub_level}_r00").tar.gz"
+            display="${android_ver}-${{ matrix.kv }}.${sub_level}_r00"
+          else
+            tar_name="${android_ver}-${{ matrix.kv }}-${asb_date}${r_suffix}.tar.gz"
+            display="${android_ver}-${{ matrix.kv }}.${sub_level}${r_suffix}"
+          fi
+          echo "kernel_source_url=${base_url}/${tar_name}" >> $GITHUB_OUTPUT
+          echo "kernel_display_name=${display}" >> $GITHUB_OUTPUT
 
       - uses: actions/download-artifact@v8
         with:
@@ -425,7 +444,7 @@ jobs:
           name: ${{ format('Midori Kernel - {0}{1}', matrix.kv, inputs.ksu_debug && ' [DEBUG]' || '') }}
           make_latest: ${{ matrix.kv == '6.12' || !contains(needs.setup.outputs.kernel_versions, ',') }}
           body: |
-            - **Kernel Source**: [`${{ steps.meta.outputs.mirror_name }}`](${{ steps.meta.outputs.source_base_url }}/${{ steps.meta.outputs.android_version }}-${{ matrix.kv }}-${{ steps.meta.outputs.asb_date }}${{ steps.meta.outputs.r_suffix }}.tar.gz) `${{ steps.meta.outputs.android_version }}-${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ steps.meta.outputs.r_suffix }}`
+            - **Kernel Source**: [`${{ steps.meta.outputs.mirror_name }}`](${{ steps.meta.outputs.kernel_source_url }}) `${{ steps.meta.outputs.kernel_display_name }}`
             ${{ steps.ksu_info.outputs.midorisu-ko }}
             ${{ steps.ksu_info.outputs.midorisu-nx }}
             ${{ steps.ksu_info.outputs.midorisu-og }}

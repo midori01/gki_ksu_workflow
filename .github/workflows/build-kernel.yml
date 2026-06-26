@@ -164,13 +164,29 @@ jobs:
           mkdir -p kernel_workspace && cd kernel_workspace
           MIDORI_MIRROR="https://github.com/${{ github.repository }}/releases/download/${{ steps.cfg.outputs.mirror_tag }}"
           CLANG_TAR="clang-${{ steps.cfg.outputs.clang_version }}.tar.gz"
-          KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}.tar.gz"
-          if [ "${{ inputs.source_mirror }}" = "google" ]; then
-            GOOGLE_REF=$([ "${{ steps.cfg.outputs.r_version }}" = "none" ] && echo "heads" || echo "tags")
-            KERNEL_BASE_URL="https://android.googlesource.com/kernel/common/+archive/refs/$GOOGLE_REF"
-          else
-            KERNEL_BASE_URL="$MIDORI_MIRROR"
-          fi
+          case "${{ steps.cfg.outputs.asb_date }}" in
+            lts)
+              if [ "${{ inputs.source_mirror }}" = "google" ]; then
+                KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-lts.tar.gz"
+                KERNEL_BASE_URL="https://android.googlesource.com/kernel/common/+archive/refs/heads"
+              else
+                KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}.${{ steps.cfg.outputs.sub_level }}_r00.tar.gz"
+                KERNEL_BASE_URL="$MIDORI_MIRROR"
+              fi ;;
+            *)
+              if [ "${{ steps.cfg.outputs.r_version }}" = "none" ]; then
+                KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}.tar.gz"
+                GOOGLE_REF="heads"
+              else
+                KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}_${{ steps.cfg.outputs.r_version }}.tar.gz"
+                GOOGLE_REF="tags"
+              fi
+              if [ "${{ inputs.source_mirror }}" = "google" ]; then
+                KERNEL_BASE_URL="https://android.googlesource.com/kernel/common/+archive/refs/$GOOGLE_REF"
+              else
+                KERNEL_BASE_URL="$MIDORI_MIRROR"
+              fi ;;
+          esac
           retry() { for i in $(seq 1 30); do "$@" && return 0; echo "Retry $i/30..."; sleep 30; done; return 1; }
           retry aria2c -s16 -x16 -k1M "$MIDORI_MIRROR/$CLANG_TAR" -o clang.tar.gz &
           retry aria2c -s16 -x16 -k1M "$MIDORI_MIRROR/build-tools.tar.gz" -o build-tools.tar.gz &
@@ -184,8 +200,8 @@ jobs:
           wait
           rm -f *.tar.gz
           sed -i 's/ -dirty//g' common/scripts/setlocalversion
-          sed -i '/^#ifdef USE_PKCS11_ENGINE$/,/^#endif$/c\static const char *key_pass;' common/certs/extract-cert.c
           [ "${{ inputs.kernel_version }}" != "6.12" ] && rm -f common/android/abi_gki_protected_exports_* || true
+          [ "${{ inputs.kernel_version }}" = "6.6" ] && [ "${{ steps.cfg.outputs.sub_level }}" -ge 139 ] && sed -i '/^#ifdef USE_PKCS11_ENGINE$/,/^#endif$/c\static const char *key_pass;' common/certs/extract-cert.c || true
 
       - name: Setup KernelSU
         working-directory: kernel_workspace/common
@@ -216,6 +232,7 @@ jobs:
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_og_branch }}"
               git clone --branch="${BRANCH}" "https://github.com/${REPO}.git" KernelSU
               patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/20_extra_features_for_ksu.patch" || true
+              [ "${{ inputs.use_susfs }}" != "true" ] && patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/31_ksu_toolkit_for_ksu.patch" || true
               ;;
             MidoriSU-RE)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_re_branch }}"
@@ -314,6 +331,8 @@ jobs:
         with:
           defconfig_path: "kernel_workspace/common/arch/arm64/configs/gki_defconfig"
           build_config_path: "kernel_workspace/common/build.config.gki"
+          kernel_version: ${{ inputs.kernel_version }}
+          sub_level: ${{ steps.cfg.outputs.sub_level }}
           variant: ${{ inputs.variant }}
           enable_susfs: ${{ inputs.use_susfs }}
           localversion: ${{ inputs.kernel_localversion }}
@@ -391,7 +410,7 @@ jobs:
           fi
           ROOT_REAL_PATH=$(dirname "$(readlink -f "$PWD")")
           export KBUILD_GENDWARFKSYMS_STABLE=1
-          export KCFLAGS="-fdebug-prefix-map=$ROOT_REAL_PATH=. -fmacro-prefix-map=$ROOT_REAL_PATH=. -ffile-prefix-map=$ROOT_REAL_PATH=. -no-canonical-prefixes -pipe -fno-stack-protector -D__ANDROID_COMMON_KERNEL__"
+          export KCFLAGS="-fdebug-prefix-map=$ROOT_REAL_PATH=. -fmacro-prefix-map=$ROOT_REAL_PATH=. -ffile-prefix-map=$ROOT_REAL_PATH=. -no-canonical-prefixes -pipe -fno-stack-protector -D__ANDROID_COMMON_KERNEL__ -Wno-unused-command-line-argument"
           export SOURCE_DATE_EPOCH="${{ inputs.build_epoch }}"
           export KBUILD_BUILD_TIMESTAMP="${{ inputs.build_timestamp }}"
           export KBUILD_BUILD_HOST="${{ inputs.build_host }}"

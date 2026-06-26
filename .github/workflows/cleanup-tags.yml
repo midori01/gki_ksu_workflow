@@ -20,10 +20,10 @@ jobs:
             echo "Processing $kv..."
             gh release list --limit 100 --exclude-drafts --exclude-pre-releases \
               --json tagName \
-              -q "[.[].tagName] | map(select(endswith(\"-$kv\"))) | sort | reverse | .[1:] | .[]" \
+              -q "[.[].tagName] | map(select(endswith(\"-$kv\"))) | sort | reverse | .[2:] | .[]" \
               | while read -r tag; do
                 echo "Deleting release and tag: $tag"
                 gh release delete "$tag" --yes --cleanup-tag
               done
           done
-          echo "Done! Kept latest release per kernel version."
+          echo "Done! Kept latest 2 releases per kernel version."

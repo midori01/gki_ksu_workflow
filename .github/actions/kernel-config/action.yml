@@ -7,6 +7,14 @@ inputs:
   build_config_path:
     description: 'Path to the build.config.gki file'
     required: true
+  kernel_version:
+    description: 'Kernel version'
+    required: false
+    default: ''
+  sub_level:
+    description: 'Sublevel'
+    required: false
+    default: '0'
   variant:
     description: 'KSU variant (MidoriSU-KO, MidoriSU-XX, MidoriSU-RE, etc.)'
     required: true
@@ -150,6 +158,12 @@ runs:
           cat >> $DEFCONFIG <<-'EOF'
         CONFIG_REKERNEL=y
         CONFIG_REKERNEL_NETWORK=y
+        EOF
+        fi
+        
+        if [ "${{ inputs.kernel_version }}" = "6.12" ] && [ "${{ inputs.sub_level }}" -ge 28 ]; then
+          cat >> $DEFCONFIG <<-'EOF'
+        # CONFIG_MODVERSIONS is not set
         EOF
         fi
         

@@ -70,9 +70,9 @@ download_and_upload() {
 }
 
 download_lts_and_upload() {
-  local release_tag="$1" kv="$2" android_ver="$3"
-  local tar_name="${android_ver}-${kv}-lts.tar.gz"
-  local head_url="https://android.googlesource.com/kernel/common/+archive/refs/heads/${android_ver}-${kv}-lts.tar.gz"
+  local release_tag="$1" kv="$2" android_ver="$3" lts_tag="$4"
+  local tar_name="${lts_tag}.tar.gz"
+  local google_url="https://android.googlesource.com/kernel/common/+archive/refs/heads/${android_ver}-${kv}-lts.tar.gz"
   local local_file="$TMP_DIR/${tar_name}"
   local attempt=1
   local max_attempts=3
@@ -84,8 +84,8 @@ download_lts_and_upload() {
   fi
 
   while [[ $attempt -le $max_attempts ]]; do
-    echo "  Downloading LTS $tar_name (attempt $attempt/$max_attempts) ..."
-    if curl -fsSL --connect-timeout 30 "$head_url" -o "$local_file"; then
+    echo "  Downloading LTS $tar_name from $lts_tag (attempt $attempt/$max_attempts) ..."
+    if curl -fsSL --connect-timeout 30 "$google_url" -o "$local_file"; then
       if [ -s "$local_file" ]; then
         echo "  Uploading to release $release_tag ..."
         if gh release upload "$release_tag" "$local_file" --repo "$REPO" --clobber; then
@@ -164,7 +164,7 @@ check_tag() {
     echo "  Tag sub_level ($new_sub) < current default ($current_default), keeping default_sub_level."
   fi
 
-  if download_and_upload "source-$kv" "$kv" "$android_ver" "$asb_date" "$r_suffix"; then
+  if download_and_upload "source-$kv" "$kv" "$android_ver" "$asb_date" "$new_r"; then
     if [[ "$new_r" != "$current_r" || "$new_sub" != "$current_sub" ]]; then
       jq --arg kv "$kv" \
          --arg sub "$new_sub" \
@@ -195,21 +195,24 @@ check_lts() {
   fi
 
   local use_lts=$(jq -r ".[\"$kv\"].use_lts // false" "$CONFIG_FILE")
-  if [[ "$use_lts" != "true" ]]; then
-    echo "  use_lts != true, skipping LTS update."
+  local android_ver=$(jq -r ".[\"$kv\"].android_version" "$CONFIG_FILE")
+
+  local prefix="${android_ver}-${kv}."
+  local latest_lts_tag=$(grep -E "^${prefix}[0-9]+_r00\$" "$TMP_DIR/all_tags.txt" | sort -V | tail -n 1)
+
+  if [[ -z "$latest_lts_tag" ]]; then
+    echo "  No LTS tags found for $prefix"
     return
   fi
 
-  local android_ver=$(jq -r ".[\"$kv\"].android_version" "$CONFIG_FILE")
-  local tar_name="${android_ver}-${kv}-lts.tar.gz"
-
-  local makefile_url="https://android.googlesource.com/kernel/common/+/refs/heads/${android_ver}-${kv}-lts/Makefile?format=TEXT"
-  local new_sub=$(curl -s --connect-timeout 10 "$makefile_url" | base64 -d --ignore-garbage 2>/dev/null | grep '^SUBLEVEL = ' | head -n 1 | awk '{print $3}')
+  local new_sub=$(echo "$latest_lts_tag" | grep -oP "(?<=${kv}\.)[0-9]+" | head -n 1)
 
   if [[ -z "$new_sub" || ! "$new_sub" =~ ^[0-9]+$ ]]; then
-    echo "  Failed to fetch SUBLEVEL from Makefile"
+    echo "  Failed to parse sublevel from $latest_lts_tag"
     return
   fi
+
+  local tar_name="${latest_lts_tag}.tar.gz"
 
   if [[ "$new_sub" -le "$current_sub" ]]; then
     if check_file_in_release "source-$kv" "$tar_name"; then
@@ -222,13 +225,13 @@ check_lts() {
     echo "  New LTS sub_level: $new_sub (was $current_sub)"
   fi
 
-  if download_lts_and_upload "source-$kv" "$kv" "$android_ver"; then
-    if [[ "$new_sub" -gt "$current_sub" ]]; then
+  if download_lts_and_upload "source-$kv" "$kv" "$android_ver" "$latest_lts_tag"; then
+    if [[ "$use_lts" == "true" && "$new_sub" -gt "$current_sub" ]]; then
       jq --arg kv "$kv" \
          --arg sub "$new_sub" \
          '.[$kv].default_sub_level = $sub |
           .[$kv].revisions |= with_entries(select(.value.asb_date != "lts")) |
-          .[$kv].revisions[$sub] = {"asb_date": "lts", "default_r": "none", "supported_r": ["none"]}' \
+          .[$kv].revisions[$sub] = {"asb_date": "lts", "default_r": "r00", "supported_r": ["r00"]}' \
          "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
 
       echo "  Updated JSON."
