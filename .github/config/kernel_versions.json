@@ -4,22 +4,6 @@
     "default_sub_level": "174",
     "use_lts": true,
     "revisions": {
-      "157": {
-        "asb_date": "2025-12",
-        "default_r": "r24",
-        "supported_r": [
-          "r24",
-          "none"
-        ]
-      },
-      "162": {
-        "asb_date": "2026-03",
-        "default_r": "r16",
-        "supported_r": [
-          "r16",
-          "none"
-        ]
-      },
       "172": {
         "asb_date": "2026-06",
         "default_r": "r2",
@@ -46,14 +30,6 @@
     "default_sub_level": "139",
     "use_lts": true,
     "revisions": {
-      "118": {
-        "asb_date": "2026-01",
-        "default_r": "r35",
-        "supported_r": [
-          "r35",
-          "none"
-        ]
-      },
       "127": {
         "asb_date": "2026-04",
         "default_r": "r19",
@@ -85,45 +61,6 @@
         "default_r": "r58",
         "supported_r": [
           "r58",
-          "none"
-        ]
-      },
-      "30": {
-        "asb_date": "2025-07",
-        "default_r": "r28",
-        "supported_r": [
-          "r28",
-          "none"
-        ]
-      },
-      "38": {
-        "asb_date": "2025-09",
-        "default_r": "r35",
-        "supported_r": [
-          "r35",
-          "none"
-        ]
-      },
-      "58": {
-        "asb_date": "2025-12",
-        "default_r": "r55",
-        "supported_r": [
-          "r55",
-          "none"
-        ]
-      },
-      "69": {
-        "asb_date": "2026-03",
-        "default_r": "r49",
-        "supported_r": [
-          "r49",
-          "none"
-        ]
-      },
-      "81": {
-        "asb_date": "2026-06",
-        "default_r": "none",
-        "supported_r": [
           "none"
         ]
       },

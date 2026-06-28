@@ -57,7 +57,7 @@ on:
         type: choice
         options:
           - 'tiann/KernelSU:main'
-          - 'midori01/KernelSU:tiann'
+          - 'midori01/KernelSU:official'
       midorisu_re_branch:
         description: 'MidoriSU-RE Source'
         required: true
@@ -65,7 +65,7 @@ on:
         type: choice
         options:
           - 'ReSukiSU/ReSukiSU:main'
-          - 'midori01/ReSukiSU:main'
+          - 'midori01/KernelSU:resuki'
       midorisu_xx_branch:
         description: 'MidoriSU-XX Source'
         required: true
@@ -78,11 +78,11 @@ on:
       hook_mode:
         description: "Hook Mode"
         required: true
-        default: 'manual (XX & RE)'
+        default: 'hookless (XX only)'
         type: choice
         options:
           - 'manual (XX & RE)'
-          - 'hookless (XX 6.12 only)'
+          - 'hookless (XX only)'
           - 'tracepoint (RE only)'
       ksu_debug:
         description: 'KernelSU Debug'
@@ -277,7 +277,7 @@ jobs:
 
           case "${{ inputs.hook_mode }}" in
             'manual (XX & RE)') hook_mode_val="manual" ;;
-            'hookless (XX 6.12 only)') hook_mode_val="hookless" ;;
+            'hookless (XX only)') hook_mode_val="hookless" ;;
             'tracepoint (RE only)') hook_mode_val="tracepoint" ;;
             *) hook_mode_val="manual" ;;
           esac

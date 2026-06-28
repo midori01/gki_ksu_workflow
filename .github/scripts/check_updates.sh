@@ -164,7 +164,7 @@ check_tag() {
     echo "  Tag sub_level ($new_sub) < current default ($current_default), keeping default_sub_level."
   fi
 
-  if download_and_upload "source-$kv" "$kv" "$android_ver" "$asb_date" "$new_r"; then
+  if download_and_upload "source-$kv" "$kv" "$android_ver" "$asb_date" "$r_suffix"; then
     if [[ "$new_r" != "$current_r" || "$new_sub" != "$current_sub" ]]; then
       jq --arg kv "$kv" \
          --arg sub "$new_sub" \

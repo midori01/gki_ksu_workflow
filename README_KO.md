@@ -55,14 +55,14 @@
 | [MidoriSU-RE-DS](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | `Manual` |
 | [MidoriSU-RE-SUSFS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | `Inline` |
 | [MidoriSU-RE-SUSFS-DS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ✅ | `Inline` |
-| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Manual` |
-| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Manual` |
+| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Hookless` |
+| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Hookless` |
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
 
 > \* **MidoriSU-XX 및 MidoriSU-RE 후크 방식:** 실행 시 `hook_mode` 옵션을 통해 변경할 수 있습니다.
-> - `manual` — 두 배리언트의 기본 방식
-> - `hookless` — MidoriSU-XX 6.12 전용
+> - `hookless` — MidoriSU-XX의 기본값
+> - `manual` — MidoriSU-RE의 기본값
 > - `tracepoint` — MidoriSU-RE 전용
 
 > [!TIP]
@@ -78,8 +78,8 @@
 | `Tracepoint` | 커널의 정적인 syscall tracepoint 인프라(`sys_enter`/`sys_exit`)에 후킹하므로 커널 소스를 수정하지 않습니다. **MidoriSU-NX(비 SUSFS 환경)의 기본 방식입니다.** |
 | `Inline` | `#ifdef CONFIG_KSU_SUSFS` 블록을 커널 서브시스템 소스에 직접 삽입하는 컴파일 타임 주입 방식입니다. `static_key` 분기를 통해 런타임에 활성/비활성 전환이 가능하며, kprobe나 LSM 후크에 의존하지 않습니다. VFS(`exec`, `open`, `stat`, `readdir`, `statfs`), SELinux(`avc`, `hooks`, `services`), input, mounts, procfs에 내장됩니다. **MidoriSU-KO-SUSFS, MidoriSU-NX-SUSFS, MidoriSU-RE-SUSFS, MidoriSU-OG-SUSFS에서 사용됩니다.** |
 | `De-inlined` | `#ifdef CONFIG_KSU_SUSFS` 인라인 블록을 사용하는 대신 커널 소스에 패치를 적용하여 SUSFS 후크를 통합합니다. 이를 통해 SUSFS 로직이 코어 커널 서브시스템과 더욱 명확하게 분리됩니다. **MidoriSU-XX-SUSFS에서 사용됩니다.** |
-| `Manual` | 커널 소스에 대한 정적 패치 방식입니다. 컴파일 시 자체 후크를 코어 커널 서브시스템에 직접 주입합니다. **MidoriSU-XX 및 MidoriSU-RE(비 SUSFS 환경)의 기본 방식입니다.** |
-| `Hookless` | KernelSU 내장 메커니즘만을 사용합니다. `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`를 활성화하며 커널 소스를 전혀 수정하지 않고 KernelSU 내부의 후크 인프라에 완전히 의존합니다. **MidoriSU-XX 전용 옵션입니다**(`hook_mode: hookless`). |
+| `Manual` | 커널 소스에 대한 정적 패치 방식입니다. 컴파일 시 자체 후크를 코어 커널 서브시스템에 직접 주입합니다. **MidoriSU-RE(비 SUSFS 환경)의 기본 방식입니다.** |
+| `Hookless` | KernelSU 내장 메커니즘만을 사용합니다. `CONFIG_KSU_TAMPER_SYSCALL_TABLE`을 활성화하며 커널 소스를 전혀 수정하지 않고 KernelSU 내부의 후크 인프라에 완전히 의존합니다. **MidoriSU-XX(비 SUSFS 환경)의 기본 방식입니다.** |
 
 ---
 

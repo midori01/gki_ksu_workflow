@@ -55,14 +55,14 @@
 | [MidoriSU-RE-DS](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | `Manual` |
 | [MidoriSU-RE-SUSFS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | `Inline` |
 | [MidoriSU-RE-SUSFS-DS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ✅ | `Inline` |
-| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Manual` |
-| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Manual` |
+| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Hookless` |
+| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Hookless` |
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
 
 > \* **MidoriSU-XX および MidoriSU-RE のフック方式:** 実行時に `hook_mode` で切り替え可能です。
-> - `manual` — 両バリアントのデフォルト
-> - `hookless` — MidoriSU-XX 6.12 のみ対応
+> - `hookless` — MidoriSU-XX のデフォルト
+> - `manual` — MidoriSU-RE のデフォルト
 > - `tracepoint` — MidoriSU-RE のみ対応
 
 > [!TIP]
@@ -78,8 +78,8 @@
 | `Tracepoint` | カーネルの静的な syscall tracepoint 基盤（`sys_enter`/`sys_exit`）にフックするため、カーネルソースの改変を行いません。**MidoriSU-NX（非 SUSFS）のデフォルト。** |
 | `Inline` | `#ifdef CONFIG_KSU_SUSFS` ブロックをカーネルサブシステムのソースに直接埋め込む、コンパイル時注入方式です。`static_key` 分岐により実行時の切り替えが可能です。kprobe や LSM フックには依存しません。VFS（`exec`、`open`、`stat`、`readdir`、`statfs`）、SELinux（`avc`、`hooks`、`services`）、input、mounts、procfs に組み込まれます。**MidoriSU-KO-SUSFS、MidoriSU-NX-SUSFS、MidoriSU-RE-SUSFS、MidoriSU-OG-SUSFS で使用。** |
 | `De-inlined` | `#ifdef CONFIG_KSU_SUSFS` によるインラインブロックを使用せず、カーネルソースへのパッチ適用により SUSFS フックを組み込みます。SUSFS ロジックがコアカーネルサブシステムからより明確に分離されます。**MidoriSU-XX-SUSFS で使用。** |
-| `Manual` | カーネルソースへの静的なパッチ適用方式です。コンパイル時に独自のフックをコアカーネルサブシステムへ注入します。**MidoriSU-XX および MidoriSU-RE（非 SUSFS）のデフォルト。** |
-| `Hookless` | KernelSU 組み込みの機構のみを使用します。`CONFIG_KSU_HACK_ARM64_BRANCH_LINK` を有効化し、カーネルソースの改変は一切行いません。KernelSU 内部のフック基盤に完全に依存します。**MidoriSU-XX 専用**（`hook_mode: hookless`）。 |
+| `Manual` | カーネルソースへの静的なパッチ適用方式です。コンパイル時に独自のフックをコアカーネルサブシステムへ注入します。**MidoriSU-RE（非 SUSFS）のデフォルト。** |
+| `Hookless` | KernelSU 組み込みの機構のみを使用します。`CONFIG_KSU_TAMPER_SYSCALL_TABLE` を有効化し、カーネルソースの改変は一切行いません。KernelSU 内部のフック基盤に完全に依存します。**MidoriSU-XX（非 SUSFS）のデフォルト。** |
 
 ---
 
