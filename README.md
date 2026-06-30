@@ -61,7 +61,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
 
 > \* **MidoriSU-XX & MidoriSU-RE Hook Type:** Runtime-configurable via `hook_mode`.
-> - `hookless` — default for MidoriSU-XX; kernel 6.12 uses `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`, others use `CONFIG_KSU_TAMPER_SYSCALL_TABLE`
+> - `hookless` — default for MidoriSU-XX; uses `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` on all kernel versions
 > - `manual` — default for MidoriSU-RE
 > - `tracepoint` — MidoriSU-RE only
 
@@ -79,7 +79,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | `Inline` | Compile-time injection via `#ifdef CONFIG_KSU_SUSFS` blocks embedded directly into kernel subsystem source. Uses `static_key` branches for runtime toggling. No reliance on kprobes or LSM hooks. Hardwired into VFS (`exec`, `open`, `stat`, `readdir`, `statfs`), SELinux (`avc`, `hooks`, `services`), input, mounts, and procfs. **Used by MidoriSU-KO-SUSFS, MidoriSU-NX-SUSFS, MidoriSU-RE-SUSFS, MidoriSU-OG-SUSFS.** |
 | `De-inlined` | SUSFS hooks applied via kernel source patching rather than inline `#ifdef CONFIG_KSU_SUSFS` blocks. Cleaner separation of SUSFS logic from core kernel subsystems. **Used by MidoriSU-XX-SUSFS.** |
 | `Manual` | Static kernel source patching. Custom hooks injected at compile time into core kernel subsystems. **Default for MidoriSU-RE** (non-SUSFS). |
-| `Hookless` | Pure KernelSU built-in mechanisms. Kernel 6.12 enables `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`, all other versions enable `CONFIG_KSU_TAMPER_SYSCALL_TABLE`. Zero kernel source modification. Relies entirely on KernelSU's internal hooking infrastructure. **Default for MidoriSU-XX** (non-SUSFS). |
+| `Hookless` | Pure KernelSU built-in mechanisms. Always enables `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` regardless of kernel version. Zero kernel source modification. Relies entirely on KernelSU's internal hooking infrastructure. **Default for MidoriSU-XX** (non-SUSFS). |
 
 ---
 

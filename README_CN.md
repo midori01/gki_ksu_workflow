@@ -61,7 +61,7 @@
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
 
 > \* **MidoriSU-XX 和 MidoriSU-RE 的 Hook 类型：** 可通过 `hook_mode` 运行时配置。
-> - `hookless` — MidoriSU-XX 的默认值；6.12 内核使用 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`，其他版本使用 `CONFIG_KSU_TAMPER_SYSCALL_TABLE`
+> - `hookless` — MidoriSU-XX 的默认值；所有内核版本均使用 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`
 > - `manual` — MidoriSU-RE 的默认值
 > - `tracepoint` — 仅限 MidoriSU-RE
 
@@ -79,7 +79,7 @@
 | `Inline` | 编译时通过直接嵌入内核子系统源码的 `#ifdef CONFIG_KSU_SUSFS` 代码块注入。使用 `static_key` 分支实现运行时切换。不依赖 kprobes 或 LSM 钩子。硬编码于 VFS（`exec`、`open`、`stat`、`readdir`、`statfs`）、SELinux（`avc`、`hooks`、`services`）、input、mounts 和 procfs。**用于 MidoriSU-KO-SUSFS、MidoriSU-NX-SUSFS、MidoriSU-RE-SUSFS、MidoriSU-OG-SUSFS。** |
 | `De-inlined` | 通过内核源码打补丁而非内联 `#ifdef CONFIG_KSU_SUSFS` 代码块来应用 SUSFS 钩子。SUSFS 逻辑与核心内核子系统分离更清晰。**用于 MidoriSU-XX-SUSFS。** |
 | `Manual` | 静态内核源码打补丁。编译时将自定义钩子注入核心内核子系统。**MidoriSU-RE 的默认类型**（非 SUSFS）。 |
-| `Hookless` | 纯 KernelSU 内置机制。6.12 内核启用 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`，其他版本启用 `CONFIG_KSU_TAMPER_SYSCALL_TABLE`。零内核源码修改。完全依赖 KernelSU 的内部 Hook 基础设施。**MidoriSU-XX 的默认类型**（非 SUSFS）。 |
+| `Hookless` | 纯 KernelSU 内置机制。所有内核版本均启用 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`。零内核源码修改。完全依赖 KernelSU 的内部 Hook 基础设施。**MidoriSU-XX 的默认类型**（非 SUSFS）。 |
 
 ---
 

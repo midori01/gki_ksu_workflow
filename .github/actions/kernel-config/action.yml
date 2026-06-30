@@ -97,17 +97,10 @@ runs:
         case "${{ inputs.variant }}" in
           MidoriSU-XX)
             if [ "${{ inputs.hook_mode }}" = "hookless" ]; then
-              if [ "${{ inputs.kernel_version }}" = "6.12" ]; then
-                cat >> $DEFCONFIG <<-'EOF'
+              cat >> $DEFCONFIG <<-'EOF'
         CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
         CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y
         EOF
-              else
-                cat >> $DEFCONFIG <<-'EOF'
-        CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
-        CONFIG_KSU_TAMPER_SYSCALL_TABLE=y
-        EOF
-              fi
             else
               cat >> $DEFCONFIG <<-'EOF'
         CONFIG_KSU_THRONE_TRACKER_ALWAYS_THREADED=y
