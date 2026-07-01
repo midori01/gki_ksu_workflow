@@ -32,9 +32,9 @@
     "revisions": {
       "127": {
         "asb_date": "2026-04",
-        "default_r": "r19",
+        "default_r": "r20",
         "supported_r": [
-          "r19",
+          "r20",
           "none"
         ]
       },

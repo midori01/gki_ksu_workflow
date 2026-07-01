@@ -98,7 +98,7 @@ index 5efd1f90c..84c3b4bc9 100644
 +static int do_get_driver_name(void __user *arg)
 +{
 +    struct ksu_driver_name_cmd cmd = { 0 };
-+    strscpy(cmd.name, "XX", sizeof(cmd.name));
++    strscpy(cmd.name, "BACKSLASHXX", sizeof(cmd.name));
 +
 +    if (copy_to_user(arg, &cmd, sizeof(cmd))) {
 +        return -EFAULT;
