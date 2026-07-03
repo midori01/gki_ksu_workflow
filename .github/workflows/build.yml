@@ -233,7 +233,7 @@ jobs:
             [ "$rust" = "true" ] && rust_version=$(echo "$config" | jq -r '.default_rust') || rust_version=""
             mirror_tag=$(echo "$config" | jq -r '.mirror_tag')
             anykernel_branch=$(echo "$config" | jq -r '.anykernel_branch')
-            google_ref=$([ "$r_version" = "none" ] && echo "heads" || echo "tags")
+            google_ref=$([ "$r_version" = "none" -o "$asb_date" = "lts" ] && echo "heads" || echo "tags")
             if [ "${{ inputs.source_mirror }}" = "google" ]; then
               source_url="https://android.googlesource.com/kernel/common/+archive/refs/$google_ref"
               mirror_name="Google"
