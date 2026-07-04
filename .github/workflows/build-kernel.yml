@@ -312,13 +312,20 @@ jobs:
         if: inputs.use_rekernel
         working-directory: kernel_workspace/common
         run: |
-          REKERNEL_DIR="${{ github.workspace }}/Re-Kernel"
-          git clone --depth=1 https://github.com/Sakion-Team/Re-Kernel.git "$REKERNEL_DIR"
+          REKERNEL_DIR="${{ github.workspace }}/ReKernel"
+          git clone --tags https://github.com/myflavor/ReKernel-X "$REKERNEL_DIR"
           cp -r "$REKERNEL_DIR"/LKM-Source drivers/rekernel
           sed -i 's/depends on MODULES/depends on KSU/' drivers/rekernel/Kconfig
-          sed -i 's/obj-m := rekernel.o/obj-$(CONFIG_REKERNEL) += rekernel.o/' drivers/rekernel/Makefile
-          grep -q "rekernel" drivers/Makefile || echo 'obj-$(CONFIG_REKERNEL) += rekernel/' >> drivers/Makefile
+          sed -i 's/obj-m += rekernel_x.o/obj-$(CONFIG_REKERNEL_X) += rekernel_x.o/' drivers/rekernel/Makefile
+          echo 'obj-$(CONFIG_REKERNEL_X) += rekernel/' >> drivers/Makefile
           grep -q "drivers/rekernel/Kconfig" drivers/Kconfig || sed -i '/endmenu/i source "drivers/rekernel/Kconfig"' drivers/Kconfig
+          REKERNEL_VER=$(git -C "$REKERNEL_DIR" tag --sort=-creatordate 2>/dev/null | head -1)
+          REKERNEL_VER=${REKERNEL_VER#v}
+          if [ -n "$REKERNEL_VER" ]; then
+            echo "REKERNEL_X_VERSION=v${REKERNEL_VER}" >> $GITHUB_ENV
+          else
+            echo "REKERNEL_X_VERSION=$(git -C "$REKERNEL_DIR" rev-parse --short HEAD)" >> $GITHUB_ENV
+          fi
 
       - name: Apply Unicode Bypass Fix
         if: inputs.unicode_bypass_fix
@@ -415,8 +422,8 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="${{ inputs.build_timestamp }}"
           export KBUILD_BUILD_HOST="${{ inputs.build_host }}"
           export KBUILD_BUILD_USER="${{ inputs.build_user }}"
-          make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
-          make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
+          make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- REKERNEL_X_VERSION="${REKERNEL_X_VERSION}" O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
+          make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- REKERNEL_X_VERSION="${REKERNEL_X_VERSION}" O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
           [ "${{ inputs.use_ccache }}" = "true" ] && ccache -s || true
 
       - name: Export vmlinux for eBPF

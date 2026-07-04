@@ -70,6 +70,21 @@
 
 ---
 
+## 📱 MidoriSU マネージャー
+
+[**MidoriSU**](https://github.com/midori01/KernelSU) は、MidoriSU 全カーネルバリアント対応の公式コンパニオンアプリです。[**KowSU**](https://github.com/KOWX712/KernelSU) をベースに独自の改修を施しており、**KO、NX、OG、RE、XX** の全バリアント、および SUSFS / Droidspaces の全組み合わせにシームレスに対応します。
+
+| 機能 | 説明 |
+| :--- | :--- |
+| **ホーム画面** | KSU ドライバ名、フックタイプ、SUSFS バージョン、Droidspaces バージョン、Re:Kernel/ReKernel-X バージョン、カーネルビルド時刻を一目で確認可能。 |
+| **カーネルシンボル** | `/proc/kallsyms` をアプリ内で閲覧・検索・共有。 |
+| **カーネルログ** | dmesg 出力の表示・検索・共有に対応し、迅速なデバッグが可能。 |
+| **カーネルコンフィグ** | カーネルビルドオプション（`CONFIG_*`）の確認・検索・共有が可能。 |
+| **Boot イメージ** | アプリから離れずに `boot.img` のバックアップ / フラッシュを実行可能。 |
+| **SELinux 切替** | Enforcing モード / Permissive モードをワンタップで即時切替。 |
+
+---
+
 ## 🔧 フック方式リファレンス
 
 | 方式 | メカニズムと特徴 |
@@ -93,7 +108,7 @@
 | **SUSFS モジュール** | SUSFS 有効時に、最新の [susfs4ksu-module](https://github.com/sidex15/susfs4ksu-module) を自動取得してリリースに同梱します。全バリアントの SUSFS バージョンは単一の `susfs_commit` 入力で一元管理されます。 |
 | **KSU ツールキット** | 最新の [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) モジュールを nightly.link から自動取得し、リリースに同梱します。 |
 | **Droidspaces** | [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) を利用したコンテナ対応。SYSVIPC、IPC_NS、PID_NS、DEVTMPFS、NTSync、ネットワーク機能を提供します。`use_droidspaces` トグルでバリアントごとに有効化できます。 |
-| **Re:Kernel** | [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) モジュールをカーネルに直接組み込みます。tombstone によるフリーズ復旧と、オプションのネットワークトリガーによる解除が可能です。`use_rekernel` スイッチで制御します。 |
+| **ReKernel-X** | [ReKernel-X](https://github.com/myflavor/ReKernel-X) モジュールをカーネルに直接組み込みます。tombstone によるフリーズ復旧と、オプションのネットワークトリガーによる解除が可能です。`use_rekernel` スイッチで制御します。 |
 | **Unicode バイパス修正** | 非標準の Unicode エンコーディングを用いたファイルシステムバイパス攻撃を防ぐため、カーネルの Unicode 正規化処理にパッチを適用します。`unicode_bypass_fix` スイッチで制御します。 |
 | **Ccache** | 依存関係のインストール完了後に 60 秒間の待機プロセスを設けることでコンパイラキャッシュを安全に統合。ワークフロー実行をまたいだ、安定かつ堅牢な増分ビルドの高速化を実現します。 |
 | **ビルドメタデータのカスタマイズ** | コンパイル済みイメージに埋め込む `カーネル名`、`ビルド日時`、`ユーザー名`、`ホスト名` を任意に設定できます。 |

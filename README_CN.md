@@ -70,6 +70,21 @@
 
 ---
 
+## 📱 MidoriSU 管理器
+
+[**MidoriSU**](https://github.com/midori01/KernelSU) 是面向所有 MidoriSU 内核变体的官方配套应用。基于 [**KowSU**](https://github.com/KOWX712/KernelSU) 并进行定制修改，无缝兼容整个 MidoriSU 系列 — **KO、NX、OG、RE、XX** — 包括所有 SUSFS 与 Droidspaces 组合。
+
+| 功能 | 描述 |
+| :--- | :--- |
+| **首页概览** | 一目了然地显示关键内核信息：KSU 驱动名称、Hook 类型、SUSFS 版本、Droidspaces 版本、Re:Kernel/ReKernel-X 版本以及内核编译时间。 |
+| **内核符号** | 在应用内直接浏览、搜索和分享 `/proc/kallsyms`。 |
+| **内核日志** | 查看、搜索和分享 dmesg 输出，便于快速调试。 |
+| **内核配置** | 查看、搜索和分享内核编译选项（`CONFIG_*`）。 |
+| **Boot 镜像** | 无需离开应用即可备份和刷写 `boot.img`。 |
+| **SELinux 切换** | 在 Enforcing 与 Permissive 模式之间即时切换。 |
+
+---
+
 ## 🔧 Hook 类型参考
 
 | 类型 | 机制与特性 |
@@ -93,7 +108,7 @@
 | **SUSFS 模块** | 当启用 SUSFS 时，自动获取最新的 [susfs4ksu-module](https://github.com/sidex15/susfs4ksu-module) 并将其附加到发布中。单个 `susfs_commit` 输入控制所有变体的 SUSFS 版本。 |
 | **KSU 工具箱** | 自动从 nightly.link 获取最新的 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 模块并将其附加到发布中。 |
 | **Droidspaces** | 通过 [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) 提供容器支持 — SYSVIPC、IPC_NS、PID_NS、DEVTMPFS、NTSync 和网络。通过 `use_droidspaces` 开关按变体启用。 |
-| **Re:Kernel** | 集成的 [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 模块直接编译进内核。提供 tombstone 冻结恢复和可选的网络触发解冻。通过 `use_rekernel` 开关控制。 |
+| **ReKernel-X** | 集成的 [ReKernel-X](https://github.com/myflavor/ReKernel-X) 模块直接编译进内核。提供 tombstone 冻结恢复和可选的网络触发解冻。通过 `use_rekernel` 开关控制。 |
 | **Unicode 绕过修复** | 修补内核 Unicode 规范化，以防止通过非标准 Unicode 编码进行文件系统绕过攻击。通过 `unicode_bypass_fix` 开关控制。 |
 | **Ccache** | 编译器缓存集成，带有 60 秒等待守卫以确保依赖安装，保证跨工作流运行的健壮加速增量重建。 |
 | **伪装构建元数据** | 可为编译镜像自定义 `kernel name`、`build timestamp`、`user` 和 `host` 字符串。 |

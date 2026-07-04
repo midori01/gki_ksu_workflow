@@ -70,6 +70,21 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 
 ---
 
+## 📱 MidoriSU Manager
+
+[**MidoriSU**](https://github.com/midori01/KernelSU) is the official companion app for all MidoriSU kernel variants. Built on [**KowSU**](https://github.com/KOWX712/KernelSU) with custom modifications, it offers seamless compatibility across the entire MidoriSU family — **KO, NX, OG, RE, XX** — including all SUSFS and Droidspaces combinations.
+
+| Feature | Description |
+| :--- | :--- |
+| **Homepage Overview** | Displays essential kernel info at a glance: KSU driver name, hook type, SUSFS version, Droidspaces version, Re:Kernel/ReKernel-X version, and kernel build timestamp. |
+| **Kernel Symbols** | Browse, search, and share `/proc/kallsyms` directly within the app. |
+| **Kernel Logs** | View, search, and share dmesg output for quick debugging. |
+| **Kernel Config** | Inspect, search, and share kernel build options (`CONFIG_*`). |
+| **Boot Image** | Backup and flash `boot.img` without leaving the app. |
+| **SELinux Toggle** | Instantly switch between Enforcing and Permissive SELinux modes. |
+
+---
+
 ## 🔧 Hook Type Reference
 
 | Type | Mechanism & Characteristics |
@@ -93,7 +108,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | **SUSFS Module** | When SUSFS is enabled, automatically fetches the latest [susfs4ksu-module](https://github.com/sidex15/susfs4ksu-module) and attaches it to the release. A single `susfs_commit` input controls SUSFS versions across variants. |
 | **KSU Toolkit** | Automatically fetches the latest [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) module from nightly.link and attaches it to the release. |
 | **Droidspaces** | Container support via [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) — SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, and networking. Enabled per-variant through the `use_droidspaces` toggle. |
-| **Re:Kernel** | Integrated [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) module compiled directly into the kernel. Provides tombstone freeze recovery and optional network-triggered unfreeze. Toggled via `use_rekernel` switch. |
+| **ReKernel-X** | Integrated [ReKernel-X](https://github.com/myflavor/ReKernel-X) module compiled directly into the kernel. Provides tombstone freeze recovery and optional network-triggered unfreeze. Toggled via `use_rekernel` switch. |
 | **Unicode Bypass Fix** | Patches kernel unicode normalization to prevent filesystem bypass attacks via non-standard unicode encodings. Toggled via `unicode_bypass_fix` switch. |
 | **Ccache** | Compiler cache integration with a 60-second wait guard for dependency installation, ensuring robust accelerated incremental rebuilds across workflow runs. |
 | **Spoofed Build Metadata** | Customizable `kernel name`, `build timestamp`, `user`, and `host` strings for the compiled image. |

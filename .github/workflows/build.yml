@@ -100,7 +100,7 @@ on:
         default: true
         type: boolean
       use_rekernel:
-        description: 'Re:Kernel'
+        description: 'ReKernel-X'
         required: true
         default: true
         type: boolean
@@ -456,8 +456,8 @@ jobs:
             - **Spoofed uname**: `${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ needs.setup.outputs.kernel_localversion }}`
             - **Spoofed Build Time**: `${{ needs.setup.outputs.build_timestamp }}`
             - **Spoofed Builder**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
-            - **Unicode Bypass**: ${{ inputs.unicode_bypass_fix && '`✅ Fixed`' || '`❌ Vulnerable`' }}　**Re:Kernel**: ${{ inputs.use_rekernel && '`✅ Built-in`' || '❌' }}
-            - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**Ccache**: ${{ inputs.use_ccache && '`✅ Enabled`' || '`❌ Disabled`' }}
+            - **Unicode Bypass**: ${{ inputs.unicode_bypass_fix && '`✅ Fixed`' || '`❌ Vulnerable`' }}　**Ccache**: ${{ inputs.use_ccache && '`✅ Enabled`' || '`❌ Disabled`' }}
+            - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**ReKernel-X**: ${{ inputs.use_rekernel && '✅' || '❌' }}
             - **TMPFS**: ✅　**BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
             - **eBPF**: ${{ env.EBPF_FILE && format('✅ `({0})`', env.EBPF_FILE) || '❌' }}
             - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}

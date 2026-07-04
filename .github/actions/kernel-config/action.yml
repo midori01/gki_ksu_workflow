@@ -156,8 +156,7 @@ runs:
         
         if [ "${{ inputs.use_rekernel }}" = "true" ]; then
           cat >> $DEFCONFIG <<-'EOF'
-        CONFIG_REKERNEL=y
-        CONFIG_REKERNEL_NETWORK=y
+        CONFIG_REKERNEL_X=y
         EOF
         fi
         
