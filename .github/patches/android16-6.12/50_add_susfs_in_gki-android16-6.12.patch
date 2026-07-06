@@ -1,6 +1,6 @@
-From: midori01 <midori01@users.noreply.github.com>
-Date: Fri, 29 May 2026 20:10:34 +0900
-Subject: [PATCH] Update SUSFS Kernel-side patch for android16-6.12-2025-06
+From: midori01 <lv@lvlv.lv>
+Date: Mon, 6 Jul 2026 18:33:00 +0900
+Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2025-06
 
 ---
  drivers/input/input.c          |  10 ++
@@ -14,7 +14,7 @@ Subject: [PATCH] Update SUSFS Kernel-side patch for android16-6.12-2025-06
  fs/proc/bootconfig.c           |  13 ++
  fs/proc/fd.c                   |  78 ++++++++++
  fs/proc/task_mmu.c             |  74 ++++++++++
- fs/proc_namespace.c            |  35 +++++
+ fs/proc_namespace.c            | 174 ++++++++++++++++++++++
  fs/read_write.c                |  10 ++
  fs/readdir.c                   | 126 ++++++++++++++++
  fs/stat.c                      |  73 +++++++++
@@ -27,10 +27,10 @@ Subject: [PATCH] Update SUSFS Kernel-side patch for android16-6.12-2025-06
  security/selinux/hooks.c       |  45 ++++++
  security/selinux/selinuxfs.c   | 147 ++++++++++++++++++
  security/selinux/ss/services.c |  24 +++
- 24 files changed, 1347 insertions(+), 1 deletion(-)
+ 24 files changed, 1486 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
-index c51858f1c..ab3645135 100644
+index c51858f1cdc5..ab364513525c 100644
 --- a/drivers/input/input.c
 +++ b/drivers/input/input.c
 @@ -354,6 +354,12 @@ static void input_event_dispose(struct input_dev *dev, int disposition,
@@ -58,7 +58,7 @@ index c51858f1c..ab3645135 100644
  		if (type != EV_SYN)
  			add_input_randomness(type, code, value);
 diff --git a/fs/Makefile b/fs/Makefile
-index 9f5d06f4a..eeea6b70b 100644
+index 9f5d06f4a1a1..eeea6b70b47a 100644
 --- a/fs/Makefile
 +++ b/fs/Makefile
 @@ -22,6 +22,8 @@ obj-y :=	open.o read_write.o file_table.o super.o \
@@ -71,7 +71,7 @@ index 9f5d06f4a..eeea6b70b 100644
  obj-$(CONFIG_PROC_FS)		+= proc_namespace.o
  obj-$(CONFIG_LEGACY_DIRECT_IO)	+= direct-io.o
 diff --git a/fs/exec.c b/fs/exec.c
-index ee89e0f3a..47a1524d0 100644
+index ee89e0f3a636..47a1524d0f94 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -69,6 +69,9 @@
@@ -123,7 +123,7 @@ index ee89e0f3a..47a1524d0 100644
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
 diff --git a/fs/namei.c b/fs/namei.c
-index ce03b3d91..24e731f1c 100644
+index ce03b3d91a62..24e731f1cc14 100644
 --- a/fs/namei.c
 +++ b/fs/namei.c
 @@ -40,10 +40,18 @@
@@ -431,7 +431,7 @@ index ce03b3d91..24e731f1c 100644
  	do_delayed_call(&done);
  	return res;
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 100f5e7bc..a25f90113 100644
+index 100f5e7bc0e7..a25f901130b0 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -33,11 +33,22 @@
@@ -781,7 +781,7 @@ index 100f5e7bc..a25f90113 100644
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 \ No newline at end of file
 diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
-index e933f9c65..f624f77c1 100644
+index e933f9c65d90..f624f77c1c20 100644
 --- a/fs/notify/fdinfo.c
 +++ b/fs/notify/fdinfo.c
 @@ -12,6 +12,9 @@
@@ -885,7 +885,7 @@ index e933f9c65..f624f77c1 100644
  			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
  			   inotify_mark_user_mask(mark));
 diff --git a/fs/open.c b/fs/open.c
-index 1ff947b32..7d2f1cf93 100644
+index 1ff947b3209f..7d2f1cf93e5f 100644
 --- a/fs/open.c
 +++ b/fs/open.c
 @@ -33,6 +33,9 @@
@@ -984,7 +984,7 @@ index 1ff947b32..7d2f1cf93 100644
  			put_unused_fd(fd);
  			fd = PTR_ERR(f);
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 26abf573e..de467386b 100644
+index 26abf573e615..de467386bd9f 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
 @@ -100,6 +100,10 @@
@@ -1040,7 +1040,7 @@ index 26abf573e..de467386b 100644
  			continue;
  
 diff --git a/fs/proc/bootconfig.c b/fs/proc/bootconfig.c
-index 87dcaae32..431965c17 100644
+index 87dcaae32ff8..431965c17a3f 100644
 --- a/fs/proc/bootconfig.c
 +++ b/fs/proc/bootconfig.c
 @@ -12,8 +12,21 @@
@@ -1066,7 +1066,7 @@ index 87dcaae32..431965c17 100644
  		seq_puts(m, saved_boot_config);
  	return 0;
 diff --git a/fs/proc/fd.c b/fs/proc/fd.c
-index 5e391cbca..ed6be4741 100644
+index 5e391cbca7a3..ed6be4741eb0 100644
 --- a/fs/proc/fd.c
 +++ b/fs/proc/fd.c
 @@ -15,17 +15,35 @@
@@ -1177,7 +1177,7 @@ index 5e391cbca..ed6be4741 100644
  	/* show_fd_locks() never dereferences files, so a stale value is safe */
  	show_fd_locks(m, file, files);
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 41c179ff5..b4ea364f6 100644
+index 41c179ff550c..b4ea364f64b2 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -26,6 +26,9 @@
@@ -1331,7 +1331,7 @@ index 41c179ff5..b4ea364f6 100644
  		start_vaddr = end;
  
 diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
-index e133b507d..2cfd1df59 100644
+index e133b507ddf3..aa151dfe72e4 100644
 --- a/fs/proc_namespace.c
 +++ b/fs/proc_namespace.c
 @@ -12,12 +12,20 @@
@@ -1348,63 +1348,205 @@ index e133b507d..2cfd1df59 100644
  #include "internal.h"
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+extern bool susfs_hide_sus_mnts_for_non_su_procs;
++extern struct static_key_false susfs_is_hide_sus_mnts_for_non_su_procs_enabled;
 +extern bool susfs_is_current_ksu_domain(void);
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +
  static __poll_t mounts_poll(struct file *file, poll_table *wait)
  {
  	struct seq_file *m = file->private_data;
-@@ -106,6 +114,15 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
- 	struct super_block *sb = mnt_path.dentry->d_sb;
- 	int err;
+@@ -235,6 +243,154 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
+ 	return err;
+ }
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	if (READ_ONCE(susfs_hide_sus_mnts_for_non_su_procs) &&
-+		r->mnt_id >= DEFAULT_KSU_MNT_ID &&
-+		!susfs_is_current_ksu_domain())
-+	{
++static int susfs_show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
++{
++	struct proc_mounts *p = m->private;
++	struct mount *r = real_mount(mnt);
++	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
++	struct super_block *sb = mnt_path.dentry->d_sb;
++	int err;
++
++	if (r->mnt_id >= DEFAULT_KSU_MNT_ID)
 +		return 0;
++
++	if (sb->s_op->show_devname) {
++		err = sb->s_op->show_devname(m, mnt_path.dentry);
++		if (err)
++			goto out;
++	} else {
++		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
 +	}
++	seq_putc(m, ' ');
++	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
++	err = seq_path_root(m, &mnt_path, &p->root, " \t\n\\");
++	if (err)
++		goto out;
++	seq_putc(m, ' ');
++	show_type(m, sb);
++	seq_puts(m, __mnt_is_readonly(mnt) ? " ro" : " rw");
++	err = show_sb_opts(m, sb);
++	if (err)
++		goto out;
++	show_vfsmnt_opts(m, mnt);
++	if (sb->s_op->show_options)
++		err = sb->s_op->show_options(m, mnt_path.dentry);
++	seq_puts(m, " 0 0\n");
++out:
++	return err;
++}
++
++static int susfs_show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
++{
++	struct proc_mounts *p = m->private;
++	struct mount *r = real_mount(mnt);
++	struct super_block *sb = mnt->mnt_sb;
++	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
++	int err;
++
++	if (r->mnt_id >= DEFAULT_KSU_MNT_ID)
++		return 0;
++
++	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
++		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
++	err = show_path(m, mnt->mnt_root);
++	if (err)
++		goto out;
++	seq_putc(m, ' ');
++
++	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
++	err = seq_path_root(m, &mnt_path, &p->root, " \t\n\\");
++	if (err)
++		goto out;
++
++	seq_puts(m, mnt->mnt_flags & MNT_READONLY ? " ro" : " rw");
++	show_vfsmnt_opts(m, mnt);
++
++	/* Tagged fields ("foo:X" or "bar") */
++	if (IS_MNT_SHARED(r))
++		seq_printf(m, " shared:%i", r->mnt_group_id);
++	if (IS_MNT_SLAVE(r)) {
++		int master = r->mnt_master->mnt_group_id;
++		int dom = get_dominating_id(r, &p->root);
++		seq_printf(m, " master:%i", master);
++		if (dom && dom != master)
++			seq_printf(m, " propagate_from:%i", dom);
++	}
++	if (IS_MNT_UNBINDABLE(r))
++		seq_puts(m, " unbindable");
++
++	/* Filesystem specific data */
++	seq_puts(m, " - ");
++	show_type(m, sb);
++	seq_putc(m, ' ');
++	if (sb->s_op->show_devname) {
++		err = sb->s_op->show_devname(m, mnt->mnt_root);
++		if (err)
++			goto out;
++	} else {
++		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
++	}
++	seq_puts(m, sb_rdonly(sb) ? " ro" : " rw");
++	err = show_sb_opts(m, sb);
++	if (err)
++		goto out;
++	if (sb->s_op->show_options)
++		err = sb->s_op->show_options(m, mnt->mnt_root);
++	seq_putc(m, '\n');
++out:
++	return err;
++}
++
++static int susfs_show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
++{
++	struct proc_mounts *p = m->private;
++	struct mount *r = real_mount(mnt);
++	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
++	struct super_block *sb = mnt_path.dentry->d_sb;
++	int err;
++
++	if (r->mnt_id >= DEFAULT_KSU_MNT_ID)
++		return 0;
++
++	/* device */
++	if (sb->s_op->show_devname) {
++		seq_puts(m, "device ");
++		err = sb->s_op->show_devname(m, mnt_path.dentry);
++		if (err)
++			goto out;
++	} else {
++		if (r->mnt_devname) {
++			seq_puts(m, "device ");
++			mangle(m, r->mnt_devname);
++		} else
++			seq_puts(m, "no device");
++	}
++
++	/* mount point */
++	seq_puts(m, " mounted on ");
++	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
++	err = seq_path_root(m, &mnt_path, &p->root, " \t\n\\");
++	if (err)
++		goto out;
++	seq_putc(m, ' ');
++
++	/* file system type */
++	seq_puts(m, "with fstype ");
++	show_type(m, sb);
++
++	/* optional statistics */
++	if (sb->s_op->show_stats) {
++		seq_putc(m, ' ');
++		err = sb->s_op->show_stats(m, mnt_path.dentry);
++	}
++
++	seq_putc(m, '\n');
++out:
++	return err;
++}
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +
- 	if (sb->s_op->show_devname) {
- 		err = sb->s_op->show_devname(m, mnt_path.dentry);
- 		if (err)
-@@ -140,6 +157,15 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
- 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
- 	int err;
+ static int mounts_open_common(struct inode *inode, struct file *file,
+ 			      int (*show)(struct seq_file *, struct vfsmount *))
+ {
+@@ -301,16 +457,34 @@ static int mounts_release(struct inode *inode, struct file *file)
  
+ static int mounts_open(struct inode *inode, struct file *file)
+ {
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	if (READ_ONCE(susfs_hide_sus_mnts_for_non_su_procs) &&
-+		r->mnt_id >= DEFAULT_KSU_MNT_ID &&
-+		!susfs_is_current_ksu_domain())
-+	{
-+		return 0;
++	if (static_branch_unlikely(&susfs_is_hide_sus_mnts_for_non_su_procs_enabled)) {
++		if (likely(!susfs_is_current_ksu_domain()))
++			return mounts_open_common(inode, file, susfs_show_vfsmnt);
 +	}
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+
- 	seq_printf(m, "%i %i %u:%u ", r->mnt_id, r->mnt_parent->mnt_id,
- 		   MAJOR(sb->s_dev), MINOR(sb->s_dev));
- 	err = show_path(m, mnt->mnt_root);
-@@ -198,6 +224,15 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
- 	struct super_block *sb = mnt_path.dentry->d_sb;
- 	int err;
+ 	return mounts_open_common(inode, file, show_vfsmnt);
+ }
  
+ static int mountinfo_open(struct inode *inode, struct file *file)
+ {
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+	if (READ_ONCE(susfs_hide_sus_mnts_for_non_su_procs) &&
-+		r->mnt_id >= DEFAULT_KSU_MNT_ID &&
-+		!susfs_is_current_ksu_domain())
-+	{
-+		return 0;
++	if (static_branch_unlikely(&susfs_is_hide_sus_mnts_for_non_su_procs_enabled)) {
++		if (likely(!susfs_is_current_ksu_domain()))
++			return mounts_open_common(inode, file, susfs_show_mountinfo);
 +	}
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-+
- 	/* device */
- 	if (sb->s_op->show_devname) {
- 		seq_puts(m, "device ");
+ 	return mounts_open_common(inode, file, show_mountinfo);
+ }
+ 
+ static int mountstats_open(struct inode *inode, struct file *file)
+ {
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++	if (static_branch_unlikely(&susfs_is_hide_sus_mnts_for_non_su_procs_enabled)) {
++		if (likely(!susfs_is_current_ksu_domain()))
++			return mounts_open_common(inode, file, susfs_show_vfsstat);
++	}
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+ 	return mounts_open_common(inode, file, show_vfsstat);
+ }
+ 
 diff --git a/fs/read_write.c b/fs/read_write.c
-index eaaf755c4..7ac672127 100644
+index eaaf755c43b5..7ac672127d46 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
 @@ -718,8 +718,18 @@ ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count)
@@ -1427,7 +1569,7 @@ index eaaf755c4..7ac672127 100644
  }
  
 diff --git a/fs/readdir.c b/fs/readdir.c
-index 6d29cab85..77213f638 100644
+index 6d29cab8576e..77213f638951 100644
 --- a/fs/readdir.c
 +++ b/fs/readdir.c
 @@ -22,6 +22,10 @@
@@ -1704,7 +1846,7 @@ index 6d29cab85..77213f638 100644
  	if (error >= 0)
  		error = buf.error;
 diff --git a/fs/stat.c b/fs/stat.c
-index adb071bc9..0c3e9fc2b 100644
+index adb071bc92e1..0c3e9fc2b178 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
 @@ -20,12 +20,22 @@
@@ -1850,7 +1992,7 @@ index adb071bc9..0c3e9fc2b 100644
  		      AT_STATX_SYNC_TYPE))
  		return -EINVAL;
 diff --git a/fs/statfs.c b/fs/statfs.c
-index 83c5d3feb..43b0b65f0 100644
+index 83c5d3febbb8..43b0b65f0bdd 100644
 --- a/fs/statfs.c
 +++ b/fs/statfs.c
 @@ -9,6 +9,10 @@
@@ -1916,7 +2058,7 @@ index 83c5d3feb..43b0b65f0 100644
  	error = statfs_by_dentry(path->dentry, buf);
  	if (!error)
 diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
-index a9a0ca605..a6308f3f5 100644
+index a9a0ca605d4a..a6308f3f5017 100644
 --- a/kernel/kallsyms.c
 +++ b/kernel/kallsyms.c
 @@ -31,6 +31,9 @@
@@ -1967,7 +2109,7 @@ index a9a0ca605..a6308f3f5 100644
  }
  
 diff --git a/kernel/reboot.c b/kernel/reboot.c
-index bcc98b547..2d042b8d3 100644
+index bcc98b547431..2d042b8d35e3 100644
 --- a/kernel/reboot.c
 +++ b/kernel/reboot.c
 @@ -707,6 +707,9 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
@@ -1997,7 +2139,7 @@ index bcc98b547..2d042b8d3 100644
  	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
  		return -EPERM;
 diff --git a/kernel/sys.c b/kernel/sys.c
-index 4a87dc5fa..811b1afa2 100644
+index 4a87dc5fa867..811b1afa2310 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
 @@ -678,6 +678,9 @@ SYSCALL_DEFINE1(setuid, uid_t, uid)
@@ -2043,7 +2185,7 @@ index 4a87dc5fa..811b1afa2 100644
  	if (copy_to_user(name, &tmp, sizeof(tmp)))
  		return -EFAULT;
 diff --git a/mm/memory.c b/mm/memory.c
-index 353e4e8ae..9a9419a2e 100644
+index 29c0801608de..983d70d4bded 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -79,6 +79,9 @@
@@ -2056,7 +2198,7 @@ index 353e4e8ae..9a9419a2e 100644
  
  #include <trace/events/kmem.h>
  #include <trace/hooks/mm.h>
-@@ -6827,8 +6830,18 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
+@@ -6835,8 +6838,18 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
  		int bytes, offset;
  		void *maddr;
  		struct vm_area_struct *vma = NULL;
@@ -2076,7 +2218,7 @@ index 353e4e8ae..9a9419a2e 100644
  		if (IS_ERR(page)) {
  			/* We might need to expand the stack to access it */
 diff --git a/security/selinux/avc.c b/security/selinux/avc.c
-index 29a9bf854..18456f388 100644
+index 29a9bf8543ce..18456f388b10 100644
 --- a/security/selinux/avc.c
 +++ b/security/selinux/avc.c
 @@ -47,6 +47,12 @@
@@ -2119,7 +2261,7 @@ index 29a9bf854..18456f388 100644
  	audit_log_format(ab, " tclass=%s", tclass);
  
 diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
-index fc926d3ca..e230e1a3d 100644
+index fc926d3cac6e..e230e1a3d188 100644
 --- a/security/selinux/hooks.c
 +++ b/security/selinux/hooks.c
 @@ -109,6 +109,12 @@
@@ -2190,7 +2332,7 @@ index fc926d3ca..e230e1a3d 100644
  	LSM_HOOK_INIT(ismaclabel, selinux_ismaclabel),
  	LSM_HOOK_INIT(secctx_to_secid, selinux_secctx_to_secid),
 diff --git a/security/selinux/selinuxfs.c b/security/selinux/selinuxfs.c
-index 8acbaa4f2..17e638c8e 100644
+index 8acbaa4f2cb5..17e638c8e289 100644
 --- a/security/selinux/selinuxfs.c
 +++ b/security/selinux/selinuxfs.c
 @@ -44,6 +44,21 @@
@@ -2392,7 +2534,7 @@ index 8acbaa4f2..17e638c8e 100644
  {
  	char *scon = NULL, *tcon = NULL;
 diff --git a/security/selinux/ss/services.c b/security/selinux/ss/services.c
-index 45a4f7a20..b43a20ce2 100644
+index 45a4f7a2042d..b43a20ce285e 100644
 --- a/security/selinux/ss/services.c
 +++ b/security/selinux/ss/services.c
 @@ -527,6 +527,18 @@ static void security_dump_masked_av(struct policydb *policydb,
