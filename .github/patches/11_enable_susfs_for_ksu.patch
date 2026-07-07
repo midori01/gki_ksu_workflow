@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Fri, 19 Jun 2026 09:41:33 +0900
+Date: Tue, 07 Jul 2026 11:00:00 +0900
 Subject: [PATCH] Enable SUSFS for MidoriSU-XX
 
 ---
@@ -14,10 +14,10 @@ Subject: [PATCH] Enable SUSFS for MidoriSU-XX
  8 files changed, 374 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/Kconfig b/kernel/Kconfig
-index 1c9baa76..0a01e625 100644
+index 64299d64f..4d26c8d14 100644
 --- a/kernel/Kconfig
 +++ b/kernel/Kconfig
-@@ -82,4 +82,94 @@ config KSU_LSM_SECURITY_HOOKS
+@@ -85,4 +85,94 @@ config KSU_LSM_SECURITY_HOOKS
  	  Disabling this is mostly useful for non-ARM64 with kernel > 6.8.
  	  Make sure to implement manual hooks on security/security.c.
  
@@ -113,7 +113,7 @@ index 1c9baa76..0a01e625 100644
 +
  endmenu
 diff --git a/kernel/hook/setuid_hook.c b/kernel/hook/setuid_hook.c
-index 2c0aeab2..55b21ddb 100644
+index 2c0aeab24..55b21ddb8 100644
 --- a/kernel/hook/setuid_hook.c
 +++ b/kernel/hook/setuid_hook.c
 @@ -1,3 +1,28 @@
@@ -187,33 +187,33 @@ index 2c0aeab2..55b21ddb 100644
 +#endif
  }
 diff --git a/kernel/ksu.c b/kernel/ksu.c
-index 041c06e6..547a2515 100644
+index f9f46f935..3e9c5228e 100644
 --- a/kernel/ksu.c
 +++ b/kernel/ksu.c
-@@ -113,6 +113,10 @@
+@@ -117,6 +117,10 @@
  #include "hook/kp_ksud.c"
  #endif
  
 +#ifdef CONFIG_KSU_SUSFS
 +#include <linux/susfs.h>
-+#endif
++#endif // #ifdef CONFIG_KSU_SUSFS
 +
  // __weak fn's
  #include "kernel_compat.c"
  
-@@ -209,6 +213,10 @@ static int __init kernelsu_init(void)
+@@ -213,6 +217,10 @@ static int __init kernelsu_init(void)
  
  	ksu_throne_tracker_init();
  
 +#ifdef CONFIG_KSU_SUSFS
-+	susfs_init();
-+#endif
++    susfs_init();
++#endif // #ifdef CONFIG_KSU_SUSFS
 +
  	ksu_ksud_init();
  
  	ksu_file_wrapper_init();
 diff --git a/kernel/selinux/rules.c b/kernel/selinux/rules.c
-index 12a7a170..ffe073c6 100644
+index 12a7a1709..ffe073c66 100644
 --- a/kernel/selinux/rules.c
 +++ b/kernel/selinux/rules.c
 @@ -199,6 +199,14 @@ do_stop_machine:
@@ -232,7 +232,7 @@ index 12a7a170..ffe073c6 100644
  }
  
 diff --git a/kernel/selinux/selinux.c b/kernel/selinux/selinux.c
-index 04e5ffe0..88a67b3a 100644
+index 04e5ffe0c..88a67b3a4 100644
 --- a/kernel/selinux/selinux.c
 +++ b/kernel/selinux/selinux.c
 @@ -227,3 +227,99 @@ void escape_to_root_for_adb_root(void)
@@ -336,7 +336,7 @@ index 04e5ffe0..88a67b3a 100644
 +}
 +#endif
 diff --git a/kernel/selinux/selinux.h b/kernel/selinux/selinux.h
-index cbeac553..b59a48e7 100644
+index cbeac553d..b59a48e7f 100644
 --- a/kernel/selinux/selinux.h
 +++ b/kernel/selinux/selinux.h
 @@ -13,6 +13,19 @@
@@ -360,7 +360,7 @@ index cbeac553..b59a48e7 100644
  
  void setenforce(bool);
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 014291a8..2e4df838 100644
+index 84c3b4bc9..ec286ffdb 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -1,3 +1,11 @@
@@ -410,7 +410,7 @@ index 014291a8..2e4df838 100644
  		}
  #if 0 // TODO: revisit this sometime
 diff --git a/kernel/supercall/supercall.c b/kernel/supercall/supercall.c
-index 25e2365d..2d837bf7 100644
+index 8c207930d..e282fe050 100644
 --- a/kernel/supercall/supercall.c
 +++ b/kernel/supercall/supercall.c
 @@ -1,3 +1,9 @@
