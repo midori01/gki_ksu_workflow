@@ -108,7 +108,7 @@
 | **SUSFS 模块** | 当启用 SUSFS 时，自动获取最新的 [susfs4ksu-module](https://github.com/sidex15/susfs4ksu-module) 并将其附加到发布中。单个 `susfs_commit` 输入控制所有变体的 SUSFS 版本。 |
 | **KSU 工具箱** | 自动从 nightly.link 获取最新的 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 模块并将其附加到发布中。 |
 | **Droidspaces** | 通过 [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) 提供容器支持 — SYSVIPC、IPC_NS、PID_NS、DEVTMPFS、NTSync 和网络。通过 `use_droidspaces` 开关按变体启用。 |
-| **ReKernel-X** | 集成的 [ReKernel-X](https://github.com/myflavor/ReKernel-X) 模块直接编译进内核。提供 tombstone 冻结恢复和可选的网络触发解冻。通过 `use_rekernel` 开关控制。 |
+| **Re:Kernel(-X)** | 集成的 [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 和 [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) 模块直接编译进内核。提供 tombstone 冻结恢复、网络触发解冻和 binder 异步清理。通过 `use_rekernel` 开关控制。 |
 | **Unicode 绕过修复** | 修补内核 Unicode 规范化，以防止通过非标准 Unicode 编码进行文件系统绕过攻击。通过 `unicode_bypass_fix` 开关控制。 |
 | **Ccache** | 编译器缓存集成，带有 60 秒等待守卫以确保依赖安装，保证跨工作流运行的健壮加速增量重建。 |
 | **伪装构建元数据** | 可为编译镜像自定义 `kernel name`、`build timestamp`、`user` 和 `host` 字符串。 |

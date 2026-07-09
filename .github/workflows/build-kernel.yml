@@ -130,8 +130,8 @@ jobs:
         uses: ./.github/actions/restore-cache-retry
         with:
           path: .ccache-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
-          key: gki-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.clang_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
-          restore-keys: gki-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.clang_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-
+          key: ${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
+          restore-keys: ${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-
 
       - name: Setup Ccache Wrappers
         if: inputs.use_ccache
@@ -220,28 +220,28 @@ jobs:
           case "${{ inputs.variant }}" in
             MidoriSU-KO)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_ko_branch }}"
-              git clone --branch="${BRANCH}" "https://github.com/${REPO}.git" KernelSU
+              git clone --branch "${BRANCH}" "https://github.com/${REPO}.git" KernelSU
               patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/24_extra_features_for_ksu.patch" || true
               ;;
             MidoriSU-NX)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_nx_branch }}"
-              git clone --branch="${BRANCH}" "https://github.com/${REPO}.git" KernelSU
+              git clone --branch "${BRANCH}" "https://github.com/${REPO}.git" KernelSU
               patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/22_extra_features_for_ksu.patch" || true
               ;;
             MidoriSU-OG)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_og_branch }}"
-              git clone --branch="${BRANCH}" "https://github.com/${REPO}.git" KernelSU
+              git clone --branch "${BRANCH}" "https://github.com/${REPO}.git" KernelSU
               patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/20_extra_features_for_ksu.patch" || true
               [ "${{ inputs.use_susfs }}" != "true" ] && patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/31_ksu_toolkit_for_ksu.patch" || true
               ;;
             MidoriSU-RE)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_re_branch }}"
-              git clone --branch="${BRANCH}" "https://github.com/${REPO}.git" KernelSU
+              git clone --branch "${BRANCH}" "https://github.com/${REPO}.git" KernelSU
               patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/23_extra_features_for_ksu.patch" || true
               ;;
             MidoriSU-XX)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_xx_branch }}"
-              git clone --branch="${BRANCH}" "https://github.com/${REPO}.git" KernelSU
+              git clone --branch "${BRANCH}" "https://github.com/${REPO}.git" KernelSU
               patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/21_extra_features_for_ksu.patch" || true
               ;;
           esac
@@ -313,18 +313,24 @@ jobs:
         working-directory: kernel_workspace/common
         run: |
           REKERNEL_DIR="${{ github.workspace }}/ReKernel"
-          git clone --tags https://github.com/myflavor/ReKernel-X "$REKERNEL_DIR"
+          REKERNEL_X_DIR="${{ github.workspace }}/ReKernel_X"
+          git clone --depth 1 --branch main https://github.com/Sakion-Team/Re-Kernel "$REKERNEL_DIR"
+          git clone --tags --branch main https://github.com/myflavor/ReKernel-X "$REKERNEL_X_DIR"
           cp -r "$REKERNEL_DIR"/LKM-Source drivers/rekernel
           sed -i 's/depends on MODULES/depends on KSU/' drivers/rekernel/Kconfig
-          sed -i 's/obj-m += rekernel_x.o/obj-$(CONFIG_REKERNEL_X) += rekernel_x.o/' drivers/rekernel/Makefile
-          echo 'obj-$(CONFIG_REKERNEL_X) += rekernel/' >> drivers/Makefile
+          sed -i 's/obj-m := rekernel.o/obj-$(CONFIG_REKERNEL) += rekernel.o/' drivers/rekernel/Makefile
+          echo 'obj-$(CONFIG_REKERNEL) += rekernel/' >> drivers/Makefile
           grep -q "drivers/rekernel/Kconfig" drivers/Kconfig || sed -i '/endmenu/i source "drivers/rekernel/Kconfig"' drivers/Kconfig
-          REKERNEL_VER=$(git -C "$REKERNEL_DIR" tag --sort=-creatordate 2>/dev/null | head -1)
-          REKERNEL_VER=${REKERNEL_VER#v}
-          if [ -n "$REKERNEL_VER" ]; then
-            echo "REKERNEL_X_VERSION=v${REKERNEL_VER}" >> $GITHUB_ENV
+          cp -r "$REKERNEL_X_DIR"/LKM-Source drivers/rekernel_x
+          sed -i 's/\bstart_rekernel\b/rkx_start/g; s/\bexit_rekernel\b/rkx_exit/g; s/\bsendMessage\b/rkx_sendMessage/g; s/\bnet_uid_add\b/rkx_net_uid_add/g; s/\bnet_uid_del\b/rkx_net_uid_del/g; s/\bregister_signal\b/rkx_register_signal/g; s/\bunregister_signal\b/rkx_unregister_signal/g; s/\bregister_netfilter\b/rkx_register_netfilter/g; s/\bunregister_netfilter\b/rkx_unregister_netfilter/g; s/\bregister_binder\b/rkx_register_binder/g; s/\bunregister_binder\b/rkx_unregister_binder/g' drivers/rekernel_x/*.{c,h}
+          sed -i 's/obj-m += rekernel_x.o/obj-y += rekernel_x.o/' drivers/rekernel_x/Makefile
+          echo 'obj-y += rekernel_x/' >> drivers/Makefile
+          RKX_VER=$(git -C "$REKERNEL_X_DIR" tag --sort=-creatordate 2>/dev/null | head -1)
+          RKX_VER=${RKX_VER#v}
+          if [ -n "$RKX_VER" ]; then
+            echo "RKX_VERSION=v${RKX_VER}" >> $GITHUB_ENV
           else
-            echo "REKERNEL_X_VERSION=$(git -C "$REKERNEL_DIR" rev-parse --short HEAD)" >> $GITHUB_ENV
+            echo "RKX_VERSION=$(git -C "$REKERNEL_X_DIR" rev-parse --short HEAD)" >> $GITHUB_ENV
           fi
 
       - name: Apply Unicode Bypass Fix
@@ -366,6 +372,22 @@ jobs:
               popd > /dev/null
             fi
           }
+          save_rekernel_commit() {
+            if [ -d "${{ github.workspace }}/ReKernel" ]; then
+              pushd "${{ github.workspace }}/ReKernel" > /dev/null
+              git rev-parse HEAD > "$COMMIT_DIR/rekernel_commit"
+              git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M %z' HEAD > "$COMMIT_DIR/rekernel_date"
+              popd > /dev/null
+            fi
+          }
+          save_rekernel_x_commit() {
+            if [ -d "${{ github.workspace }}/ReKernel_X" ]; then
+              pushd "${{ github.workspace }}/ReKernel_X" > /dev/null
+              git rev-parse HEAD > "$COMMIT_DIR/rekernel_x_commit"
+              git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M %z' HEAD > "$COMMIT_DIR/rekernel_x_date"
+              popd > /dev/null
+            fi
+          }
           case "${{ inputs.variant }}" in
             MidoriSU-KO)
               save_ksu_commit midorisu_ko
@@ -398,6 +420,8 @@ jobs:
               save_susfs_commit
               ;;
           esac
+          save_rekernel_commit
+          save_rekernel_x_commit
 
       - name: Upload Commit Info
         uses: actions/upload-artifact@v7
@@ -422,8 +446,8 @@ jobs:
           export KBUILD_BUILD_TIMESTAMP="${{ inputs.build_timestamp }}"
           export KBUILD_BUILD_HOST="${{ inputs.build_host }}"
           export KBUILD_BUILD_USER="${{ inputs.build_user }}"
-          make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- REKERNEL_X_VERSION="${REKERNEL_X_VERSION}" O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
-          make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- REKERNEL_X_VERSION="${REKERNEL_X_VERSION}" O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
+          make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- RKX_VERSION="${RKX_VERSION}" O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
+          make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- RKX_VERSION="${RKX_VERSION}" O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
           [ "${{ inputs.use_ccache }}" = "true" ] && ccache -s || true
 
       - name: Export vmlinux for eBPF
@@ -446,7 +470,7 @@ jobs:
           IMAGE="common/out/arch/arm64/boot/Image"
           [ -f "$IMAGE" ] || { echo "Binary Missing!"; exit 1; }
           ZIP_NAME="${{ inputs.variant }}_Kernel-${{ inputs.kernel_version }}.${{ steps.cfg.outputs.sub_level }}${{ steps.cfg.outputs.r_suffix }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}.zip"
-          git clone --depth=1 https://github.com/midori01/AnyKernel3 -b ${{ steps.cfg.outputs.anykernel_branch }} anykernel
+          git clone --depth 1 --branch ${{ steps.cfg.outputs.anykernel_branch }} https://github.com/midori01/AnyKernel3 anykernel
           cp "$IMAGE" anykernel/
           cd anykernel && rm -rf .git && zip -r9 "../$ZIP_NAME" *
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
@@ -456,7 +480,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: .ccache-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
-          key: gki-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.clang_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
+          key: ${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v7

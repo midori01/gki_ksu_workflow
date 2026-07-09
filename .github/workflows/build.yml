@@ -100,7 +100,7 @@ on:
         default: true
         type: boolean
       use_rekernel:
-        description: 'ReKernel-X'
+        description: 'Re:Kernel(-X)'
         required: true
         default: true
         type: boolean
@@ -422,6 +422,20 @@ jobs:
             [ -f "$file" ] && [[ "$variant" =~ ^(all|$tag)$ ]] || return 0
             out "${tag,,}=- **$tag**: [\`$(short_sha "$file")\`](https://github.com/$repo/commit/$(cat "$file")) \`$(cat "${file%_commit}_date")\`"
           }
+          rekernel_line() {
+            local label=$1 file=$2
+            [ -f "$file" ] || return 0
+            local sha=$(cat "$file")
+            local date=$(cat "${file%_commit}_date")
+            out "rekernel_line=- **${label}**: [\`$(echo $sha | cut -c1-7)\`](https://github.com/Sakion-Team/Re-Kernel/commit/$sha) \`$date\`"
+          }
+          rekernel_x_line() {
+            local label=$1 file=$2
+            [ -f "$file" ] || return 0
+            local sha=$(cat "$file")
+            local date=$(cat "${file%_commit}_date")
+            out "rekernel_x_line=- **${label}**: [\`$(echo $sha | cut -c1-7)\`](https://github.com/myflavor/ReKernel-X/commit/$sha) \`$date\`"
+          }
           if [ -f "commit_info/susfs_commit" ]; then
             sha=$(cat commit_info/susfs_commit)
             out "susfs_commit=\`$(short_sha commit_info/susfs_commit)\`"
@@ -431,6 +445,8 @@ jobs:
           if [ -f "commit_info/driver_version" ]; then
             out "driver_version=$(cat commit_info/driver_version)"
           fi
+          rekernel_line "Re:Kernel" commit_info/rekernel_commit
+          rekernel_x_line "Re:Kernel-X" commit_info/rekernel_x_commit
           ksu_line MidoriSU-KO "$(cat commit_info/midorisu_ko_ksu_repo 2>/dev/null)" commit_info/midorisu_ko_ksu_commit
           ksu_line MidoriSU-NX "$(cat commit_info/midorisu_nx_ksu_repo 2>/dev/null)" commit_info/midorisu_nx_ksu_commit
           ksu_line MidoriSU-OG "$(cat commit_info/midorisu_og_ksu_repo 2>/dev/null)" commit_info/midorisu_og_ksu_commit
@@ -450,15 +466,17 @@ jobs:
             ${{ steps.ksu_info.outputs.midorisu-og }}
             ${{ steps.ksu_info.outputs.midorisu-re }}
             ${{ steps.ksu_info.outputs.midorisu-xx }}
-            ${{ steps.ksu_info.outputs.susfs_url && format('- **SUSFS**: [{0}]({1}) {2}', steps.ksu_info.outputs.susfs_commit, steps.ksu_info.outputs.susfs_url, steps.ksu_info.outputs.susfs_date) || '' }}
+            ${{ steps.ksu_info.outputs.susfs_url && format('- **SUSFS4KSU**: [{0}]({1}) {2}', steps.ksu_info.outputs.susfs_commit, steps.ksu_info.outputs.susfs_url, steps.ksu_info.outputs.susfs_date) || '' }}
+            ${{ steps.ksu_info.outputs.rekernel_line }}
+            ${{ steps.ksu_info.outputs.rekernel_x_line }}
             - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version || env.KSUD_VERSION }}`　**KSUD Version**: `${{ env.KSUD_VERSION }}`
             - **Manager**: `${{ env.MIDORISU_APK }}`
             - **Spoofed uname**: `${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ needs.setup.outputs.kernel_localversion }}`
             - **Spoofed Build Time**: `${{ needs.setup.outputs.build_timestamp }}`
             - **Spoofed Builder**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
             - **Unicode Bypass**: ${{ inputs.unicode_bypass_fix && '`✅ Fixed`' || '`❌ Vulnerable`' }}　**Ccache**: ${{ inputs.use_ccache && '`✅ Enabled`' || '`❌ Disabled`' }}
-            - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**ReKernel-X**: ${{ inputs.use_rekernel && '✅' || '❌' }}
-            - **TMPFS**: ✅　**BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
+            - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
+            - **BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
             - **eBPF**: ${{ env.EBPF_FILE && format('✅ `({0})`', env.EBPF_FILE) || '❌' }}
             - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}
             - **Compiler**: `clang-${{ steps.meta.outputs.clang_version }}`${{ steps.meta.outputs.rust_version && format('　**Rust**: `{0}`', steps.meta.outputs.rust_version) || '' }}

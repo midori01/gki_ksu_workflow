@@ -108,7 +108,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | **SUSFS Module** | When SUSFS is enabled, automatically fetches the latest [susfs4ksu-module](https://github.com/sidex15/susfs4ksu-module) and attaches it to the release. A single `susfs_commit` input controls SUSFS versions across variants. |
 | **KSU Toolkit** | Automatically fetches the latest [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) module from nightly.link and attaches it to the release. |
 | **Droidspaces** | Container support via [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) — SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, and networking. Enabled per-variant through the `use_droidspaces` toggle. |
-| **ReKernel-X** | Integrated [ReKernel-X](https://github.com/myflavor/ReKernel-X) module compiled directly into the kernel. Provides tombstone freeze recovery and optional network-triggered unfreeze. Toggled via `use_rekernel` switch. |
+| **Re:Kernel(-X)** | Integrated [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) and [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) modules compiled directly into the kernel. Provides tombstone freeze recovery, network-triggered unfreeze, and binder async cleanup. Toggled via `use_rekernel` switch. |
 | **Unicode Bypass Fix** | Patches kernel unicode normalization to prevent filesystem bypass attacks via non-standard unicode encodings. Toggled via `unicode_bypass_fix` switch. |
 | **Ccache** | Compiler cache integration with a 60-second wait guard for dependency installation, ensuring robust accelerated incremental rebuilds across workflow runs. |
 | **Spoofed Build Metadata** | Customizable `kernel name`, `build timestamp`, `user`, and `host` strings for the compiled image. |

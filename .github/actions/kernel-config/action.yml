@@ -156,13 +156,9 @@ runs:
         
         if [ "${{ inputs.use_rekernel }}" = "true" ]; then
           cat >> $DEFCONFIG <<-'EOF'
-        CONFIG_REKERNEL_X=y
-        EOF
-        fi
-        
-        if [ "${{ inputs.kernel_version }}" = "6.12" ] && [ "${{ inputs.sub_level }}" -ge 28 ]; then
-          cat >> $DEFCONFIG <<-'EOF'
-        # CONFIG_MODVERSIONS is not set
+        CONFIG_REKERNEL=y
+        CONFIG_REKERNEL_NETWORK=y
+        CONFIG_REKERNEL_LEGACY_NETLINK=y
         EOF
         fi
         
