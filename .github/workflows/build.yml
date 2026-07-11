@@ -233,13 +233,15 @@ jobs:
             [ "$rust" = "true" ] && rust_version=$(echo "$config" | jq -r '.default_rust') || rust_version=""
             mirror_tag=$(echo "$config" | jq -r '.mirror_tag')
             anykernel_branch=$(echo "$config" | jq -r '.anykernel_branch')
-            google_ref=$([ "$r_version" = "none" -o "$asb_date" = "lts" ] && echo "heads" || echo "tags")
-            if [ "${{ inputs.source_mirror }}" = "google" ]; then
-              source_url="https://android.googlesource.com/kernel/common/+archive/refs/$google_ref"
-              mirror_name="Google"
+            source_commit=$(echo "$revision" | jq -r '.commit // ""')
+            source_commit_date=$(echo "$revision" | jq -r '.commit_date // ""')
+
+            if [ "$asb_date" = "lts" ]; then
+              source_ref="refs/heads/${android_version}-${kv}-lts"
+            elif [ "$r_version" = "none" ]; then
+              source_ref="refs/heads/${android_version}-${kv}-${asb_date}"
             else
-              source_url="https://github.com/${{ github.repository }}/releases/download/$mirror_tag"
-              mirror_name="GitHub"
+              source_ref="refs/tags/${android_version}-${kv}-${asb_date}_${r_version}"
             fi
 
             jq -n \
@@ -251,10 +253,12 @@ jobs:
               --arg r_suffix "$r_suffix" \
               --arg clang_version "$clang_version" \
               --arg rust_version "$rust_version" \
-              --arg source_url "$source_url" \
-              --arg mirror_name "$mirror_name" \
+              --arg mirror_tag "$mirror_tag" \
               --arg anykernel_branch "$anykernel_branch" \
-              '{kernel_version:$kv,android_version:$android_version,sub_level:$sub_level,asb_date:$asb_date,r_version:$r_version,r_suffix:$r_suffix,clang_version:$clang_version,rust_version:$rust_version,source_base_url:$source_url,mirror_name:$mirror_name,anykernel_branch:$anykernel_branch}' >> /tmp/metadata.json
+              --arg source_ref "$source_ref" \
+              --arg source_commit "$source_commit" \
+              --arg source_commit_date "$source_commit_date" \
+              '{kernel_version:$kv,android_version:$android_version,sub_level:$sub_level,asb_date:$asb_date,r_version:$r_version,r_suffix:$r_suffix,clang_version:$clang_version,rust_version:$rust_version,mirror_tag:$mirror_tag,anykernel_branch:$anykernel_branch,source_ref:$source_ref,source_commit:$source_commit,source_commit_date:$source_commit_date}' >> /tmp/metadata.json
 
             add_variant() {
               local v=$1 has_susfs=$2
@@ -345,21 +349,36 @@ jobs:
         run: |
           echo '${{ needs.setup.outputs.metadata }}' | jq -r '.[] | select(.kernel_version=="${{ matrix.kv }}")' > /tmp/meta.json
           while IFS='=' read -r key value; do echo "$key=$value" >> $GITHUB_OUTPUT; done < <(jq -r 'to_entries[] | "\(.key)=\(.value)"' /tmp/meta.json)
-          asb_date=$(jq -r '.asb_date' /tmp/meta.json)
           android_ver=$(jq -r '.android_version' /tmp/meta.json)
           sub_level=$(jq -r '.sub_level' /tmp/meta.json)
+          r_version=$(jq -r '.r_version' /tmp/meta.json)
           r_suffix=$(jq -r '.r_suffix' /tmp/meta.json)
-          mirror=$(jq -r '.mirror_name' /tmp/meta.json)
-          base_url=$(jq -r '.source_base_url' /tmp/meta.json)
-          if [ "$asb_date" = "lts" ]; then
-            tar_name="${android_ver}-${{ matrix.kv }}$([ "$mirror" = "Google" ] && echo "-lts" || echo ".${sub_level}_r00").tar.gz"
-            display="${android_ver}-${{ matrix.kv }}.${sub_level}_r00"
+          source_ref=$(jq -r '.source_ref' /tmp/meta.json)
+          source_commit=$(jq -r '.source_commit' /tmp/meta.json)
+          source_commit_date=$(jq -r '.source_commit_date' /tmp/meta.json)
+          mirror_tag=$(jq -r '.mirror_tag' /tmp/meta.json)
+
+          short_commit=$(echo "$source_commit" | cut -c1-7)
+          commit_url="https://android.googlesource.com/kernel/common/+/${source_ref}"
+
+          if [ "$(jq -r '.asb_date' /tmp/meta.json)" = "lts" ]; then
+            tar_name="${android_ver}-${{ matrix.kv }}-lts.tar.gz"
+            display="${android_ver}-${{ matrix.kv }}.${sub_level}-lts"
+          elif [ "$r_version" = "none" ]; then
+            tar_name="${android_ver}-${{ matrix.kv }}-$(jq -r '.asb_date' /tmp/meta.json).tar.gz"
+            display="${android_ver}-${{ matrix.kv }}.${sub_level}"
           else
-            tar_name="${android_ver}-${{ matrix.kv }}-${asb_date}${r_suffix}.tar.gz"
-            display="${android_ver}-${{ matrix.kv }}.${sub_level}${r_suffix}"
+            tar_name="${android_ver}-${{ matrix.kv }}-$(jq -r '.asb_date' /tmp/meta.json)_${r_version}.tar.gz"
+            display="${android_ver}-${{ matrix.kv }}.${sub_level}_${r_version}"
           fi
-          echo "kernel_source_url=${base_url}/${tar_name}" >> $GITHUB_OUTPUT
+
+          kernel_source_url="https://github.com/${{ github.repository }}/releases/download/${mirror_tag}/${tar_name}"
+
+          echo "kernel_source_url=${kernel_source_url}" >> $GITHUB_OUTPUT
           echo "kernel_display_name=${display}" >> $GITHUB_OUTPUT
+          echo "kernel_commit_url=${commit_url}" >> $GITHUB_OUTPUT
+          echo "source_commit_short=${short_commit}" >> $GITHUB_OUTPUT
+          echo "commit_date_fmt=${source_commit_date}" >> $GITHUB_OUTPUT
 
       - uses: actions/download-artifact@v8
         with:
@@ -460,7 +479,7 @@ jobs:
           name: ${{ format('Midori Kernel - {0}{1}', matrix.kv, inputs.ksu_debug && ' [DEBUG]' || '') }}
           make_latest: ${{ matrix.kv == '6.12' || !contains(needs.setup.outputs.kernel_versions, ',') }}
           body: |
-            - **Kernel Source**: [`${{ steps.meta.outputs.mirror_name }}`](${{ steps.meta.outputs.kernel_source_url }}) `${{ steps.meta.outputs.kernel_display_name }}`
+            - **Kernel Source**: [`${{ steps.meta.outputs.source_commit_short }}`](${{ steps.meta.outputs.kernel_commit_url }}) `${{ steps.meta.outputs.commit_date_fmt }}`
             ${{ steps.ksu_info.outputs.midorisu-ko }}
             ${{ steps.ksu_info.outputs.midorisu-nx }}
             ${{ steps.ksu_info.outputs.midorisu-og }}
@@ -469,14 +488,14 @@ jobs:
             ${{ steps.ksu_info.outputs.susfs_url && format('- **SUSFS4KSU**: [{0}]({1}) {2}', steps.ksu_info.outputs.susfs_commit, steps.ksu_info.outputs.susfs_url, steps.ksu_info.outputs.susfs_date) || '' }}
             ${{ steps.ksu_info.outputs.rekernel_line }}
             ${{ steps.ksu_info.outputs.rekernel_x_line }}
-            - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version || env.KSUD_VERSION }}`　**KSUD Version**: `${{ env.KSUD_VERSION }}`
+            - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version || env.KSUD_VERSION }}`　**KSU Daemon (ksud)**: `${{ env.KSUD_VERSION }}`
             - **Manager**: `${{ env.MIDORISU_APK }}`
             - **Spoofed uname**: `${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ needs.setup.outputs.kernel_localversion }}`
             - **Spoofed Build Time**: `${{ needs.setup.outputs.build_timestamp }}`
             - **Spoofed Builder**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
-            - **Unicode Bypass**: ${{ inputs.unicode_bypass_fix && '`✅ Fixed`' || '`❌ Vulnerable`' }}　**Ccache**: ${{ inputs.use_ccache && '`✅ Enabled`' || '`❌ Disabled`' }}
+            - **Unicode Bypass Fix**: ${{ inputs.unicode_bypass_fix && '✅' || '❌' }}　**Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
-            - **BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
+            - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
             - **eBPF**: ${{ env.EBPF_FILE && format('✅ `({0})`', env.EBPF_FILE) || '❌' }}
             - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}
             - **Compiler**: `clang-${{ steps.meta.outputs.clang_version }}`${{ steps.meta.outputs.rust_version && format('　**Rust**: `{0}`', steps.meta.outputs.rust_version) || '' }}

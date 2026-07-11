@@ -166,25 +166,30 @@ jobs:
           CLANG_TAR="clang-${{ steps.cfg.outputs.clang_version }}.tar.gz"
           case "${{ steps.cfg.outputs.asb_date }}" in
             lts)
+              branch="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-lts"
+              KERNEL_TAR="${branch}.tar.gz"
               if [ "${{ inputs.source_mirror }}" = "google" ]; then
-                KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-lts.tar.gz"
-                KERNEL_BASE_URL="https://android.googlesource.com/kernel/common/+archive/refs/heads"
+                KERNEL_BASE_URL="https://android.googlesource.com/kernel/common/+archive/refs/heads/${branch}"
               else
-                KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}.${{ steps.cfg.outputs.sub_level }}_r00.tar.gz"
                 KERNEL_BASE_URL="$MIDORI_MIRROR"
               fi ;;
             *)
               if [ "${{ steps.cfg.outputs.r_version }}" = "none" ]; then
-                KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}.tar.gz"
-                GOOGLE_REF="heads"
+                branch="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}"
+                KERNEL_TAR="${branch}.tar.gz"
+                if [ "${{ inputs.source_mirror }}" = "google" ]; then
+                  KERNEL_BASE_URL="https://android.googlesource.com/kernel/common/+archive/refs/heads/${branch}"
+                else
+                  KERNEL_BASE_URL="$MIDORI_MIRROR"
+                fi
               else
-                KERNEL_TAR="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}_${{ steps.cfg.outputs.r_version }}.tar.gz"
-                GOOGLE_REF="tags"
-              fi
-              if [ "${{ inputs.source_mirror }}" = "google" ]; then
-                KERNEL_BASE_URL="https://android.googlesource.com/kernel/common/+archive/refs/$GOOGLE_REF"
-              else
-                KERNEL_BASE_URL="$MIDORI_MIRROR"
+                tag="${{ steps.cfg.outputs.android_version }}-${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}_${{ steps.cfg.outputs.r_version }}"
+                KERNEL_TAR="${tag}.tar.gz"
+                if [ "${{ inputs.source_mirror }}" = "google" ]; then
+                  KERNEL_BASE_URL="https://android.googlesource.com/kernel/common/+archive/refs/tags/${tag}"
+                else
+                  KERNEL_BASE_URL="$MIDORI_MIRROR"
+                fi
               fi ;;
           esac
           retry() { for i in $(seq 1 30); do "$@" && return 0; echo "Retry $i/30..."; sleep 30; done; return 1; }
@@ -199,9 +204,9 @@ jobs:
           for f in *.tar.gz; do mkdir -p "${f%%.*}" && tar -xzf "$f" -C "${f%%.*}" & done
           wait
           rm -f *.tar.gz
-          sed -i 's/ -dirty//g' common/scripts/setlocalversion
-          [ "${{ inputs.kernel_version }}" != "6.12" ] && rm -f common/android/abi_gki_protected_exports_* || true
-          [ "${{ inputs.kernel_version }}" = "6.6" ] && [ "${{ steps.cfg.outputs.sub_level }}" -ge 139 ] && sed -i '/^#ifdef USE_PKCS11_ENGINE$/,/^#endif$/c\static const char *key_pass;' common/certs/extract-cert.c || true
+          rm -f common/android/abi_gki_protected_exports_* || true
+          sed -i 's/ -dirty//g' common/scripts/setlocalversion || true
+          sed -i ':a; /#ifdef USE_PKCS11_ENGINE/{N;N;s/#ifdef USE_PKCS11_ENGINE\n\(.*\)\n#endif/\1/; ta}' common/certs/extract-cert.c || true
 
       - name: Setup KernelSU
         working-directory: kernel_workspace/common
