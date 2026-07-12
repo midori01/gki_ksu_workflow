@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Mon, 15 Jun 2026 10:31:39 +0900
+Date: Sun, 12 Jul 2026 19:45:23 +0900
 Subject: [PATCH] Enable KSU toolkit for MidoriSU-OG
 
 ---
@@ -10,7 +10,7 @@ Subject: [PATCH] Enable KSU toolkit for MidoriSU-OG
  4 files changed, 182 insertions(+), 4 deletions(-)
 
 diff --git a/kernel/feature/sucompat.c b/kernel/feature/sucompat.c
-index 33df9d15..7ed82857 100644
+index 33df9d15b..7ed82857c 100644
 --- a/kernel/feature/sucompat.c
 +++ b/kernel/feature/sucompat.c
 @@ -26,6 +26,8 @@
@@ -47,7 +47,7 @@ index 33df9d15..7ed82857 100644
  
      tmp_fd = get_unused_fd_flags(O_CLOEXEC);
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index ccf7183f..5a7456d5 100644
+index ccf7183fe..5a7456d58 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -22,6 +22,8 @@
@@ -68,7 +68,7 @@ index ccf7183f..5a7456d5 100644
      ret = escape_with_root_profile();
      ksu_sulog_emit_grant_root(ret, audit_uid, audit_euid, GFP_KERNEL);
 diff --git a/kernel/supercall/supercall.c b/kernel/supercall/supercall.c
-index 3dfd4abf..f76adeb6 100644
+index 3dfd4abf9..f76adeb62 100644
 --- a/kernel/supercall/supercall.c
 +++ b/kernel/supercall/supercall.c
 @@ -11,12 +11,83 @@
@@ -295,7 +295,7 @@ index 3dfd4abf..f76adeb6 100644
      ksu_supercall_cleanup_state();
  }
 diff --git a/kernel/supercall/supercall.h b/kernel/supercall/supercall.h
-index fbedd11f..75855bf6 100644
+index fbedd11f8..75855bf6d 100644
 --- a/kernel/supercall/supercall.h
 +++ b/kernel/supercall/supercall.h
 @@ -21,4 +21,10 @@ int ksu_install_fd(void);

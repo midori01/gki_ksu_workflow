@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sat, 20 Jun 2026 14:50:28 +0900
+Date: Sun, 12 Jul 2026 19:45:23 +0900
 Subject: [PATCH] Enable extra features for MidoriSU-NX
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] Enable extra features for MidoriSU-NX
  2 files changed, 66 insertions(+), 11 deletions(-)
 
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 902631d9..46e3354b 100644
+index 902631d99..46e3354b6 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -690,24 +690,57 @@ static int add_try_umount(void __user *arg)
@@ -100,7 +100,7 @@ index 902631d9..46e3354b 100644
      },
      {
 diff --git a/uapi/supercall.h b/uapi/supercall.h
-index 3559b7c1..56d9b8e2 100644
+index 3559b7c17..56d9b8e26 100644
 --- a/uapi/supercall.h
 +++ b/uapi/supercall.h
 @@ -133,8 +133,16 @@ struct ksu_manage_mark_cmd {

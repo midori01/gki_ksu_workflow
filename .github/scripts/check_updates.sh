@@ -98,13 +98,13 @@ download_and_upload_tag() {
 }
 
 download_head_archive() {
-  local branch_name="$1" release_tag="$2"
+  local branch_name="$1" release_tag="$2" force="${3:-false}"
   local google_url="https://android.googlesource.com/kernel/common/+archive/refs/heads/${branch_name}.tar.gz"
   local tar_name="${branch_name}.tar.gz"
   local local_file="$TMP_DIR/${tar_name}"
   local attempt=1 max_attempts=3 retry_delay=20
 
-  if check_file_in_release "$release_tag" "$tar_name"; then
+  if [[ "$force" != "true" ]] && check_file_in_release "$release_tag" "$tar_name"; then
     echo "  File $tar_name already exists in release $release_tag."
     echo "$tar_name"
     return 0
@@ -192,8 +192,13 @@ check_tag() {
     fi
 
     local tar_name="${prefix}.tar.gz"
+    local force_download="false"
+    if [[ "$head_commit" != "$old_commit" ]]; then
+      force_download="true"
+      echo "  Head commit changed: ${old_commit:0:7} -> ${head_commit:0:7}"
+    fi
 
-    if [[ "$head_commit" == "$old_commit" ]]; then
+    if [[ "$force_download" == "false" ]]; then
       local existing_commit=$(jq -r ".[\"$kv\"].revisions[\"${current_sub}\"].commit // \"\"" "$CONFIG_FILE")
       local existing_date=$(jq -r ".[\"$kv\"].revisions[\"${current_sub}\"].commit_date // \"\"" "$CONFIG_FILE")
       if [[ -z "$existing_commit" || -z "$existing_date" ]]; then
@@ -213,12 +218,11 @@ check_tag() {
         return
       else
         echo "  Head commit unchanged but file missing, re-downloading..."
+        force_download="true"
       fi
-    else
-      echo "  Head commit changed: ${old_commit:0:7} -> ${head_commit:0:7}"
     fi
 
-    if downloaded=$(download_head_archive "$prefix" "source-$kv"); then
+    if downloaded=$(download_head_archive "$prefix" "source-$kv" "$force_download"); then
       local new_sub
       if [ -f "$TMP_DIR/${downloaded}" ]; then
         new_sub=$(extract_sublevel "$TMP_DIR/${downloaded}")
@@ -369,6 +373,7 @@ check_lts() {
   fi
 
   local tar_name="${branch_name}.tar.gz"
+  local force_download="false"
 
   if [[ "$head_commit" == "$old_commit" ]]; then
     local existing_commit=$(jq -r ".[\"$kv\"].revisions[\"${current_sub}\"].commit // \"\"" "$CONFIG_FILE")
@@ -390,12 +395,14 @@ check_lts() {
       return
     else
       echo "  LTS commit unchanged but file missing, re-downloading..."
+      force_download="true"
     fi
   else
     echo "  LTS commit changed: ${old_commit:0:7} -> ${head_commit:0:7}"
+    force_download="true"
   fi
 
-  if downloaded=$(download_head_archive "$branch_name" "source-$kv"); then
+  if downloaded=$(download_head_archive "$branch_name" "source-$kv" "$force_download"); then
     local new_sub
     if [ -f "$TMP_DIR/${downloaded}" ]; then
       new_sub=$(extract_sublevel "$TMP_DIR/${downloaded}")
@@ -423,7 +430,7 @@ check_lts() {
       NEEDS_COMMIT=true
     elif [[ "$head_commit" != "$old_commit" ]]; then
       jq --arg kv "$kv" \
-         --arg sub "$current_sub" \
+         --arg sub "$new_sub" \
          --arg commit "$head_commit" \
          --arg commit_date "$commit_date" \
          '.[$kv].revisions[$sub].commit = $commit |

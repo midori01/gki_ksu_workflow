@@ -55,7 +55,7 @@ runs:
         
         cat >> $DEFCONFIG <<-'EOF'
         CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
-        CONFIG_LOG_BUF_SHIFT=21
+        CONFIG_LOG_BUF_SHIFT=23
         CONFIG_TMPFS_XATTR=y
         CONFIG_TMPFS_POSIX_ACL=y
         CONFIG_IP_NF_TARGET_TTL=y

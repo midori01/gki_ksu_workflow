@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Thu, 18 Jun 2026 07:44:12 +0900
+Date: Sun, 12 Jul 2026 19:45:23 +0900
 Subject: [PATCH] Enable KSU toolkit for MidoriSU-OG-SUSFS
 
 ---
@@ -10,7 +10,7 @@ Subject: [PATCH] Enable KSU toolkit for MidoriSU-OG-SUSFS
  4 files changed, 249 insertions(+), 1 deletion(-)
 
 diff --git a/kernel/feature/sucompat.c b/kernel/feature/sucompat.c
-index 00f5e70b..79d8e2d2 100644
+index 9d3c203f9..176b6c2e8 100644
 --- a/kernel/feature/sucompat.c
 +++ b/kernel/feature/sucompat.c
 @@ -30,6 +30,8 @@
@@ -30,8 +30,8 @@ index 00f5e70b..79d8e2d2 100644
 +    write_sulog('x');
      memcpy((void *)filename->name, ksud_path, sizeof(ksud_path));
  
-     ret = escape_with_root_profile();
-@@ -236,6 +238,7 @@ int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
+     pending_sucompat = ksu_sulog_capture_sucompat(filename->name, (struct user_arg_ptr*)argv_user, GFP_KERNEL);
+@@ -239,6 +241,7 @@ int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
              pr_err("ksu_handle_faccessat: su found but NOT allowed! Because current process is running in chrooted environment\n");
              return 0;
          }
@@ -39,7 +39,7 @@ index 00f5e70b..79d8e2d2 100644
          pr_info("ksu_handle_faccessat: su->sh!\n");
          *filename_user = sh_user_path();
      }
-@@ -256,6 +259,7 @@ int ksu_handle_stat(int *dfd, struct filename **filename, int *flags) {
+@@ -259,6 +262,7 @@ int ksu_handle_stat(int *dfd, struct filename **filename, int *flags) {
          pr_err("ksu_handle_stat: su found but NOT allowed! Because current process is running in chrooted environment\n");
          return 0;
      }
@@ -47,7 +47,7 @@ index 00f5e70b..79d8e2d2 100644
      pr_info("ksu_handle_stat: su->sh!\n");
      memcpy((void *)((*filename)->name), sh_path, sizeof(sh_path));
      return 0;
-@@ -276,6 +280,7 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
+@@ -279,6 +283,7 @@ int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
              pr_err("ksu_handle_stat: su found but NOT allowed! Because current process is running in chrooted environment\n");
              return 0;
          }
@@ -56,7 +56,7 @@ index 00f5e70b..79d8e2d2 100644
          *filename_user = sh_user_path();
      }
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index e340fc74..725e8b64 100644
+index 52b19fcee..67bb398a6 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -23,6 +23,8 @@
@@ -90,7 +90,7 @@ index e340fc74..725e8b64 100644
  
  static int do_nuke_ext4_sysfs(void __user *arg)
 diff --git a/kernel/supercall/supercall.c b/kernel/supercall/supercall.c
-index a959063a..0ceaf36d 100644
+index a959063a7..0ceaf36d0 100644
 --- a/kernel/supercall/supercall.c
 +++ b/kernel/supercall/supercall.c
 @@ -11,12 +11,83 @@
@@ -356,7 +356,7 @@ index a959063a..0ceaf36d 100644
      ksu_supercall_cleanup_state();
  }
 diff --git a/kernel/supercall/supercall.h b/kernel/supercall/supercall.h
-index 483e5069..e0605a86 100644
+index 483e5069c..e0605a86a 100644
 --- a/kernel/supercall/supercall.h
 +++ b/kernel/supercall/supercall.h
 @@ -22,4 +22,10 @@ int ksu_supercall_reboot_handler(void __user **arg);

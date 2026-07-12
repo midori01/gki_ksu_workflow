@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sun, 21 Jun 2026 10:19:49 +0900
+Date: Sun, 12 Jul 2026 19:45:23 +0900
 Subject: [PATCH] Enable extra features for MidoriSU-KO
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] Enable extra features for MidoriSU-KO
  2 files changed, 80 insertions(+)
 
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 294c75b9..39d9f486 100644
+index 294c75b9b..39d9f486c 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -753,6 +753,53 @@ static int do_disable_escape_to_root(void __user *arg)
@@ -91,7 +91,7 @@ index 294c75b9..39d9f486 100644
          .cmd = 0,
          .name = NULL,
 diff --git a/uapi/supercall.h b/uapi/supercall.h
-index 8f345086..5b0a803c 100644
+index 8f345086c..5b0a803cd 100644
 --- a/uapi/supercall.h
 +++ b/uapi/supercall.h
 @@ -144,6 +144,18 @@ struct ksu_get_sulog_fd_cmd {

@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sat, 20 Jun 2026 14:50:28 +0900
+Date: Sun, 12 Jul 2026 19:45:23 +0900
 Subject: [PATCH] Enable extra features for MidoriSU-RE
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] Enable extra features for MidoriSU-RE
  2 files changed, 50 insertions(+)
 
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 242b5711..b84defe5 100644
+index 242b57116..b84defe55 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -6,6 +6,7 @@
@@ -73,7 +73,7 @@ index 242b5711..b84defe5 100644
          .cmd = KSU_IOCTL_DYNAMIC_MANAGER,
          .name = "SET_DYNAMIC_MANAGER",
 diff --git a/uapi/supercall.h b/uapi/supercall.h
-index 333f4a73..43d3eb7b 100644
+index 4eb2dfad5..303a6e29d 100644
 --- a/uapi/supercall.h
 +++ b/uapi/supercall.h
 @@ -172,6 +172,14 @@ struct ksu_hook_type_cmd {
@@ -91,7 +91,7 @@ index 333f4a73..43d3eb7b 100644
  DEFINE_KSU_UAPI_CONST(__u8, DYNAMIC_MANAGER_OP_SET, 0)
  DEFINE_KSU_UAPI_CONST(__u8, DYNAMIC_MANAGER_OP_GET, 1)
  DEFINE_KSU_UAPI_CONST(__u8, DYNAMIC_MANAGER_OP_WIPE, 2)
-@@ -235,6 +243,8 @@ DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT, _IO('K', 21))
+@@ -236,6 +244,8 @@ DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_DISABLE_ESCAPE_TO_ROOT, _IO('K', 21))
  DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_GET_FULL_VERSION, _IOC(_IOC_READ, 'K', 100, 0))
  DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_HOOK_TYPE, _IOC(_IOC_READ, 'K', 101, 0))
  // 102 = ENABLE_KPM (KernelPatch Module),deprecated
