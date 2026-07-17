@@ -15,7 +15,7 @@ on:
       kernel_version:
         description: 'Kernel Version'
         required: true
-        default: 'all'
+        default: '6.12'
         type: choice
         options:
           - 'all'
@@ -220,60 +220,79 @@ jobs:
 
           matrix='{"include":[]}'
           variant="${{ inputs.ksu_variant }}"
+          
           while read kv; do
             config=$(jq -c '.["'$kv'"]' "$config_file")
             android_version=$(echo "$config" | jq -r '.android_version')
-            sub_level=$(echo "$config" | jq -r '.default_sub_level')
-            revision=$(echo "$config" | jq -c '.revisions["'$sub_level'"]')
-            asb_date=$(echo "$revision" | jq -r '.asb_date')
-            r_version=$(echo "$revision" | jq -r '.default_r')
-            r_suffix=$([ "$r_version" != "none" ] && echo "_$r_version" || echo '')
-            clang_version=$(echo "$config" | jq -r '.default_clang')
-            rust=$(echo "$config" | jq -r '.rust')
-            [ "$rust" = "true" ] && rust_version=$(echo "$config" | jq -r '.default_rust') || rust_version=""
-            mirror_tag=$(echo "$config" | jq -r '.mirror_tag')
-            anykernel_branch=$(echo "$config" | jq -r '.anykernel_branch')
-            source_commit=$(echo "$revision" | jq -r '.commit // ""')
-            source_commit_date=$(echo "$revision" | jq -r '.commit_date // ""')
-
-            if [ "$asb_date" = "lts" ]; then
-              source_ref="refs/heads/${android_version}-${kv}-lts"
-            elif [ "$r_version" = "none" ]; then
-              source_ref="refs/heads/${android_version}-${kv}-${asb_date}"
+            default_sub_level=$(echo "$config" | jq -r '.default_sub_level')
+            use_lts=$(echo "$config" | jq -r '.use_lts')
+            
+            if [ "$use_lts" = "false" ]; then
+              revisions=$(echo "$config" | jq -r '.revisions | keys[]')
+              sub_levels_to_build=""
+              for rev in $revisions; do
+                asb_date=$(echo "$config" | jq -r '.revisions["'$rev'"].asb_date')
+                if [ "$asb_date" != "lts" ]; then
+                  sub_levels_to_build="$sub_levels_to_build $rev"
+                fi
+              done
+              sub_levels_to_build=$(echo "$sub_levels_to_build" | tr ' ' '\n' | sort -n | uniq | tr '\n' ' ')
             else
-              source_ref="refs/tags/${android_version}-${kv}-${asb_date}_${r_version}"
+              sub_levels_to_build="$default_sub_level"
             fi
+            
+            for sub_level in $sub_levels_to_build; do
+              revision=$(echo "$config" | jq -c '.revisions["'$sub_level'"]')
+              asb_date=$(echo "$revision" | jq -r '.asb_date')
+              r_version=$(echo "$revision" | jq -r '.default_r')
+              r_suffix=$([ "$r_version" != "none" ] && echo "_$r_version" || echo '')
+              clang_version=$(echo "$config" | jq -r '.default_clang')
+              rust=$(echo "$config" | jq -r '.rust')
+              [ "$rust" = "true" ] && rust_version=$(echo "$config" | jq -r '.default_rust') || rust_version=""
+              mirror_tag=$(echo "$config" | jq -r '.mirror_tag')
+              anykernel_branch=$(echo "$config" | jq -r '.anykernel_branch')
+              source_commit=$(echo "$revision" | jq -r '.commit // ""')
+              source_commit_date=$(echo "$revision" | jq -r '.commit_date // ""')
 
-            jq -n \
-              --arg kv "$kv" \
-              --arg android_version "$android_version" \
-              --arg sub_level "$sub_level" \
-              --arg asb_date "$asb_date" \
-              --arg r_version "$r_version" \
-              --arg r_suffix "$r_suffix" \
-              --arg clang_version "$clang_version" \
-              --arg rust_version "$rust_version" \
-              --arg mirror_tag "$mirror_tag" \
-              --arg anykernel_branch "$anykernel_branch" \
-              --arg source_ref "$source_ref" \
-              --arg source_commit "$source_commit" \
-              --arg source_commit_date "$source_commit_date" \
-              '{kernel_version:$kv,android_version:$android_version,sub_level:$sub_level,asb_date:$asb_date,r_version:$r_version,r_suffix:$r_suffix,clang_version:$clang_version,rust_version:$rust_version,mirror_tag:$mirror_tag,anykernel_branch:$anykernel_branch,source_ref:$source_ref,source_commit:$source_commit,source_commit_date:$source_commit_date}' >> /tmp/metadata.json
+              if [ "$asb_date" = "lts" ]; then
+                source_ref="refs/heads/${android_version}-${kv}-lts"
+              elif [ "$r_version" = "none" ]; then
+                source_ref="refs/heads/${android_version}-${kv}-${asb_date}"
+              else
+                source_ref="refs/tags/${android_version}-${kv}-${asb_date}_${r_version}"
+              fi
 
-            add_variant() {
-              local v=$1 has_susfs=$2
-              local ds="false"
-              local sus="false"
-              [ "${{ inputs.use_droidspaces }}" = "true" ] && ds="true"
-              [ "$has_susfs" = "true" ] && [ "${{ inputs.enable_susfs }}" = "true" ] && sus="true"
-              matrix=$(echo "$matrix" | jq -c --arg kv "$kv" --arg variant "$v" --argjson ds "$ds" --argjson sus "$sus" '.include += [{"kernel_version":$kv,"variant":$variant,"droidspaces":$ds,"susfs":$sus}]')
-            }
+              jq -n \
+                --arg kv "$kv" \
+                --arg sub_level "$sub_level" \
+                --arg android_version "$android_version" \
+                --arg asb_date "$asb_date" \
+                --arg r_version "$r_version" \
+                --arg r_suffix "$r_suffix" \
+                --arg clang_version "$clang_version" \
+                --arg rust_version "$rust_version" \
+                --arg mirror_tag "$mirror_tag" \
+                --arg anykernel_branch "$anykernel_branch" \
+                --arg source_ref "$source_ref" \
+                --arg source_commit "$source_commit" \
+                --arg source_commit_date "$source_commit_date" \
+                '{kernel_version:$kv,sub_level:$sub_level,android_version:$android_version,asb_date:$asb_date,r_version:$r_version,r_suffix:$r_suffix,clang_version:$clang_version,rust_version:$rust_version,mirror_tag:$mirror_tag,anykernel_branch:$anykernel_branch,source_ref:$source_ref,source_commit:$source_commit,source_commit_date:$source_commit_date}' >> /tmp/metadata.json
 
-            [[ "$variant" =~ ^(all|MidoriSU-KO)$ ]] && add_variant MidoriSU-KO true
-            [[ "$variant" =~ ^(all|MidoriSU-NX)$ ]] && add_variant MidoriSU-NX true
-            [[ "$variant" =~ ^(all|MidoriSU-OG)$ ]] && add_variant MidoriSU-OG true
-            [[ "$variant" =~ ^(all|MidoriSU-RE)$ ]] && add_variant MidoriSU-RE true
-            [[ "$variant" =~ ^(all|MidoriSU-XX)$ ]] && add_variant MidoriSU-XX true
+              add_variant() {
+                local v=$1 has_susfs=$2
+                local ds="false"
+                local sus="false"
+                [ "${{ inputs.use_droidspaces }}" = "true" ] && ds="true"
+                [ "$has_susfs" = "true" ] && [ "${{ inputs.enable_susfs }}" = "true" ] && sus="true"
+                matrix=$(echo "$matrix" | jq -c --arg kv "$kv" --arg sub_level "$sub_level" --arg variant "$v" --argjson ds "$ds" --argjson sus "$sus" '.include += [{"kernel_version":$kv,"sub_level":$sub_level,"variant":$variant,"droidspaces":$ds,"susfs":$sus}]')
+              }
+
+              [[ "$variant" =~ ^(all|MidoriSU-KO)$ ]] && add_variant MidoriSU-KO true
+              [[ "$variant" =~ ^(all|MidoriSU-NX)$ ]] && add_variant MidoriSU-NX true
+              [[ "$variant" =~ ^(all|MidoriSU-OG)$ ]] && add_variant MidoriSU-OG true
+              [[ "$variant" =~ ^(all|MidoriSU-RE)$ ]] && add_variant MidoriSU-RE true
+              [[ "$variant" =~ ^(all|MidoriSU-XX)$ ]] && add_variant MidoriSU-XX true
+            done
           done < /tmp/kvs.txt
 
           echo "metadata=$(jq -sc '.' /tmp/metadata.json)" >> $GITHUB_OUTPUT
@@ -288,7 +307,7 @@ jobs:
           echo "hook_mode_val=$hook_mode_val" >> $GITHUB_OUTPUT
 
   build:
-    name: "${{ matrix.kernel_version }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}"
+    name: "${{ matrix.kernel_version }}.${{ matrix.sub_level }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}"
     needs: setup
     if: needs.setup.outputs.build_matrix != '{"include":[]}'
     strategy:
@@ -296,6 +315,7 @@ jobs:
     uses: ./.github/workflows/build-kernel.yml
     with:
       kernel_version: ${{ matrix.kernel_version }}
+      sub_level: ${{ matrix.sub_level }}
       variant: ${{ matrix.variant }}
       use_droidspaces: ${{ matrix.droidspaces }}
       use_rekernel: ${{ inputs.use_rekernel }}
@@ -347,38 +367,29 @@ jobs:
       - name: Load metadata for ${{ matrix.kv }}
         id: meta
         run: |
-          echo '${{ needs.setup.outputs.metadata }}' | jq -r '.[] | select(.kernel_version=="${{ matrix.kv }}")' > /tmp/meta.json
-          while IFS='=' read -r key value; do echo "$key=$value" >> $GITHUB_OUTPUT; done < <(jq -r 'to_entries[] | "\(.key)=\(.value)"' /tmp/meta.json)
-          android_ver=$(jq -r '.android_version' /tmp/meta.json)
-          sub_level=$(jq -r '.sub_level' /tmp/meta.json)
-          r_version=$(jq -r '.r_version' /tmp/meta.json)
-          r_suffix=$(jq -r '.r_suffix' /tmp/meta.json)
-          source_ref=$(jq -r '.source_ref' /tmp/meta.json)
-          source_commit=$(jq -r '.source_commit' /tmp/meta.json)
-          source_commit_date=$(jq -r '.source_commit_date' /tmp/meta.json)
-          mirror_tag=$(jq -r '.mirror_tag' /tmp/meta.json)
-
-          short_commit=$(echo "$source_commit" | cut -c1-7)
-          commit_url="https://android.googlesource.com/kernel/common/+/${source_ref}"
-
-          if [ "$(jq -r '.asb_date' /tmp/meta.json)" = "lts" ]; then
-            tar_name="${android_ver}-${{ matrix.kv }}-lts.tar.gz"
-            display="${android_ver}-${{ matrix.kv }}.${sub_level}-lts"
-          elif [ "$r_version" = "none" ]; then
-            tar_name="${android_ver}-${{ matrix.kv }}-$(jq -r '.asb_date' /tmp/meta.json).tar.gz"
-            display="${android_ver}-${{ matrix.kv }}.${sub_level}"
+          echo '${{ needs.setup.outputs.metadata }}' | jq -c '[.[] | select(.kernel_version=="${{ matrix.kv }}")]' > /tmp/meta_array.json
+          SUB_COUNT=$(jq 'length' /tmp/meta_array.json)
+          if [ "$SUB_COUNT" -eq 1 ]; then
+            UNAME_SUB=$(jq -r '.[0].sub_level' /tmp/meta_array.json)
           else
-            tar_name="${android_ver}-${{ matrix.kv }}-$(jq -r '.asb_date' /tmp/meta.json)_${r_version}.tar.gz"
-            display="${android_ver}-${{ matrix.kv }}.${sub_level}_${r_version}"
+            UNAME_SUB="X"
           fi
-
-          kernel_source_url="https://github.com/${{ github.repository }}/releases/download/${mirror_tag}/${tar_name}"
-
-          echo "kernel_source_url=${kernel_source_url}" >> $GITHUB_OUTPUT
-          echo "kernel_display_name=${display}" >> $GITHUB_OUTPUT
-          echo "kernel_commit_url=${commit_url}" >> $GITHUB_OUTPUT
-          echo "source_commit_short=${short_commit}" >> $GITHUB_OUTPUT
-          echo "commit_date_fmt=${source_commit_date}" >> $GITHUB_OUTPUT
+          echo "UNAME_SUB=$UNAME_SUB" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE_INFO<<EOF" >> $GITHUB_ENV
+          jq -r '.[] | 
+            .source_commit_date as $d |
+            ($d | sub("(?<=\\d{2}:\\d{2}):\\d{2}(?= )"; "")) as $d2 |
+            if .r_version != "none" then
+              "- **\(.kernel_version).\(.sub_level)_\(.r_version)**: [`\(.source_commit[0:7])`](https://android.googlesource.com/kernel/common/+/refs/tags/\(.android_version)-\(.kernel_version)-\(.asb_date)_\(.r_version)) `\($d2)`"
+            elif .asb_date == "lts" then
+              "- **\(.kernel_version).\(.sub_level)_lts**: [`\(.source_commit[0:7])`](https://android.googlesource.com/kernel/common/+/refs/heads/\(.android_version)-\(.kernel_version)-lts) `\($d2)`"
+            else
+              "- **\(.kernel_version).\(.sub_level)**: [`\(.source_commit[0:7])`](https://android.googlesource.com/kernel/common/+/refs/heads/\(.android_version)-\(.kernel_version)-\(.asb_date)) `\($d2)`"
+            end
+          ' /tmp/meta_array.json >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          echo "CLANG_VERSION=$(jq -r '.[0].clang_version' /tmp/meta_array.json)" >> $GITHUB_ENV
+          echo "RUST_VERSION=$(jq -r '.[0].rust_version // ""' /tmp/meta_array.json)" >> $GITHUB_ENV
 
       - uses: actions/download-artifact@v8
         with:
@@ -479,7 +490,7 @@ jobs:
           name: ${{ format('Midori Kernel - {0}{1}', matrix.kv, inputs.ksu_debug && ' [DEBUG]' || '') }}
           make_latest: ${{ matrix.kv == '6.12' || !contains(needs.setup.outputs.kernel_versions, ',') }}
           body: |
-            - **Kernel Source**: [`${{ steps.meta.outputs.source_commit_short }}`](${{ steps.meta.outputs.kernel_commit_url }}) `${{ steps.meta.outputs.commit_date_fmt }}`
+            ${{ env.KERNEL_SOURCE_INFO }}
             ${{ steps.ksu_info.outputs.midorisu-ko }}
             ${{ steps.ksu_info.outputs.midorisu-nx }}
             ${{ steps.ksu_info.outputs.midorisu-og }}
@@ -490,7 +501,7 @@ jobs:
             ${{ steps.ksu_info.outputs.rekernel_x_line }}
             - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version || env.KSUD_VERSION }}`　**KSU Daemon (ksud)**: `${{ env.KSUD_VERSION }}`
             - **Manager**: `${{ env.MIDORISU_APK }}`
-            - **Spoofed uname**: `${{ matrix.kv }}.${{ steps.meta.outputs.sub_level }}${{ needs.setup.outputs.kernel_localversion }}`
+            - **Spoofed Uname**: `${{ matrix.kv }}.${{ env.UNAME_SUB }}${{ needs.setup.outputs.kernel_localversion }}`
             - **Spoofed Build Time**: `${{ needs.setup.outputs.build_timestamp }}`
             - **Spoofed Builder**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
             - **Unicode Bypass Fix**: ${{ inputs.unicode_bypass_fix && '✅' || '❌' }}　**Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}
@@ -498,7 +509,7 @@ jobs:
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
             - **eBPF**: ${{ env.EBPF_FILE && format('✅ `({0})`', env.EBPF_FILE) || '❌' }}
             - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}
-            - **Compiler**: `clang-${{ steps.meta.outputs.clang_version }}`${{ steps.meta.outputs.rust_version && format('　**Rust**: `{0}`', steps.meta.outputs.rust_version) || '' }}
+            - **Compiler**: `clang-${{ env.CLANG_VERSION }}`${{ env.RUST_VERSION && format('　**Rust**: `{0}`', env.RUST_VERSION) || '' }}
           files: |
             release_zips/*.zip
             release_zips/*.apk

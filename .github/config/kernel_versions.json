@@ -11,8 +11,8 @@
           "r3",
           "none"
         ],
-        "commit": "fe72b201188785524e4deb662d8260e44714c1aa",
-        "commit_date": "2026-06-16 11:26:56 +0000"
+        "commit": "",
+        "commit_date": ""
       },
       "175": {
         "asb_date": "lts",
@@ -20,8 +20,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "cfdd341cc7ccbbe6d0895e06761e00c3ecfea532",
-        "commit_date": "2026-07-12 16:10:45 +0000"
+        "commit": "",
+        "commit_date": ""
       }
     },
     "default_clang": "r487747c",
@@ -41,8 +41,8 @@
           "r1",
           "none"
         ],
-        "commit": "999f4c2cb271085c4d41ae34c3e3e83d83e8b2b4",
-        "commit_date": "2026-07-01 15:48 +0000"
+        "commit": "",
+        "commit_date": ""
       },
       "142": {
         "asb_date": "lts",
@@ -50,8 +50,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "1782065b5f3dad41d3785247e50820553c3473e6",
-        "commit_date": "2026-07-12 16:10:45 +0000"
+        "commit": "",
+        "commit_date": ""
       }
     },
     "default_clang": "r510928",
@@ -71,18 +71,18 @@
           "r58",
           "none"
         ],
-        "commit": "37e196381e1c7823be8c0774d15cb34855b2ee04",
-        "commit_date": "2026-04-10 14:03 +0200"
+        "commit": "",
+        "commit_date": ""
       },
       "69": {
         "asb_date": "2026-03",
-        "default_r": "r54",
+        "default_r": "r55",
         "supported_r": [
-          "r54",
+          "r55",
           "none"
         ],
-        "commit": "ea8cee01e50774be5e7bd82b5b513149f1185bf7",
-        "commit_date": "2026-04-23 11:56:09 +0200"
+        "commit": "",
+        "commit_date": ""
       },
       "90": {
         "asb_date": "lts",
@@ -90,8 +90,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "d1864f15a2f3f77472b5214f15a4f61d1a354179",
-        "commit_date": "2026-07-15 06:26:39 +0000"
+        "commit": "",
+        "commit_date": ""
       }
     },
     "default_clang": "r536225",

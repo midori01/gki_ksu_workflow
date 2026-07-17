@@ -35,7 +35,7 @@ get_commit_date() {
   if [ -d "$tmpd" ]; then
     git -C "$tmpd" fetch --depth 1 origin "$commit" 2>/dev/null
     local date
-    date=$(git -C "$tmpd" log -1 --format='%ai' "$commit" 2>/dev/null || echo "")
+    date=$(git -C "$tmpd" log -1 --format='%ci' "$commit" 2>/dev/null || echo "")
     rm -rf "$tmpd"
     echo "$date"
   else

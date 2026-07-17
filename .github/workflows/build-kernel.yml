@@ -6,6 +6,9 @@ on:
       kernel_version:
         required: true
         type: string
+      sub_level:
+        required: true
+        type: string
       variant:
         required: true
         type: string
@@ -87,7 +90,7 @@ jobs:
     env:
       DS_SUFFIX: ${{ inputs.use_droidspaces && '-DS' || '' }}
       SUSFS_SUFFIX: ${{ inputs.use_susfs && '-SUSFS' || '' }}
-      CCACHE_DIR: ${{ github.workspace }}/.ccache-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
       CCACHE_COMPILERCHECK: content
       CCACHE_SLOPPINESS: file_macro,time_macros,include_file_mtime,include_file_ctime
 
@@ -102,7 +105,7 @@ jobs:
         run: |
           config=$(jq -c '.["'${{ inputs.kernel_version }}'"]' .github/config/kernel_versions.json)
           echo "android_version=$(echo "$config" | jq -r '.android_version')" >> $GITHUB_OUTPUT
-          sub_level=$(echo "$config" | jq -r '.default_sub_level')
+          sub_level="${{ inputs.sub_level }}"
           echo "sub_level=$sub_level" >> $GITHUB_OUTPUT
           revision=$(echo "$config" | jq -c '.revisions["'$sub_level'"]')
           echo "asb_date=$(echo "$revision" | jq -r '.asb_date')" >> $GITHUB_OUTPUT
@@ -129,9 +132,9 @@ jobs:
         id: cache-restore
         uses: ./.github/actions/restore-cache-retry
         with:
-          path: .ccache-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
-          key: ${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
-          restore-keys: ${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-
+          path: .ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
+          key: ${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
+          restore-keys: ${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-
 
       - name: Setup Ccache Wrappers
         if: inputs.use_ccache
@@ -268,25 +271,32 @@ jobs:
           fi
           cp "$SUSFS_DIR"/kernel_patches/fs/* fs/
           cp "$SUSFS_DIR"/kernel_patches/include/linux/* include/linux/
+          
+          if [ "${{ inputs.kernel_version }}" = "6.12" ]; then
+            PATCH_VER="${{ steps.cfg.outputs.kmi_version }}.${{ inputs.sub_level }}"
+          else
+            PATCH_VER="${{ steps.cfg.outputs.kmi_version }}"
+          fi
+          
           case "${{ inputs.variant }}" in
             MidoriSU-KO)
-              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${{ steps.cfg.outputs.kmi_version }}.patch"
+              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
               patch -p1 -d KernelSU < "${{ github.workspace }}/.github/patches/10_enable_susfs_for_ksu.patch"
               ;;
             MidoriSU-NX)
-              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${{ steps.cfg.outputs.kmi_version }}.patch"
+              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
               patch -p1 -d KernelSU < "${{ github.workspace }}/.github/patches/12_enable_susfs_for_ksu.patch"
               ;;
             MidoriSU-OG)
-              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${{ steps.cfg.outputs.kmi_version }}.patch"
+              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
               patch -p1 -d KernelSU < "$SUSFS_DIR/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"
               patch -p1 -d KernelSU < "${{ github.workspace }}/.github/patches/30_ksu_toolkit_for_ksu.patch"
               ;;
             MidoriSU-RE)
-              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${{ steps.cfg.outputs.kmi_version }}.patch"
+              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
               ;;
             MidoriSU-XX)
-              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/51_deinlined_susfs_hooks_gki-${{ steps.cfg.outputs.kmi_version }}.patch"
+              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/51_deinlined_susfs_hooks_gki-${PATCH_VER}.patch"
               patch -p1 -d KernelSU < "${{ github.workspace }}/.github/patches/11_enable_susfs_for_ksu.patch"
               ;;
           esac
@@ -431,7 +441,7 @@ jobs:
       - name: Upload Commit Info
         uses: actions/upload-artifact@v7
         with:
-          name: commit-info-${{ inputs.kernel_version }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}
+          name: commit-info-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}
           path: kernel_workspace/common/commit_info/
           retention-days: 1
 
@@ -465,7 +475,7 @@ jobs:
         if: inputs.build_ebpf
         uses: actions/upload-artifact@v7
         with:
-          name: vmlinux-${{ inputs.kernel_version }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}
+          name: vmlinux-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}
           path: kernel_workspace/common/out/vmlinux.zst
           retention-days: 1
 
@@ -484,11 +494,11 @@ jobs:
         if: inputs.use_ccache
         uses: actions/cache/save@v6
         with:
-          path: .ccache-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
-          key: ${{ inputs.kernel_version }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
+          path: .ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
+          key: ${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Kernel-${{ inputs.kernel_version }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}${{ steps.cfg.outputs.r_suffix }}
+          name: Kernel-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}${{ steps.cfg.outputs.r_suffix }}
           path: kernel_workspace/${{ env.ZIP_NAME }}
