@@ -379,10 +379,10 @@ jobs:
           jq -r '.[] | 
             .source_commit_date as $d |
             ($d | sub("(?<=\\d{2}:\\d{2}):\\d{2}(?= )"; "")) as $d2 |
-            if .r_version != "none" then
-              "- **\(.kernel_version).\(.sub_level)_\(.r_version)**: [`\(.source_commit[0:7])`](https://android.googlesource.com/kernel/common/+/refs/tags/\(.android_version)-\(.kernel_version)-\(.asb_date)_\(.r_version)) `\($d2)`"
-            elif .asb_date == "lts" then
+            if .asb_date == "lts" then
               "- **\(.kernel_version).\(.sub_level)_lts**: [`\(.source_commit[0:7])`](https://android.googlesource.com/kernel/common/+/refs/heads/\(.android_version)-\(.kernel_version)-lts) `\($d2)`"
+            elif .r_version != "none" then
+              "- **\(.kernel_version).\(.sub_level)_\(.r_version)**: [`\(.source_commit[0:7])`](https://android.googlesource.com/kernel/common/+/refs/tags/\(.android_version)-\(.kernel_version)-\(.asb_date)_\(.r_version)) `\($d2)`"
             else
               "- **\(.kernel_version).\(.sub_level)**: [`\(.source_commit[0:7])`](https://android.googlesource.com/kernel/common/+/refs/heads/\(.android_version)-\(.kernel_version)-\(.asb_date)) `\($d2)`"
             end

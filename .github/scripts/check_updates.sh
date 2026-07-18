@@ -248,16 +248,31 @@ check_tag() {
         echo "  New sub ($new_sub) < current default ($current_default), keeping default."
       fi
 
-      jq --arg kv "$kv" \
-         --arg sub "$new_sub" \
-         --arg def "$new_default" \
-         --arg asb "$asb_date" \
-         --arg r "none" \
-         --arg commit "$head_commit" \
-         --arg commit_date "$commit_date" \
-         '.[$kv].default_sub_level = $def |
-          .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r], "commit": $commit, "commit_date": $commit_date}' \
-         "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      if [[ "$new_sub" != "$current_sub" ]]; then
+        jq --arg kv "$kv" \
+           --arg old_sub "$current_sub" \
+           --arg sub "$new_sub" \
+           --arg def "$new_default" \
+           --arg asb "$asb_date" \
+           --arg r "none" \
+           --arg commit "$head_commit" \
+           --arg commit_date "$commit_date" \
+           '.[$kv].default_sub_level = $def |
+            .[$kv].revisions |= del(.[$old_sub]) |
+            .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r], "commit": $commit, "commit_date": $commit_date}' \
+           "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      else
+        jq --arg kv "$kv" \
+           --arg sub "$new_sub" \
+           --arg def "$new_default" \
+           --arg asb "$asb_date" \
+           --arg r "none" \
+           --arg commit "$head_commit" \
+           --arg commit_date "$commit_date" \
+           '.[$kv].default_sub_level = $def |
+            .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r], "commit": $commit, "commit_date": $commit_date}' \
+           "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      fi
       echo "  Updated JSON sub=$new_sub commit=${head_commit:0:7}."
       NEEDS_COMMIT=true
     else
@@ -331,16 +346,31 @@ check_tag() {
     local tag_commit=$(get_ref_commit "refs/tags/${latest_tag}")
     local commit_date=$(get_commit_date "$tag_commit")
     if [[ "$new_r" != "$current_r" || "$new_sub" != "$current_sub" ]]; then
-      jq --arg kv "$kv" \
-         --arg sub "$new_sub" \
-         --arg def "$new_default" \
-         --arg asb "$asb_date" \
-         --arg r "$new_r" \
-         --arg commit "$tag_commit" \
-         --arg commit_date "$commit_date" \
-         '.[$kv].default_sub_level = $def |
-          .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r, "none"], "commit": $commit, "commit_date": $commit_date}' \
-         "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      if [[ "$new_sub" != "$current_sub" ]]; then
+        jq --arg kv "$kv" \
+           --arg old_sub "$current_sub" \
+           --arg sub "$new_sub" \
+           --arg def "$new_default" \
+           --arg asb "$asb_date" \
+           --arg r "$new_r" \
+           --arg commit "$tag_commit" \
+           --arg commit_date "$commit_date" \
+           '.[$kv].default_sub_level = $def |
+            .[$kv].revisions |= del(.[$old_sub]) |
+            .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r, "none"], "commit": $commit, "commit_date": $commit_date}' \
+           "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      else
+        jq --arg kv "$kv" \
+           --arg sub "$new_sub" \
+           --arg def "$new_default" \
+           --arg asb "$asb_date" \
+           --arg r "$new_r" \
+           --arg commit "$tag_commit" \
+           --arg commit_date "$commit_date" \
+           '.[$kv].default_sub_level = $def |
+            .[$kv].revisions[$sub] = {"asb_date": $asb, "default_r": $r, "supported_r": [$r, "none"], "commit": $commit, "commit_date": $commit_date}' \
+           "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      fi
       echo "  Updated JSON."
       NEEDS_COMMIT=true
     fi
@@ -429,13 +459,24 @@ check_lts() {
       echo "  Updated JSON sub=$new_sub."
       NEEDS_COMMIT=true
     elif [[ "$head_commit" != "$old_commit" ]]; then
-      jq --arg kv "$kv" \
-         --arg sub "$new_sub" \
-         --arg commit "$head_commit" \
-         --arg commit_date "$commit_date" \
-         '.[$kv].revisions[$sub].commit = $commit |
-          .[$kv].revisions[$sub].commit_date = $commit_date' \
-         "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      if [[ "$new_sub" != "$current_sub" ]]; then
+        jq --arg kv "$kv" \
+           --arg old_sub "$current_sub" \
+           --arg sub "$new_sub" \
+           --arg commit "$head_commit" \
+           --arg commit_date "$commit_date" \
+           '.[$kv].revisions |= del(.[$old_sub]) |
+            .[$kv].revisions[$sub] = {"asb_date": "lts", "default_r": "r00", "supported_r": ["r00"], "commit": $commit, "commit_date": $commit_date}' \
+           "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      else
+        jq --arg kv "$kv" \
+           --arg sub "$new_sub" \
+           --arg commit "$head_commit" \
+           --arg commit_date "$commit_date" \
+           '.[$kv].revisions[$sub].commit = $commit |
+            .[$kv].revisions[$sub].commit_date = $commit_date' \
+           "$CONFIG_FILE" > "$CONFIG_FILE.tmp" && mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+      fi
       echo "  Updated JSON commit only."
       NEEDS_COMMIT=true
     fi

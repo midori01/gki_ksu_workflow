@@ -6,13 +6,13 @@
     "revisions": {
       "172": {
         "asb_date": "2026-06",
-        "default_r": "r3",
+        "default_r": "r4",
         "supported_r": [
-          "r3",
+          "r4",
           "none"
         ],
-        "commit": "",
-        "commit_date": ""
+        "commit": "09854ab153e05d0974ddcbf87e1ec245e781958f",
+        "commit_date": "2026-07-15 07:31:25 -0700"
       },
       "175": {
         "asb_date": "lts",
@@ -20,8 +20,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "",
-        "commit_date": ""
+        "commit": "c032c019071e4b16a215b6a4b4ef141ff03dd94a",
+        "commit_date": "2026-07-20 14:11:32 +0000"
       }
     },
     "default_clang": "r487747c",
@@ -41,8 +41,8 @@
           "r1",
           "none"
         ],
-        "commit": "",
-        "commit_date": ""
+        "commit": "999f4c2cb271085c4d41ae34c3e3e83d83e8b2b4",
+        "commit_date": "2026-07-01 15:48:38 +0000"
       },
       "142": {
         "asb_date": "lts",
@@ -50,8 +50,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "",
-        "commit_date": ""
+        "commit": "1782065b5f3dad41d3785247e50820553c3473e6",
+        "commit_date": "2026-07-12 16:12:33 +0000"
       }
     },
     "default_clang": "r510928",
@@ -71,27 +71,27 @@
           "r58",
           "none"
         ],
-        "commit": "",
-        "commit_date": ""
+        "commit": "37e196381e1c7823be8c0774d15cb34855b2ee04",
+        "commit_date": "2026-04-20 13:17:08 +0100"
       },
       "69": {
         "asb_date": "2026-03",
-        "default_r": "r55",
+        "default_r": "r57",
         "supported_r": [
-          "r55",
+          "r57",
           "none"
         ],
-        "commit": "",
-        "commit_date": ""
+        "commit": "0d428e660be636ee7ae24d0f78c2f03493bf5df1",
+        "commit_date": "2026-07-17 11:06:00 -0700"
       },
-      "90": {
+      "91": {
         "asb_date": "lts",
         "default_r": "r00",
         "supported_r": [
           "r00"
         ],
-        "commit": "",
-        "commit_date": ""
+        "commit": "3b094a2eacd2723160ce8fe1f786e2e57b5db838",
+        "commit_date": "2026-07-20 14:16:31 +0000"
       }
     },
     "default_clang": "r536225",
