@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Thu, 16 Jul 2026 22:37:39 +0900
+Date: Thu, 23 Jul 2026 10:45:47 +0900
 Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2026-03
 
 ---
@@ -13,7 +13,7 @@ Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2026-03
  fs/proc/base.c                 |  24 +++
  fs/proc/bootconfig.c           |  13 ++
  fs/proc/fd.c                   |  78 ++++++++++
- fs/proc/task_mmu.c             |  74 ++++++++++
+ fs/proc/task_mmu.c             |  76 +++++++++-
  fs/proc_namespace.c            | 174 ++++++++++++++++++++++
  fs/read_write.c                |  10 ++
  fs/readdir.c                   | 126 ++++++++++++++++
@@ -27,7 +27,7 @@ Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2026-03
  security/selinux/hooks.c       |  45 ++++++
  security/selinux/selinuxfs.c   | 147 ++++++++++++++++++
  security/selinux/ss/services.c |  24 +++
- 24 files changed, 1486 insertions(+), 1 deletion(-)
+ 24 files changed, 1487 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 372c9df9051f..66d671b769fb 100644
@@ -1177,7 +1177,7 @@ index 5e391cbca7a3..ed6be4741eb0 100644
  	/* show_fd_locks() never dereferences files, so a stale value is safe */
  	show_fd_locks(m, file, files);
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 57b0982e4ddd..bff78865346d 100644
+index 57b0982e4ddd..fef15abf0558 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -27,6 +27,9 @@
@@ -1190,7 +1190,7 @@ index 57b0982e4ddd..bff78865346d 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-@@ -454,6 +457,13 @@ static void show_vma_header_prefix(struct seq_file *m,
+@@ -454,6 +457,14 @@ static void show_vma_header_prefix(struct seq_file *m,
  	seq_putc(m, ' ');
  }
  
@@ -1198,29 +1198,41 @@ index 57b0982e4ddd..bff78865346d 100644
 +extern void susfs_sus_kstat_spoof_show_map_vma(struct inode *inode, dev_t *out_dev, unsigned long *out_ino);
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 +#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+extern int susfs_open_redirect_spoof_show_map_vma(struct inode *inode, unsigned long *out_ino, dev_t *out_dev, char *spoofed_name);
++extern struct srcu_struct susfs_srcu_open_redirect;
++extern int susfs_open_redirect_spoof_show_map_vma_srcu(struct inode *inode, unsigned long *out_ino, dev_t *out_dev, char **out_spoofed_name);
 +#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 +
  static void
  show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
  {
-@@ -464,15 +474,37 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
- 	unsigned long long pgoff = 0;
- 	unsigned long start, end;
- 	dev_t dev = 0;
-+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+	char *spoofed_redirected_name = NULL;
-+#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+@@ -467,10 +478,41 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
  
  	if (vma->vm_file) {
  		const struct inode *inode = file_user_inode(vma->vm_file);
- 
+-
 +#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 +		if (SUSFS_IS_INODE_OPEN_REDIRECT(inode)) {
-+			if (!susfs_open_redirect_spoof_show_map_vma((struct inode *)inode, &ino, &dev, spoofed_redirected_name)) {
++			char *spoofed_redirected_name = NULL;
++			int srcu_idx = srcu_read_lock(&susfs_srcu_open_redirect);
++			int ret = susfs_open_redirect_spoof_show_map_vma_srcu((struct inode*)inode, &ino, &dev, &spoofed_redirected_name);
++			if (!ret) {
 +				pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
-+				goto orig_flow;
++				start = vma->vm_start;
++				end = VMA_PAD_START(vma);
++				if (flags & __VM_NO_COMPAT) {
++					srcu_read_unlock(&susfs_srcu_open_redirect, srcu_idx);
++					return;
++				}
++				__fold_filemap_fixup_entry(&((struct proc_maps_private *)m->private)->iter, &end);
++				show_vma_header_prefix(m, start, end, flags, pgoff, dev, ino);
++				seq_pad(m, ' ');
++				if (spoofed_redirected_name)
++					seq_puts(m, spoofed_redirected_name);
++				seq_putc(m, '\n');
++				srcu_read_unlock(&susfs_srcu_open_redirect, srcu_idx);
++				return;
 +			}
++			srcu_read_unlock(&susfs_srcu_open_redirect, srcu_idx);
 +		}
 +#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 +#ifdef CONFIG_KSU_SUSFS_SUS_MAP
@@ -1235,30 +1247,7 @@ index 57b0982e4ddd..bff78865346d 100644
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
  	}
  
-+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+orig_flow:
-+#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+
  	start = vma->vm_start;
- 	end = VMA_PAD_START(vma);
- 
-@@ -499,6 +531,16 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
- 
- 	show_vma_header_prefix(m, start, end, flags, pgoff, dev, ino);
- 
-+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+	if (spoofed_redirected_name) {
-+		seq_pad(m, ' ');
-+		seq_puts(m, spoofed_redirected_name);
-+		seq_putc(m, '\n');
-+		kfree(spoofed_redirected_name);
-+		return;
-+	}
-+#endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-+
- 	get_vma_name(vma, &path, &name, &name_fmt);
- 	if (path) {
- 		seq_pad(m, ' ');
 @@ -1329,6 +1371,13 @@ static int show_smap(struct seq_file *m, void *v)
  	struct vm_area_struct *vma = v;
  	struct mem_size_stats mss = {};
@@ -2576,5 +2565,5 @@ index ead4ed5c3820..70cbd03a73b9 100644
  					struct sidtab_entry *oentry,
  					struct sidtab_entry *nentry,
 -- 
-2.54.0
+2.55.0
 
