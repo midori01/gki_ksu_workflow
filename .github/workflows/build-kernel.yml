@@ -327,10 +327,12 @@ jobs:
         if: inputs.use_rekernel
         working-directory: kernel_workspace/common
         run: |
+          REKERNEL_TAG="11.0"
+          REKERNEL_X_TAG="1.4"
           REKERNEL_DIR="${{ github.workspace }}/ReKernel"
           REKERNEL_X_DIR="${{ github.workspace }}/ReKernel_X"
-          git clone --depth 1 --branch main https://github.com/Sakion-Team/Re-Kernel "$REKERNEL_DIR"
-          git clone --tags --branch main https://github.com/myflavor/ReKernel-X "$REKERNEL_X_DIR"
+          git clone --depth 1 --branch "${REKERNEL_TAG}" https://github.com/Sakion-Team/Re-Kernel "$REKERNEL_DIR"
+          git clone --depth 1 --branch "${REKERNEL_X_TAG}" https://github.com/myflavor/ReKernel-X "$REKERNEL_X_DIR"
           cp -r "$REKERNEL_DIR"/LKM-Source drivers/rekernel
           sed -i 's/depends on MODULES/depends on KSU/' drivers/rekernel/Kconfig
           sed -i 's/obj-m := rekernel.o/obj-$(CONFIG_REKERNEL) += rekernel.o/' drivers/rekernel/Makefile
@@ -340,13 +342,7 @@ jobs:
           sed -i 's/\bstart_rekernel\b/rkx_start/g; s/\bexit_rekernel\b/rkx_exit/g; s/\bsendMessage\b/rkx_sendMessage/g; s/\bnet_uid_add\b/rkx_net_uid_add/g; s/\bnet_uid_del\b/rkx_net_uid_del/g; s/\bregister_signal\b/rkx_register_signal/g; s/\bunregister_signal\b/rkx_unregister_signal/g; s/\bregister_netfilter\b/rkx_register_netfilter/g; s/\bunregister_netfilter\b/rkx_unregister_netfilter/g; s/\bregister_binder\b/rkx_register_binder/g; s/\bunregister_binder\b/rkx_unregister_binder/g' drivers/rekernel_x/*.{c,h}
           sed -i 's/obj-m += rekernel_x.o/obj-y += rekernel_x.o/' drivers/rekernel_x/Makefile
           echo 'obj-y += rekernel_x/' >> drivers/Makefile
-          RKX_VER=$(git -C "$REKERNEL_X_DIR" tag --sort=-creatordate 2>/dev/null | head -1)
-          RKX_VER=${RKX_VER#v}
-          if [ -n "$RKX_VER" ]; then
-            echo "RKX_VERSION=v${RKX_VER}" >> $GITHUB_ENV
-          else
-            echo "RKX_VERSION=$(git -C "$REKERNEL_X_DIR" rev-parse --short HEAD)" >> $GITHUB_ENV
-          fi
+          echo "RKX_VERSION=v${REKERNEL_X_TAG}" >> $GITHUB_ENV
 
       - name: Apply Unicode Bypass Fix
         if: inputs.unicode_bypass_fix

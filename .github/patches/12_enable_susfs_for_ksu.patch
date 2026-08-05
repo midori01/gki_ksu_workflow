@@ -1,16 +1,16 @@
 From: midori01 <lv@lvlv.lv>
-Date: Fri, 31 Jul 2026 14:00:23 +0900
+Date: Thu, 6 Aug 2026 18:31:59 +0900
 Subject: [PATCH] Enable SUSFS for MidoriSU-NX
 
 ---
- kernel/Kbuild                      |  31 ++-
+ kernel/Kbuild                      |  43 +++-
  kernel/Kconfig                     | 107 ++++++++-
  kernel/core/init.c                 |  49 +++-
  kernel/extras.c                    |  22 +-
  kernel/feature/adb_root.c          | 160 ++++++++++++-
  kernel/feature/adb_root.h          |   4 +
  kernel/feature/kernel_umount.c     |  13 +-
- kernel/feature/selinux_hide.c      | 157 +++++++------
+ kernel/feature/selinux_hide.c      | 167 ++++++++------
  kernel/feature/selinux_hide.h      |  21 ++
  kernel/feature/sucompat.c          | 356 ++++++++++++++++++++++++++++-
  kernel/feature/sucompat.h          |  21 +-
@@ -34,10 +34,10 @@ Subject: [PATCH] Enable SUSFS for MidoriSU-NX
  kernel/supercall/internal.h        |   2 +
  kernel/supercall/supercall.c       | 189 +++++++++------
  kernel/supercall/supercall.h       |   4 +
- 31 files changed, 1850 insertions(+), 361 deletions(-)
+ 31 files changed, 1872 insertions(+), 361 deletions(-)
 
 diff --git a/kernel/Kbuild b/kernel/Kbuild
-index cec135d13..d8f22edfb 100644
+index cec135d13..6cecbc733 100644
 --- a/kernel/Kbuild
 +++ b/kernel/Kbuild
 @@ -1,21 +1,36 @@
@@ -78,13 +78,30 @@ index cec135d13..d8f22edfb 100644
 +ifdef KSU_ARCH
 +kernelsu-objs += hook/$(KSU_ARCH)/syscall_hook.o
 +endif
-+endif
  endif
++endif
 +
 +kernelsu-objs += hook/setuid_hook.o
  kernelsu-objs += extras.o
  
  kernelsu-objs += infra/file_wrapper.o
+@@ -150,4 +165,16 @@ ccflags-y += -DKSU_NEW_DCACHE_FLUSH=$(KSU_NEW_DCACHE_FLUSH)
+ ccflags-y += -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat -Wno-missing-prototypes
+ ccflags-y += -Wno-declaration-after-statement -Wno-unused-function -Wno-unused-variable
+ 
++## For susfs stuff ##
++ifeq ($(strip $(CONFIG_KSU_SUSFS)),y)
++ifeq ($(shell test -e $(srctree)/fs/susfs.c; echo $$?),0)
++$(eval SUSFS_VERSION=$(shell cat $(srctree)/include/linux/susfs.h | grep -E '^#define SUSFS_VERSION' | cut -d' ' -f3 | sed 's/"//g'))
++$(info )
++$(info -- SUSFS_VERSION: $(SUSFS_VERSION))
++else
++$(info -- You have not integrated susfs in your kernel yet.)
++$(info -- Read: https://gitlab.com/simonpunk/susfs4ksu)
++endif
++endif
++
+ # Keep a new line here!! Because someone may append config
 diff --git a/kernel/Kconfig b/kernel/Kconfig
 index 88e228117..1f30a997c 100644
 --- a/kernel/Kconfig
@@ -716,7 +733,7 @@ index dd741202a..6ad23160c 100644
  	ksu_unregister_feature_handler(KSU_FEATURE_KERNEL_UMOUNT);
  }
 diff --git a/kernel/feature/selinux_hide.c b/kernel/feature/selinux_hide.c
-index 5bb59bfe4..b840bccc4 100644
+index 5bb59bfe4..1faea2b0e 100644
 --- a/kernel/feature/selinux_hide.c
 +++ b/kernel/feature/selinux_hide.c
 @@ -10,10 +10,12 @@
@@ -732,7 +749,7 @@ index 5bb59bfe4..b840bccc4 100644
  // security/selinux/include/security.h
  #include <security.h>
  #include <ss/context.h>
-@@ -22,17 +24,27 @@
+@@ -22,17 +24,33 @@
  #include <ss/conditional.h>
  #include "avc.h"
  #include "klog.h" // IWYU pragma: keep
@@ -749,8 +766,14 @@ index 5bb59bfe4..b840bccc4 100644
 -static bool ksu_selinux_hide_running __read_mostly = false;
 +bool ksu_selinux_hide_enabled __read_mostly = false;
 +bool ksu_selinux_hide_running __read_mostly = false;
- 
++
 +#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
++int security_context_to_sid_with_policy(struct selinux_policy *policy, const char *scontext, u32 scontext_len,
++                                               u32 *sid, u32 def_sid, gfp_t gfp_flags);
++int security_sid_to_context_with_policy(struct selinux_policy *policy, u32 sid, char **scontext,
++                                               u32 *scontext_len);
++void security_compute_av_user_with_policy(struct selinux_policy *policy, u32 ssid, u32 tsid, u16 tclass,
++                                                 struct av_decision *avd);
 +static void (*security_dump_masked_av_fn)(struct policydb *policydb, struct context *scontext, struct context *tcontext,
 +                                          u16 tclass, u32 permissions, const char *reason) = NULL;
 +static void (*context_struct_compute_av_fn)(struct policydb *policydb, struct context *scontext,
@@ -759,12 +782,12 @@ index 5bb59bfe4..b840bccc4 100644
 +#else
 +struct selinux_state fake_state = {0};
 +#endif
-+
+ 
 +#ifndef CONFIG_KSU_SUSFS
  enum sel_inos {
      SEL_ROOT_INO = 2,
      SEL_LOAD, /* load policy */
-@@ -60,26 +72,14 @@ enum sel_inos {
+@@ -60,26 +78,14 @@ enum sel_inos {
  typedef ssize_t (*write_op_fn)(struct file *, char *, size_t);
  
  static write_op_fn *selinux_write_op;
@@ -796,7 +819,7 @@ index 5bb59bfe4..b840bccc4 100644
  static ssize_t my_write_context(struct file *file, char *buf, size_t size)
  {
      // apply to all app uids
-@@ -196,10 +196,6 @@ out:
+@@ -196,10 +202,6 @@ out:
      return length;
  }
  
@@ -807,7 +830,7 @@ index 5bb59bfe4..b840bccc4 100644
  static int __nocfi my_setprocattr(const char *name, void *value, size_t size)
  {
      int error;
-@@ -241,11 +237,12 @@ static int __nocfi my_setprocattr(const char *name, void *value, size_t size)
+@@ -241,11 +243,12 @@ static int __nocfi my_setprocattr(const char *name, void *value, size_t size)
  call_orig:
      return ((setprocattr_fn)selinux_setprocattr_hook.original)(name, value, size);
  }
@@ -823,7 +846,7 @@ index 5bb59bfe4..b840bccc4 100644
  {
      mutex_lock(&selinux_state.status_lock);
      if (fake_status)
-@@ -308,21 +305,51 @@ static int my_sel_open_handle_status(struct inode *inode, struct file *filp)
+@@ -308,21 +311,51 @@ static int my_sel_open_handle_status(struct inode *inode, struct file *filp)
  }
  
  static void hook_selinux_status_open();
@@ -883,7 +906,7 @@ index 5bb59bfe4..b840bccc4 100644
  
  #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
      security_dump_masked_av_fn = find_kernel_symbol_exact("security_dump_masked_av");
-@@ -338,6 +365,14 @@ static int ksu_selinux_hide_enable()
+@@ -338,6 +371,14 @@ static int ksu_selinux_hide_enable()
      fake_state.policy = backup_sepolicy;
  #endif
  
@@ -898,7 +921,7 @@ index 5bb59bfe4..b840bccc4 100644
      context_write = &selinux_write_op[SEL_CONTEXT];
      pr_info("selinux_hide: context_write: 0x%lx [%pSb]\n", (unsigned long)*context_write, *context_write);
      write_op_fn my = my_write_context;
-@@ -363,47 +398,17 @@ static int ksu_selinux_hide_enable()
+@@ -363,47 +404,17 @@ static int ksu_selinux_hide_enable()
          pr_err("selinux_hide: init: selinux_setprocattr_hook err: %d\n", ret);
          goto unhook;
      }
@@ -951,7 +974,7 @@ index 5bb59bfe4..b840bccc4 100644
  }
  
  static int selinux_hide_feature_get(u64 *value)
-@@ -432,6 +437,8 @@ static int selinux_hide_feature_set(u64 value)
+@@ -432,6 +443,8 @@ static int selinux_hide_feature_set(u64 value)
              ksu_selinux_hide_running = false;
          }
      }
@@ -960,7 +983,7 @@ index 5bb59bfe4..b840bccc4 100644
      mutex_unlock(&selinux_hide_mutex);
      return ret;
  }
-@@ -605,7 +612,7 @@ out:
+@@ -605,7 +618,7 @@ out:
      return rc;
  }
  
@@ -969,7 +992,7 @@ index 5bb59bfe4..b840bccc4 100644
                                                 u32 *sid, u32 def_sid, gfp_t gfp_flags)
  {
      struct policydb *policydb;
-@@ -712,7 +719,7 @@ static int sidtab_entry_to_string(struct policydb *p, struct sidtab *sidtab, str
+@@ -712,7 +725,7 @@ static int sidtab_entry_to_string(struct policydb *p, struct sidtab *sidtab, str
      return rc;
  }
  
@@ -978,7 +1001,7 @@ index 5bb59bfe4..b840bccc4 100644
                                                 u32 *scontext_len)
  {
      struct policydb *policydb;
-@@ -899,7 +906,7 @@ static int constraint_expr_eval(struct policydb *policydb, struct context *scont
+@@ -899,7 +912,7 @@ static int constraint_expr_eval(struct policydb *policydb, struct context *scont
                  l2 = &(scontext->range.level[1]);
                  goto mls_ops;
              case CEXPR_L2H2:
@@ -987,7 +1010,7 @@ index 5bb59bfe4..b840bccc4 100644
                  l2 = &(tcontext->range.level[1]);
                  goto mls_ops;
              mls_ops:
-@@ -1085,7 +1092,7 @@ static void context_struct_compute_av(struct policydb *policydb, struct context
+@@ -1085,7 +1098,7 @@ static void context_struct_compute_av(struct policydb *policydb, struct context
      type_attribute_bounds_av(policydb, scontext, tcontext, tclass, avd);
  }
  
@@ -996,6 +1019,15 @@ index 5bb59bfe4..b840bccc4 100644
                                                           struct av_decision *avd)
  {
      struct policydb *policydb;
+@@ -1132,4 +1145,8 @@ allow:
+     avd->allowed = 0xffffffff;
+     goto out;
+ }
++
++EXPORT_SYMBOL(security_context_to_sid_with_policy);
++EXPORT_SYMBOL(security_sid_to_context_with_policy);
++EXPORT_SYMBOL(security_compute_av_user_with_policy);
+ #endif
 diff --git a/kernel/feature/selinux_hide.h b/kernel/feature/selinux_hide.h
 index 5a0437108..7932830b6 100644
 --- a/kernel/feature/selinux_hide.h

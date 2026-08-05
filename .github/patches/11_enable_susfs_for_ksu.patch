@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Fri, 31 Jul 2026 14:00:23 +0900
+Date: Thu, 6 Aug 2026 18:31:59 +0900
 Subject: [PATCH] Enable SUSFS for MidoriSU-XX
 
 ---
@@ -14,10 +14,10 @@ Subject: [PATCH] Enable SUSFS for MidoriSU-XX
  8 files changed, 374 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/Kconfig b/kernel/Kconfig
-index 53a1377e1..20868dbd6 100644
+index c18ac59f2..88dddb66b 100644
 --- a/kernel/Kconfig
 +++ b/kernel/Kconfig
-@@ -94,4 +94,94 @@ config KSU_HEURISTIC_IN_TREE_BUILD
+@@ -95,4 +95,94 @@ config KSU_HEURISTIC_IN_TREE_BUILD
  	depends on KSU
  	default y
  
@@ -187,10 +187,10 @@ index 2c0aeab24..55b21ddb8 100644
 +#endif
  }
 diff --git a/kernel/ksu.c b/kernel/ksu.c
-index 5032910a0..72c6a145f 100644
+index 5701e8fb2..ab842a763 100644
 --- a/kernel/ksu.c
 +++ b/kernel/ksu.c
-@@ -151,6 +151,10 @@
+@@ -152,6 +152,10 @@
  #include "hook/kp_ksud.c"
  #endif
  
@@ -201,7 +201,7 @@ index 5032910a0..72c6a145f 100644
  struct cred* ksu_cred;
  
  extern void ksu_supercalls_init();
-@@ -249,6 +253,10 @@ static int __init kernelsu_init(void)
+@@ -250,6 +254,10 @@ static int __init kernelsu_init(void)
  
  	ksu_throne_tracker_init();
  

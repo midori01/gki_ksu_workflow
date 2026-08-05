@@ -1,7 +1,7 @@
 {
   "6.1": {
     "android_version": "android14",
-    "default_sub_level": "175",
+    "default_sub_level": "176",
     "use_lts": true,
     "revisions": {
       "172": {
@@ -14,14 +14,14 @@
         "commit": "f29170a39abfc698a96d7cfcab5a39a5c2088274",
         "commit_date": "2026-07-23 10:37:18 +0100"
       },
-      "175": {
+      "176": {
         "asb_date": "lts",
         "default_r": "r00",
         "supported_r": [
           "r00"
         ],
-        "commit": "6a3a59b24b4005c03c0f287e4fa730124562faaa",
-        "commit_date": "2026-07-24 10:11:47 +0000"
+        "commit": "64167cbd57a9816c14eaab6b4f8c2180d6ee82c3",
+        "commit_date": "2026-08-06 09:18:36 +0000"
       }
     },
     "default_clang": "r487747c",
@@ -36,13 +36,13 @@
     "revisions": {
       "139": {
         "asb_date": "2026-07",
-        "default_r": "r3",
+        "default_r": "r4",
         "supported_r": [
-          "r3",
+          "r4",
           "none"
         ],
-        "commit": "e2291d35a1a713083b37a20411930e0372c367a9",
-        "commit_date": "2026-07-29 19:51:58 -0700"
+        "commit": "23a39d23cc70e4612940eb12455fdb993a058a48",
+        "commit_date": "2026-08-04 03:13:17 -0700"
       },
       "142": {
         "asb_date": "lts",
@@ -50,8 +50,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "72d9552a905a6469ce3687023eec76ae21014021",
-        "commit_date": "2026-07-23 07:23:44 +0000"
+        "commit": "0380f96e36da2491a299b5429a6bda378c69e09e",
+        "commit_date": "2026-08-06 12:20:41 +0000"
       }
     },
     "default_clang": "r510928",
@@ -86,13 +86,13 @@
       },
       "69": {
         "asb_date": "2026-03",
-        "default_r": "r60",
+        "default_r": "r61",
         "supported_r": [
-          "r60",
+          "r61",
           "none"
         ],
-        "commit": "042d145faf6fff1f9978c820d46c5a8b468e1e2b",
-        "commit_date": "2026-07-27 12:08:24 -0700"
+        "commit": "efa6067b6c039bae10f874d764a11d38302c5206",
+        "commit_date": "2026-08-04 17:35:29 +0100"
       },
       "92": {
         "asb_date": "lts",
@@ -100,8 +100,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "9cf86beb14562d97f14e0d80bbfdf1c5420a93d2",
-        "commit_date": "2026-07-23 07:32:27 +0000"
+        "commit": "ef90d9cda2951bcc8726189623d49044d2c29c42",
+        "commit_date": "2026-08-06 11:50:04 +0000"
       }
     },
     "default_clang": "r536225",

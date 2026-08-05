@@ -16,7 +16,7 @@ if [ -f "KernelSU/kernel/manager/apk_sign.c" ]; then
       HAS_SIG=0
     fi
 
-    sed -i 's/unsigned char buffer\[0x11\] = { 0 };/return true;\n\tunsigned char buffer[0x11] = { 0 };/g' KernelSU/kernel/manager/apk_sign.c
+    sed -i 's/\(unsigned char buffer\[0x1[01]\] = { 0 };\)/return true;\n\t\1/g' KernelSU/kernel/manager/apk_sign.c
     sed -i '/^bool is_manager_apk/,/^}$/d' KernelSU/kernel/manager/apk_sign.c
 
     if [ "$HAS_SIG" = "1" ]; then
