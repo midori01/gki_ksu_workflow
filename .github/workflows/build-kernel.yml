@@ -220,6 +220,38 @@ jobs:
           sed -i 's/ -dirty//g' common/scripts/setlocalversion || true
           sed -i ':a; /#ifdef USE_PKCS11_ENGINE/{N;N;s/#ifdef USE_PKCS11_ENGINE\n\(.*\)\n#endif/\1/; ta}' common/certs/extract-cert.c || true
 
+      - name: Apply CVE-2026-43499 Fix
+        if: inputs.kernel_version == '6.12'
+        working-directory: kernel_workspace/common
+        run: |
+          RTMUTEX="kernel/locking/rtmutex.c"
+          RTMUTEX_API="kernel/locking/rtmutex_api.c"
+          PATCH_DIR="${{ github.workspace }}/.github/patches/android16-6.12"
+
+          if grep -Fq 'struct task_struct *waiter_task = waiter->task;' "$RTMUTEX"; then
+            echo "CVE-2026-43499 primary fix already present."
+          else
+            patch -p1 --forward < "$PATCH_DIR/cve-2026-43499-rtmutex.patch"
+          fi
+
+          has_null_guard=false
+          has_proxy_guard=false
+          grep -Fq 'if (!waiter_task) /* never enqueued */' "$RTMUTEX" && has_null_guard=true
+          grep -Fq 'if (unlikely(ret < 0))' "$RTMUTEX_API" && has_proxy_guard=true
+
+          if $has_null_guard && $has_proxy_guard; then
+            echo "CVE-2026-43499 follow-up fix already present."
+          elif ! $has_null_guard && ! $has_proxy_guard; then
+            patch -p1 --forward < "$PATCH_DIR/cve-2026-43499-followup.patch"
+          else
+            echo "::error::Incomplete CVE-2026-43499 follow-up state detected."
+            exit 1
+          fi
+
+          grep -Fq 'struct task_struct *waiter_task = waiter->task;' "$RTMUTEX"
+          grep -Fq 'if (!waiter_task) /* never enqueued */' "$RTMUTEX"
+          grep -Fq 'if (unlikely(ret < 0))' "$RTMUTEX_API"
+
       - name: Setup KernelSU
         working-directory: kernel_workspace/common
         run: |

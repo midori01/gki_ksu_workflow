@@ -524,6 +524,7 @@ jobs:
             - **Spoofed Build Time**: `${{ needs.setup.outputs.build_timestamp }}`
             - **Spoofed Builder**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
             - **Unicode Bypass Fix**: ${{ inputs.unicode_bypass_fix && '✅' || '❌' }}　**Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}　**ADIOS 3.2.0**: ${{ inputs.use_adios && matrix.kv == '6.12' && '✅' || '❌' }}
+            - **CVE-2026-43499 Fix**: ${{ matrix.kv == '6.12' && '✅' || 'N/A' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
             - **eBPF**: ${{ env.EBPF_FILE && format('✅ `({0})`', env.EBPF_FILE) || '❌' }}
