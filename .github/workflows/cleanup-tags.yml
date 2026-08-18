@@ -20,7 +20,7 @@ jobs:
             echo "Processing $kv..."
             gh release list --limit 100 --exclude-drafts --exclude-pre-releases \
               --json tagName \
-              -q "[.[].tagName] | map(select(endswith(\"-$kv\"))) | sort | reverse | .[2:] | .[]" \
+              -q "[.[].tagName] | map(select(endswith(\"-$kv\") and (startswith(\"source-\") | not))) | sort | reverse | .[2:] | .[]" \
               | while read -r tag; do
                 echo "Deleting release and tag: $tag"
                 gh release delete "$tag" --yes --cleanup-tag
