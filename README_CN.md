@@ -111,5 +111,6 @@
 | **Re:Kernel(-X)** | 集成的 [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 和 [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) 模块直接编译进内核。提供 tombstone 冻结恢复、网络触发解冻和 binder 异步清理。通过 `use_rekernel` 开关控制。 |
 | **Unicode 绕过修复** | 修补内核 Unicode 规范化，以防止通过非标准 Unicode 编码进行文件系统绕过攻击。通过 `unicode_bypass_fix` 开关控制。 |
 | **ADIOS I/O 调度器** | 可选集成 [ADIOS 3.2.0](https://github.com/firelzrd/adios)，并作为 kernel 6.12 构建的内置默认多队列 I/O 调度器。通过 `use_adios` 开关启用；6.1 和 6.6 构建保持不变。 |
+| **LZ4/Zstd zram 后端** | 可选将内核中的 LZ4 和 Zstd 实现更新为官方 LZ4 1.10.0 与 Zstandard 1.5.7 版本，并为 kernel 6.12 启用 zram 后端。通过 `use_lz4_zstd` 开关控制；6.1 和 6.6 构建保持不变。 |
 | **Ccache** | 编译器缓存集成，带有 60 秒等待守卫以确保依赖安装，保证跨工作流运行的健壮加速增量重建。 |
 | **伪装构建元数据** | 可为编译镜像自定义 `kernel name`、`build timestamp`、`user` 和 `host` 字符串。 |

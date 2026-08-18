@@ -42,6 +42,10 @@ inputs:
     description: 'Set to "true" to inject ADIOS 3.2.0 configs (kernel 6.12 only)'
     required: false
     default: 'false'
+  use_lz4_zstd:
+    description: 'Set to "true" to enable the LZ4/Zstd zram backends (kernel 6.12 only)'
+    required: false
+    default: 'false'
   localversion:
     description: 'Kernel Localversion String'
     required: true
@@ -170,6 +174,13 @@ runs:
           cat >> $DEFCONFIG <<-'EOF'
         CONFIG_MQ_IOSCHED_ADIOS=y
         CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y
+        EOF
+        fi
+
+        if [ "${{ inputs.use_lz4_zstd }}" = "true" ] && [ "${{ inputs.kernel_version }}" = "6.12" ]; then
+          cat >> $DEFCONFIG <<-'EOF'
+        CONFIG_ZRAM_BACKEND_LZ4=y
+        CONFIG_ZRAM_BACKEND_ZSTD=y
         EOF
         fi
         

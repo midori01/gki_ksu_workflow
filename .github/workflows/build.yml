@@ -99,6 +99,11 @@ on:
         required: true
         default: false
         type: boolean
+      use_lz4_zstd:
+        description: 'LZ4 1.10.0 and Zstd 1.5.7 updates (6.12 only)'
+        required: true
+        default: false
+        type: boolean
       use_droidspaces:
         description: 'Droidspaces & NTSync'
         required: true
@@ -320,7 +325,7 @@ jobs:
           echo "hook_mode_val=$hook_mode_val" >> $GITHUB_OUTPUT
 
   build:
-    name: "${{ matrix.kernel_version }}.${{ matrix.sub_level }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}${{ inputs.use_adios && matrix.kernel_version == '6.12' && ' (ADIOS)' || '' }}"
+    name: "${{ matrix.kernel_version }}.${{ matrix.sub_level }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}${{ inputs.use_adios && matrix.kernel_version == '6.12' && ' (ADIOS)' || '' }}${{ inputs.use_lz4_zstd && matrix.kernel_version == '6.12' && ' (LZ4/Zstd)' || '' }}"
     needs: setup
     if: needs.setup.outputs.build_matrix != '{"include":[]}'
     strategy:
@@ -334,6 +339,7 @@ jobs:
       use_rekernel: ${{ inputs.use_rekernel }}
       unicode_bypass_fix: ${{ inputs.unicode_bypass_fix }}
       use_adios: ${{ inputs.use_adios }}
+      use_lz4_zstd: ${{ inputs.use_lz4_zstd }}
       use_susfs: ${{ matrix.susfs }}
       susfs_repo: ${{ inputs.susfs_repo }}
       source_mirror: ${{ inputs.source_mirror }}
@@ -523,7 +529,7 @@ jobs:
             - **Spoofed Uname**: `${{ matrix.kv }}.${{ env.UNAME_SUB }}${{ needs.setup.outputs.kernel_localversion }}`
             - **Spoofed Build Time**: `${{ needs.setup.outputs.build_timestamp }}`
             - **Spoofed Builder**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
-            - **Unicode Bypass Fix**: ${{ inputs.unicode_bypass_fix && '✅' || '❌' }}　**Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}　**ADIOS 3.2.0**: ${{ inputs.use_adios && matrix.kv == '6.12' && '✅' || '❌' }}
+            - **Unicode Bypass Fix**: ${{ inputs.unicode_bypass_fix && '✅' || '❌' }}　**Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}　**ADIOS 3.2.0**: ${{ inputs.use_adios && matrix.kv == '6.12' && '✅' || '❌' }}　**LZ4 1.10.0 / Zstd 1.5.7**: ${{ inputs.use_lz4_zstd && matrix.kv == '6.12' && '✅' || '❌' }}
             - **CVE-2026-43499 Fix**: ${{ matrix.kv == '6.12' && '✅' || 'N/A' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
