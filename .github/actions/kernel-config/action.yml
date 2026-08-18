@@ -38,6 +38,10 @@ inputs:
     description: 'Set to "true" to inject ReKernel configs'
     required: false
     default: 'false'
+  use_adios:
+    description: 'Set to "true" to inject ADIOS 3.2.0 configs (kernel 6.12 only)'
+    required: false
+    default: 'false'
   localversion:
     description: 'Kernel Localversion String'
     required: true
@@ -159,6 +163,13 @@ runs:
         CONFIG_REKERNEL=y
         CONFIG_REKERNEL_NETWORK=y
         CONFIG_REKERNEL_LEGACY_NETLINK=y
+        EOF
+        fi
+
+        if [ "${{ inputs.use_adios }}" = "true" ] && [ "${{ inputs.kernel_version }}" = "6.12" ]; then
+          cat >> $DEFCONFIG <<-'EOF'
+        CONFIG_MQ_IOSCHED_ADIOS=y
+        CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y
         EOF
         fi
         

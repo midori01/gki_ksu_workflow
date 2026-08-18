@@ -110,5 +110,6 @@
 | **Droidspaces** | 通过 [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) 提供容器支持 — SYSVIPC、IPC_NS、PID_NS、DEVTMPFS、NTSync 和网络。通过 `use_droidspaces` 开关按变体启用。 |
 | **Re:Kernel(-X)** | 集成的 [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 和 [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) 模块直接编译进内核。提供 tombstone 冻结恢复、网络触发解冻和 binder 异步清理。通过 `use_rekernel` 开关控制。 |
 | **Unicode 绕过修复** | 修补内核 Unicode 规范化，以防止通过非标准 Unicode 编码进行文件系统绕过攻击。通过 `unicode_bypass_fix` 开关控制。 |
+| **ADIOS I/O 调度器** | 可选集成 [ADIOS 3.2.0](https://github.com/firelzrd/adios)，并作为 kernel 6.12 构建的内置默认多队列 I/O 调度器。通过 `use_adios` 开关启用；6.1 和 6.6 构建保持不变。 |
 | **Ccache** | 编译器缓存集成，带有 60 秒等待守卫以确保依赖安装，保证跨工作流运行的健壮加速增量重建。 |
 | **伪装构建元数据** | 可为编译镜像自定义 `kernel name`、`build timestamp`、`user` 和 `host` 字符串。 |

@@ -110,5 +110,6 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | **Droidspaces** | Container support via [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) — SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, and networking. Enabled per-variant through the `use_droidspaces` toggle. |
 | **Re:Kernel(-X)** | Integrated [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) and [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) modules compiled directly into the kernel. Provides tombstone freeze recovery, network-triggered unfreeze, and binder async cleanup. Toggled via `use_rekernel` switch. |
 | **Unicode Bypass Fix** | Patches kernel unicode normalization to prevent filesystem bypass attacks via non-standard unicode encodings. Toggled via `unicode_bypass_fix` switch. |
+| **ADIOS I/O Scheduler** | Optionally integrates [ADIOS 3.2.0](https://github.com/firelzrd/adios) as the built-in default multi-queue I/O scheduler for kernel 6.12 builds. Enabled through the `use_adios` toggle; 6.1 and 6.6 builds remain unchanged. |
 | **Ccache** | Compiler cache integration with a 60-second wait guard for dependency installation, ensuring robust accelerated incremental rebuilds across workflow runs. |
 | **Spoofed Build Metadata** | Customizable `kernel name`, `build timestamp`, `user`, and `host` strings for the compiled image. |

@@ -64,6 +64,10 @@ on:
         required: false
         type: boolean
         default: true
+      use_adios:
+        required: false
+        type: boolean
+        default: false
       susfs_commit:
         required: false
         type: string
@@ -94,7 +98,8 @@ jobs:
     env:
       DS_SUFFIX: ${{ inputs.use_droidspaces && '-DS' || '' }}
       SUSFS_SUFFIX: ${{ inputs.use_susfs && '-SUSFS' || '' }}
-      CCACHE_DIR: ${{ github.workspace }}/.ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
+      ADIOS_SUFFIX: ${{ inputs.use_adios && inputs.kernel_version == '6.12' && '-ADIOS' || '' }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}${{ inputs.use_adios && inputs.kernel_version == '6.12' && '-adios' || '' }}
       CCACHE_COMPILERCHECK: content
       CCACHE_SLOPPINESS: file_macro,time_macros,include_file_mtime,include_file_ctime
 
@@ -352,6 +357,16 @@ jobs:
         run: |
           patch -p1 < "${{ github.workspace }}/.github/patches/unicode_bypass_fix_6.1+.patch"
 
+      - name: Apply ADIOS 3.2.0 I/O Scheduler
+        if: inputs.use_adios && inputs.kernel_version == '6.12'
+        working-directory: kernel_workspace/common
+        run: |
+          patch -p1 --forward --fuzz=3 < "${{ github.workspace }}/.github/patches/adios.patch"
+
+      - name: Report ADIOS Compatibility
+        if: inputs.use_adios && inputs.kernel_version != '6.12'
+        run: echo "::warning::ADIOS 3.2.0 is supported only for kernel 6.12; this build will continue without ADIOS."
+
       - name: Inject Kernel Configs
         uses: ./.github/actions/kernel-config
         with:
@@ -364,6 +379,7 @@ jobs:
           localversion: ${{ inputs.kernel_localversion }}
           use_droidspaces: ${{ inputs.use_droidspaces }}
           use_rekernel: ${{ inputs.use_rekernel }}
+          use_adios: ${{ inputs.use_adios }}
           hook_mode: ${{ inputs.hook_mode }}
           ksu_debug: ${{ inputs.ksu_debug }}
 
@@ -440,7 +456,7 @@ jobs:
       - name: Upload Commit Info
         uses: actions/upload-artifact@v7
         with:
-          name: commit-info-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}
+          name: commit-info-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}${{ env.ADIOS_SUFFIX }}
           path: kernel_workspace/common/commit_info/
           retention-days: 1
 
@@ -474,7 +490,7 @@ jobs:
         if: inputs.build_ebpf
         uses: actions/upload-artifact@v7
         with:
-          name: vmlinux-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}
+          name: vmlinux-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}${{ env.ADIOS_SUFFIX }}
           path: kernel_workspace/common/out/vmlinux.zst
           retention-days: 1
 
@@ -483,7 +499,7 @@ jobs:
         run: |
           IMAGE="common/out/arch/arm64/boot/Image"
           [ -f "$IMAGE" ] || { echo "Binary Missing!"; exit 1; }
-          ZIP_NAME="${{ inputs.variant }}_Kernel-${{ inputs.kernel_version }}.${{ steps.cfg.outputs.sub_level }}${{ steps.cfg.outputs.r_suffix }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}.zip"
+          ZIP_NAME="${{ inputs.variant }}_Kernel-${{ inputs.kernel_version }}.${{ steps.cfg.outputs.sub_level }}${{ steps.cfg.outputs.r_suffix }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}${{ env.ADIOS_SUFFIX }}.zip"
           git clone --depth 1 --branch ${{ steps.cfg.outputs.anykernel_branch }} https://github.com/midori01/AnyKernel3 anykernel
           cp "$IMAGE" anykernel/
           cd anykernel && rm -rf .git && zip -r9 "../$ZIP_NAME" *
@@ -493,11 +509,11 @@ jobs:
         if: inputs.use_ccache
         uses: actions/cache/save@v6
         with:
-          path: .ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}
-          key: ${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}-${{ github.run_id }}
+          path: .ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}${{ inputs.use_adios && inputs.kernel_version == '6.12' && '-adios' || '' }}
+          key: ${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}${{ inputs.use_adios && inputs.kernel_version == '6.12' && '-adios' || '' }}-${{ github.run_id }}
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: Kernel-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}${{ steps.cfg.outputs.r_suffix }}
+          name: Kernel-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}${{ env.ADIOS_SUFFIX }}${{ steps.cfg.outputs.r_suffix }}
           path: kernel_workspace/${{ env.ZIP_NAME }}

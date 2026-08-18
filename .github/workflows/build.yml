@@ -94,6 +94,11 @@ on:
         required: true
         default: true
         type: boolean
+      use_adios:
+        description: 'ADIOS 3.2.0 I/O Scheduler (6.12 only)'
+        required: true
+        default: false
+        type: boolean
       use_droidspaces:
         description: 'Droidspaces & NTSync'
         required: true
@@ -315,7 +320,7 @@ jobs:
           echo "hook_mode_val=$hook_mode_val" >> $GITHUB_OUTPUT
 
   build:
-    name: "${{ matrix.kernel_version }}.${{ matrix.sub_level }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}"
+    name: "${{ matrix.kernel_version }}.${{ matrix.sub_level }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}${{ inputs.use_adios && matrix.kernel_version == '6.12' && ' (ADIOS)' || '' }}"
     needs: setup
     if: needs.setup.outputs.build_matrix != '{"include":[]}'
     strategy:
@@ -328,6 +333,7 @@ jobs:
       use_droidspaces: ${{ matrix.droidspaces }}
       use_rekernel: ${{ inputs.use_rekernel }}
       unicode_bypass_fix: ${{ inputs.unicode_bypass_fix }}
+      use_adios: ${{ inputs.use_adios }}
       use_susfs: ${{ matrix.susfs }}
       susfs_repo: ${{ inputs.susfs_repo }}
       source_mirror: ${{ inputs.source_mirror }}
@@ -517,7 +523,7 @@ jobs:
             - **Spoofed Uname**: `${{ matrix.kv }}.${{ env.UNAME_SUB }}${{ needs.setup.outputs.kernel_localversion }}`
             - **Spoofed Build Time**: `${{ needs.setup.outputs.build_timestamp }}`
             - **Spoofed Builder**: `${{ inputs.build_user }}@${{ inputs.build_host }}`
-            - **Unicode Bypass Fix**: ${{ inputs.unicode_bypass_fix && '✅' || '❌' }}　**Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}
+            - **Unicode Bypass Fix**: ${{ inputs.unicode_bypass_fix && '✅' || '❌' }}　**Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}　**ADIOS 3.2.0**: ${{ inputs.use_adios && matrix.kv == '6.12' && '✅' || '❌' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
             - **eBPF**: ${{ env.EBPF_FILE && format('✅ `({0})`', env.EBPF_FILE) || '❌' }}
