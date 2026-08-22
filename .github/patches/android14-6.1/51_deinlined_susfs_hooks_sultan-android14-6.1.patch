@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Mon, 27 Jul 2026 19:51:16 +0900
+Date: Sat, 22 Aug 2026 10:00:00 +0900
 Subject: [PATCH] SUSFS de-inlined hooks for sultan-android14-6.1-lts
 
 ---
@@ -16,13 +16,15 @@ Subject: [PATCH] SUSFS de-inlined hooks for sultan-android14-6.1-lts
  fs/readdir.c          | 197 +++++++++++++++++++++++++++++++++++
  fs/stat.c             |  35 +++++++
  fs/statfs.c           |  45 ++++++++
+ fs/susfs.c            |  62 +++++++++++
+ include/linux/susfs.h |  20 ++++
  kernel/kallsyms.c     |  31 ++++++
  kernel/sys.c          |  27 ++---
  mm/memory.c           |   8 ++
- 16 files changed, 1248 insertions(+), 17 deletions(-)
+ 18 files changed, 1330 insertions(+), 17 deletions(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
-index 78be582b5..ca17a064a 100644
+index 78be582b5766..ca17a064ac9a 100644
 --- a/drivers/input/input.c
 +++ b/drivers/input/input.c
 @@ -387,6 +387,8 @@ static void input_event_dispose(struct input_dev *dev, int disposition,
@@ -35,7 +37,7 @@ index 78be582b5..ca17a064a 100644
  			unsigned int type, unsigned int code, int value)
  {
 diff --git a/fs/Makefile b/fs/Makefile
-index 469ce6ec1..6e3c743e5 100644
+index 469ce6ec1492..6e3c743e5d3b 100644
 --- a/fs/Makefile
 +++ b/fs/Makefile
 @@ -17,6 +17,8 @@ obj-y :=	open.o read_write.o file_table.o super.o \
@@ -48,7 +50,7 @@ index 469ce6ec1..6e3c743e5 100644
  obj-y +=	buffer.o direct-io.o mpage.o
  else
 diff --git a/fs/namei.c b/fs/namei.c
-index 1fa36df7b..8da98d977 100644
+index 1fa36df7b667..8da98d977959 100644
 --- a/fs/namei.c
 +++ b/fs/namei.c
 @@ -40,10 +40,21 @@
@@ -485,7 +487,7 @@ index 1fa36df7b..8da98d977 100644
  	do_delayed_call(&done);
  	return res;
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 67d89ebb5..42ae3d001 100644
+index 67d89ebb5044..42ae3d0019a7 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -32,10 +32,21 @@
@@ -791,7 +793,7 @@ index 67d89ebb5..42ae3d001 100644
 +}
 +#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
-index 55081ae3a..8630f2091 100644
+index 55081ae3a6ec..8630f2091751 100644
 --- a/fs/notify/fdinfo.c
 +++ b/fs/notify/fdinfo.c
 @@ -12,6 +12,9 @@
@@ -895,7 +897,7 @@ index 55081ae3a..8630f2091 100644
  			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
  			   inotify_mark_user_mask(mark));
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index b0ec673a2..27bc58fc2 100644
+index b0ec673a2225..27bc58fc2ede 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
 @@ -100,6 +100,10 @@
@@ -951,7 +953,7 @@ index b0ec673a2..27bc58fc2 100644
  			continue;
  
 diff --git a/fs/proc/bootconfig.c b/fs/proc/bootconfig.c
-index 5a33ebd07..5c01bbcac 100644
+index 5a33ebd07cd6..5c01bbcac12d 100644
 --- a/fs/proc/bootconfig.c
 +++ b/fs/proc/bootconfig.c
 @@ -12,8 +12,21 @@
@@ -1023,7 +1025,7 @@ index 5a33ebd07..5c01bbcac 100644
  					goto out;
  				dst += ret;
 diff --git a/fs/proc/fd.c b/fs/proc/fd.c
-index 913bef0d2..585fc5607 100644
+index 913bef0d2a36..585fc5607c01 100644
 --- a/fs/proc/fd.c
 +++ b/fs/proc/fd.c
 @@ -13,17 +13,35 @@
@@ -1134,7 +1136,7 @@ index 913bef0d2..585fc5607 100644
  	/* show_fd_locks() never deferences files so a stale value is safe */
  	show_fd_locks(m, file, files);
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 0544c1f58..144c3680a 100644
+index 0544c1f58633..144c3680a60d 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -21,6 +21,9 @@
@@ -1270,7 +1272,7 @@ index 0544c1f58..144c3680a 100644
  		start_vaddr = end;
  
 diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
-index 846f9455a..bbfc62826 100644
+index 846f9455ae22..bbfc62826b6a 100644
 --- a/fs/proc_namespace.c
 +++ b/fs/proc_namespace.c
 @@ -12,12 +12,20 @@
@@ -1489,7 +1491,7 @@ index 846f9455a..bbfc62826 100644
  }
  
 diff --git a/fs/readdir.c b/fs/readdir.c
-index c44e1afe1..f62b8da75 100644
+index c44e1afe1242..f62b8da75e22 100644
 --- a/fs/readdir.c
 +++ b/fs/readdir.c
 @@ -24,6 +24,11 @@
@@ -1890,7 +1892,7 @@ index c44e1afe1..f62b8da75 100644
  }
  #endif
 diff --git a/fs/stat.c b/fs/stat.c
-index ef50573c7..251ba836d 100644
+index ef50573c72a2..251ba836de1b 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
 @@ -19,12 +19,23 @@
@@ -1973,7 +1975,7 @@ index ef50573c7..251ba836d 100644
  
  	if (path.mnt->mnt_root == path.dentry)
 diff --git a/fs/statfs.c b/fs/statfs.c
-index 96d1c3edf..b2c570aa1 100644
+index 96d1c3edf289..b2c570aa197a 100644
 --- a/fs/statfs.c
 +++ b/fs/statfs.c
 @@ -9,6 +9,10 @@
@@ -2038,8 +2040,133 @@ index 96d1c3edf..b2c570aa1 100644
  
  	error = statfs_by_dentry(path->dentry, buf);
  	if (!error)
+diff --git a/fs/susfs.c b/fs/susfs.c
+index 737a217343f1..13e46540f89e 100755
+--- a/fs/susfs.c
++++ b/fs/susfs.c
+@@ -23,6 +23,7 @@
+ #include <linux/susfs.h>
+ #include "fuse/fuse_i.h"
+ #include "mount.h"
++#include <uapi/linux/magic.h>
+ 
+ extern bool susfs_is_current_ksu_domain(void);
+ extern void setup_selinux(const char *domain, struct cred *cred);
+@@ -610,6 +611,62 @@ void susfs_sus_kstat_spoof_show_map_vma(struct inode *inode, dev_t *out_dev, uns
+ }
+ #endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+ 
++/* try_umount */
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++static DEFINE_SPINLOCK(susfs_spin_lock_try_umount);
++extern void try_umount(const char *mnt, int flags);
++static LIST_HEAD(LH_TRY_UMOUNT_PATH);
++void susfs_add_try_umount(void __user **user_info) {
++	struct st_susfs_try_umount info = {0};
++	struct st_susfs_try_umount_list *new_list = NULL;
++
++	if (copy_from_user(&info, (struct st_susfs_try_umount __user*)*user_info, sizeof(info))) {
++		info.err = -EFAULT;
++		goto out_copy_to_user;
++	}
++
++	if (info.mnt_mode == TRY_UMOUNT_DEFAULT) {
++		info.mnt_mode = 0;
++	} else if (info.mnt_mode == TRY_UMOUNT_DETACH) {
++		info.mnt_mode = MNT_DETACH;
++	} else {
++		SUSFS_LOGE("Unsupported mnt_mode: %d\n", info.mnt_mode);
++		info.err = -EINVAL;
++		goto out_copy_to_user;
++	}
++
++	new_list = kzalloc(sizeof(struct st_susfs_try_umount_list), GFP_KERNEL);
++	if (!new_list) {
++		info.err = -ENOMEM;
++		goto out_copy_to_user;
++	}
++
++	memcpy(&new_list->info, &info, sizeof(info));
++
++	INIT_LIST_HEAD(&new_list->list);
++	spin_lock(&susfs_spin_lock_try_umount);
++	list_add_tail(&new_list->list, &LH_TRY_UMOUNT_PATH);
++	spin_unlock(&susfs_spin_lock_try_umount);
++	SUSFS_LOGI("target_pathname: '%s', umount options: %d, is successfully added to LH_TRY_UMOUNT_PATH\n", new_list->info.target_pathname, new_list->info.mnt_mode);
++	info.err = 0;
++out_copy_to_user:
++	if (copy_to_user(&((struct st_susfs_try_umount __user*)*user_info)->err, &info.err, sizeof(info.err))) {
++		info.err = -EFAULT;
++	}
++	SUSFS_LOGI("CMD_SUSFS_ADD_TRY_UMOUNT -> ret: %d\n", info.err);
++}
++
++void susfs_try_umount(uid_t uid) {
++	struct st_susfs_try_umount_list *cursor = NULL;
++
++	// We should umount in reversed order
++	list_for_each_entry_reverse(cursor, &LH_TRY_UMOUNT_PATH, list) {
++		SUSFS_LOGI("umounting '%s' for uid: %u\n", cursor->info.target_pathname, uid);
++		try_umount(cursor->info.target_pathname, cursor->info.mnt_mode);
++	}
++}
++#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++
+ /* spoof_uname */
+ #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+ static struct st_susfs_uname my_uname = {0};
+@@ -1197,6 +1254,11 @@ void susfs_get_enabled_features(void __user **user_info) {
+ 	if (info->err) goto out_copy_to_user;
+ 	buf_ptr = info->enabled_features + copied_size;
+ #endif
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++	info->err = copy_config_to_buf("CONFIG_KSU_SUSFS_TRY_UMOUNT\n", buf_ptr, &copied_size, SUSFS_ENABLED_FEATURES_SIZE);
++	if (info->err) goto out_copy_to_user;
++	buf_ptr = info->enabled_features + copied_size;
++#endif
+ #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+ 	info->err = copy_config_to_buf("CONFIG_KSU_SUSFS_SPOOF_UNAME\n", buf_ptr, &copied_size, SUSFS_ENABLED_FEATURES_SIZE);
+ 	if (info->err) goto out_copy_to_user;
+diff --git a/include/linux/susfs.h b/include/linux/susfs.h
+index 6ede62945a68..a0c7dfa9790f 100755
+--- a/include/linux/susfs.h
++++ b/include/linux/susfs.h
+@@ -102,6 +102,20 @@ struct st_susfs_sus_kstat_hlist {
+ };
+ #endif
+ 
++/* try_umount */
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++struct st_susfs_try_umount {
++	char                                    target_pathname[SUSFS_MAX_LEN_PATHNAME];
++	int                                     mnt_mode;
++	int                                     err;
++};
++
++struct st_susfs_try_umount_list {
++	struct list_head                        list;
++	struct st_susfs_try_umount              info;
++};
++#endif
++
+ /* spoof_uname */
+ #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+ struct st_susfs_uname {
+@@ -201,6 +215,12 @@ void susfs_add_sus_kstat(void __user **user_info);
+ void susfs_update_sus_kstat(void __user **user_info);
+ #endif
+ 
++/* try_umount */
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++void susfs_add_try_umount(void __user **user_info);
++void susfs_try_umount(uid_t uid);
++#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++
+ /* spoof_uname */
+ #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+ void susfs_set_uname(void __user **user_info);
 diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
-index 824bcc7b5..99c753390 100644
+index 824bcc7b5dbc..99c75339022a 100644
 --- a/kernel/kallsyms.c
 +++ b/kernel/kallsyms.c
 @@ -31,6 +31,9 @@
@@ -2090,7 +2217,7 @@ index 824bcc7b5..99c753390 100644
  }
  
 diff --git a/kernel/sys.c b/kernel/sys.c
-index 7595dc25d..20bb2884b 100644
+index 7595dc25d67e..20bb2884b14c 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
 @@ -654,7 +654,6 @@ SYSCALL_DEFINE1(setuid, uid_t, uid)
@@ -2142,7 +2269,7 @@ index 7595dc25d..20bb2884b 100644
  	if (copy_to_user(name, &tmp, sizeof(tmp)))
  		return -EFAULT;
 diff --git a/mm/memory.c b/mm/memory.c
-index 58cd1a431..0be8de3f1 100644
+index 58cd1a431310..0be8de3f1367 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -79,6 +79,9 @@

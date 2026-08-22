@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Mon, 27 Jul 2026 19:51:16 +0900
+Date: Sat, 22 Aug 2026 10:00:00 +0900
 Subject: [PATCH] SUSFS de-inlined hooks for gki-android16-6.12-2026-03
 
 ---
@@ -16,10 +16,12 @@ Subject: [PATCH] SUSFS de-inlined hooks for gki-android16-6.12-2026-03
  fs/readdir.c          | 126 ++++++++++++++++++++
  fs/stat.c             |  42 +++++++
  fs/statfs.c           |  45 ++++++++
+ fs/susfs.c            |  62 ++++++++++
+ include/linux/susfs.h |  20 ++++
  kernel/kallsyms.c     |  31 +++++
  kernel/sys.c          |   9 +-
  mm/memory.c           |  13 +++
- 16 files changed, 1186 insertions(+), 2 deletions(-)
+ 18 files changed, 1268 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 372c9df9051f..20aca975bdba 100644
@@ -1138,7 +1140,7 @@ index 5e391cbca7a3..ed6be4741eb0 100644
  	/* show_fd_locks() never dereferences files, so a stale value is safe */
  	show_fd_locks(m, file, files);
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 57b0982e4ddd..fef15abf0558 100644
+index 7294b14811bc..415578a9aeac 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -27,6 +27,9 @@
@@ -1151,7 +1153,7 @@ index 57b0982e4ddd..fef15abf0558 100644
  
  #include <asm/elf.h>
  #include <asm/tlb.h>
-@@ -454,6 +457,14 @@ static void show_vma_header_prefix(struct seq_file *m,
+@@ -455,6 +458,14 @@ static void show_vma_header_prefix(struct seq_file *m,
  	seq_putc(m, ' ');
  }
  
@@ -1166,7 +1168,7 @@ index 57b0982e4ddd..fef15abf0558 100644
  static void
  show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
  {
-@@ -467,10 +478,41 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
+@@ -468,10 +479,41 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
  
  	if (vma->vm_file) {
  		const struct inode *inode = file_user_inode(vma->vm_file);
@@ -1209,7 +1211,7 @@ index 57b0982e4ddd..fef15abf0558 100644
  	}
  
  	start = vma->vm_start;
-@@ -1329,6 +1371,13 @@ static int show_smap(struct seq_file *m, void *v)
+@@ -1330,6 +1372,13 @@ static int show_smap(struct seq_file *m, void *v)
  	struct vm_area_struct *vma = v;
  	struct mem_size_stats mss = {};
  
@@ -1223,7 +1225,7 @@ index 57b0982e4ddd..fef15abf0558 100644
  	if (!vma_data_pages(vma))
  		goto show_pad;
  
-@@ -1389,7 +1438,14 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
+@@ -1390,7 +1439,14 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
  
  	vma_start = vma->vm_start;
  	do {
@@ -1238,7 +1240,7 @@ index 57b0982e4ddd..fef15abf0558 100644
  		last_vma_end = vma->vm_end;
  
  		/*
-@@ -1462,8 +1518,15 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
+@@ -1463,8 +1519,15 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
  
  			/* Case 4 above */
  			if (vma->vm_end > last_vma_end) {
@@ -1254,7 +1256,7 @@ index 57b0982e4ddd..fef15abf0558 100644
  			}
  		}
  	} for_each_vma(vmi, vma);
-@@ -2254,6 +2317,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+@@ -2255,6 +2318,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
  	while (count && (start_vaddr < end_vaddr)) {
  		int len;
  		unsigned long end;
@@ -1264,7 +1266,7 @@ index 57b0982e4ddd..fef15abf0558 100644
  
  		pm.pos = 0;
  		end = (start_vaddr + PAGEMAP_WALK_SIZE) & PAGEMAP_WALK_MASK;
-@@ -2263,7 +2329,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+@@ -2264,7 +2330,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
  		ret = mmap_read_lock_killable(mm);
  		if (ret)
  			goto out_free;
@@ -1939,6 +1941,131 @@ index 83c5d3febbb8..43b0b65f0bdd 100644
  
  	error = statfs_by_dentry(path->dentry, buf);
  	if (!error)
+diff --git a/fs/susfs.c b/fs/susfs.c
+index 737a217343f1..13e46540f89e 100755
+--- a/fs/susfs.c
++++ b/fs/susfs.c
+@@ -23,6 +23,7 @@
+ #include <linux/susfs.h>
+ #include "fuse/fuse_i.h"
+ #include "mount.h"
++#include <uapi/linux/magic.h>
+ 
+ extern bool susfs_is_current_ksu_domain(void);
+ extern void setup_selinux(const char *domain, struct cred *cred);
+@@ -610,6 +611,62 @@ void susfs_sus_kstat_spoof_show_map_vma(struct inode *inode, dev_t *out_dev, uns
+ }
+ #endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+ 
++/* try_umount */
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++static DEFINE_SPINLOCK(susfs_spin_lock_try_umount);
++extern void try_umount(const char *mnt, int flags);
++static LIST_HEAD(LH_TRY_UMOUNT_PATH);
++void susfs_add_try_umount(void __user **user_info) {
++	struct st_susfs_try_umount info = {0};
++	struct st_susfs_try_umount_list *new_list = NULL;
++
++	if (copy_from_user(&info, (struct st_susfs_try_umount __user*)*user_info, sizeof(info))) {
++		info.err = -EFAULT;
++		goto out_copy_to_user;
++	}
++
++	if (info.mnt_mode == TRY_UMOUNT_DEFAULT) {
++		info.mnt_mode = 0;
++	} else if (info.mnt_mode == TRY_UMOUNT_DETACH) {
++		info.mnt_mode = MNT_DETACH;
++	} else {
++		SUSFS_LOGE("Unsupported mnt_mode: %d\n", info.mnt_mode);
++		info.err = -EINVAL;
++		goto out_copy_to_user;
++	}
++
++	new_list = kzalloc(sizeof(struct st_susfs_try_umount_list), GFP_KERNEL);
++	if (!new_list) {
++		info.err = -ENOMEM;
++		goto out_copy_to_user;
++	}
++
++	memcpy(&new_list->info, &info, sizeof(info));
++
++	INIT_LIST_HEAD(&new_list->list);
++	spin_lock(&susfs_spin_lock_try_umount);
++	list_add_tail(&new_list->list, &LH_TRY_UMOUNT_PATH);
++	spin_unlock(&susfs_spin_lock_try_umount);
++	SUSFS_LOGI("target_pathname: '%s', umount options: %d, is successfully added to LH_TRY_UMOUNT_PATH\n", new_list->info.target_pathname, new_list->info.mnt_mode);
++	info.err = 0;
++out_copy_to_user:
++	if (copy_to_user(&((struct st_susfs_try_umount __user*)*user_info)->err, &info.err, sizeof(info.err))) {
++		info.err = -EFAULT;
++	}
++	SUSFS_LOGI("CMD_SUSFS_ADD_TRY_UMOUNT -> ret: %d\n", info.err);
++}
++
++void susfs_try_umount(uid_t uid) {
++	struct st_susfs_try_umount_list *cursor = NULL;
++
++	// We should umount in reversed order
++	list_for_each_entry_reverse(cursor, &LH_TRY_UMOUNT_PATH, list) {
++		SUSFS_LOGI("umounting '%s' for uid: %u\n", cursor->info.target_pathname, uid);
++		try_umount(cursor->info.target_pathname, cursor->info.mnt_mode);
++	}
++}
++#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++
+ /* spoof_uname */
+ #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+ static struct st_susfs_uname my_uname = {0};
+@@ -1197,6 +1254,11 @@ void susfs_get_enabled_features(void __user **user_info) {
+ 	if (info->err) goto out_copy_to_user;
+ 	buf_ptr = info->enabled_features + copied_size;
+ #endif
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++	info->err = copy_config_to_buf("CONFIG_KSU_SUSFS_TRY_UMOUNT\n", buf_ptr, &copied_size, SUSFS_ENABLED_FEATURES_SIZE);
++	if (info->err) goto out_copy_to_user;
++	buf_ptr = info->enabled_features + copied_size;
++#endif
+ #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+ 	info->err = copy_config_to_buf("CONFIG_KSU_SUSFS_SPOOF_UNAME\n", buf_ptr, &copied_size, SUSFS_ENABLED_FEATURES_SIZE);
+ 	if (info->err) goto out_copy_to_user;
+diff --git a/include/linux/susfs.h b/include/linux/susfs.h
+index 6ede62945a68..a0c7dfa9790f 100755
+--- a/include/linux/susfs.h
++++ b/include/linux/susfs.h
+@@ -102,6 +102,20 @@ struct st_susfs_sus_kstat_hlist {
+ };
+ #endif
+ 
++/* try_umount */
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++struct st_susfs_try_umount {
++	char                                    target_pathname[SUSFS_MAX_LEN_PATHNAME];
++	int                                     mnt_mode;
++	int                                     err;
++};
++
++struct st_susfs_try_umount_list {
++	struct list_head                        list;
++	struct st_susfs_try_umount              info;
++};
++#endif
++
+ /* spoof_uname */
+ #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+ struct st_susfs_uname {
+@@ -201,6 +215,12 @@ void susfs_add_sus_kstat(void __user **user_info);
+ void susfs_update_sus_kstat(void __user **user_info);
+ #endif
+ 
++/* try_umount */
++#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++void susfs_add_try_umount(void __user **user_info);
++void susfs_try_umount(uid_t uid);
++#endif // #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
++
+ /* spoof_uname */
+ #ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+ void susfs_set_uname(void __user **user_info);
 diff --git a/kernel/kallsyms.c b/kernel/kallsyms.c
 index 9e4bf061bb83..94b9c000b10c 100644
 --- a/kernel/kallsyms.c
@@ -2024,7 +2151,7 @@ index 1a154c425e1b..ae048b4a9a8f 100644
  	if (copy_to_user(name, &tmp, sizeof(tmp)))
  		return -EFAULT;
 diff --git a/mm/memory.c b/mm/memory.c
-index b72aa8614f4c..86f8a1b3c37f 100644
+index f1e027581752..c185613f115b 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -80,6 +80,9 @@
@@ -2037,7 +2164,7 @@ index b72aa8614f4c..86f8a1b3c37f 100644
  
  #include <trace/events/kmem.h>
  #include <trace/hooks/mm.h>
-@@ -6851,8 +6854,18 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
+@@ -6853,8 +6856,18 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
  		int bytes, offset;
  		void *maddr;
  		struct vm_area_struct *vma = NULL;
