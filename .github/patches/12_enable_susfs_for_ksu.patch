@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sun, 23 Aug 2026 07:00:00 +0900
+Date: Wed, 26 Aug 2026 08:00:00 +0900
 Subject: [PATCH] Enable SUSFS for MidoriSU-NX
 
 ---
@@ -9,12 +9,12 @@ Subject: [PATCH] Enable SUSFS for MidoriSU-NX
  kernel/extras.c                    |  22 +-
  kernel/feature/adb_root.c          | 163 +++++++++++++-
  kernel/feature/adb_root.h          |   4 +
- kernel/feature/kernel_umount.c     |  13 +-
- kernel/feature/selinux_hide.c      | 167 +++++++-------
- kernel/feature/selinux_hide.h      |  21 ++
+ kernel/feature/kernel_umount.c     |   9 +-
+ kernel/feature/selinux_hide.c      | 163 +++++++-------
+ kernel/feature/selinux_hide.h      |  15 ++
  kernel/feature/sucompat.c          | 338 ++++++++++++++++++++++++++++-
  kernel/feature/sucompat.h          |  16 +-
- kernel/hook/setuid_hook.c          | 158 +++++++++++++-
+ kernel/hook/setuid_hook.c          | 169 ++++++++++++++-
  kernel/hook/setuid_hook.h          |   4 +
  kernel/hook/syscall_event_bridge.c |  92 ++++----
  kernel/policy/allowlist.c          |   2 +
@@ -32,7 +32,7 @@ Subject: [PATCH] Enable SUSFS for MidoriSU-NX
  kernel/supercall/internal.h        |   2 +
  kernel/supercall/supercall.c       | 189 ++++++++++------
  kernel/supercall/supercall.h       |   4 +
- 29 files changed, 1792 insertions(+), 357 deletions(-)
+ 29 files changed, 1792 insertions(+), 354 deletions(-)
 
 diff --git a/kernel/Kbuild b/kernel/Kbuild
 index cec135d13..6cecbc733 100644
@@ -671,10 +671,10 @@ index 154a466de..f808ac06a 100644
  void ksu_adb_root_init(void);
  
 diff --git a/kernel/feature/kernel_umount.c b/kernel/feature/kernel_umount.c
-index dd741202a..6ad23160c 100644
+index 317575c53..8c4076d61 100644
 --- a/kernel/feature/kernel_umount.c
 +++ b/kernel/feature/kernel_umount.c
-@@ -83,6 +83,7 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
+@@ -106,6 +106,7 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
  		return 0;
  	}
  
@@ -682,7 +682,7 @@ index dd741202a..6ad23160c 100644
  	// There are 6 scenarios:
  	// 1. Normal app: zygote -> appuid
  	// 2. Isolated process forked from zygote: zygote -> isolated_process
-@@ -107,6 +108,8 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
+@@ -130,6 +131,8 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
  		pr_info("handle umount ignore non zygote child: %d\n", current->pid);
  		return 0;
  	}
@@ -691,7 +691,7 @@ index dd741202a..6ad23160c 100644
  	// umount the target mnt
  	pr_info("handle umount for uid: %d, pid: %d\n", new_uid, current->pid);
  
-@@ -125,14 +128,14 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
+@@ -148,7 +151,9 @@ int ksu_handle_umount(uid_t old_uid, uid_t new_uid)
  	return 0;
  }
  
@@ -700,19 +700,19 @@ index dd741202a..6ad23160c 100644
 +// for it.
 +void __init ksu_kernel_umount_init()
  {
--	if (ksu_register_feature_handler(&kernel_umount_handler)) {
--		pr_err("Failed to register kernel_umount feature handler\n");
--	}
-+	ksu_register_feature_handler(&kernel_umount_handler);
+ 	if (ksu_register_feature_handler(&kernel_umount_handler)) {
+ 		pr_err("Failed to register kernel_umount feature handler\n");
+@@ -158,7 +163,7 @@ void __init ksu_kernel_umount_init(void)
+ 	}
  }
  
 -void __exit ksu_kernel_umount_exit(void)
 +void __exit ksu_kernel_umount_exit()
  {
+ 	ksu_unregister_feature_handler(KSU_FEATURE_WEBVIEW_ZYGOTE_UMOUNT);
  	ksu_unregister_feature_handler(KSU_FEATURE_KERNEL_UMOUNT);
- }
 diff --git a/kernel/feature/selinux_hide.c b/kernel/feature/selinux_hide.c
-index 5bb59bfe4..1faea2b0e 100644
+index fbb6c44f5..0f855f025 100644
 --- a/kernel/feature/selinux_hide.c
 +++ b/kernel/feature/selinux_hide.c
 @@ -10,10 +10,12 @@
@@ -798,7 +798,7 @@ index 5bb59bfe4..1faea2b0e 100644
  static ssize_t my_write_context(struct file *file, char *buf, size_t size)
  {
      // apply to all app uids
-@@ -196,10 +202,6 @@ out:
+@@ -198,10 +204,6 @@ out:
      return length;
  }
  
@@ -809,7 +809,7 @@ index 5bb59bfe4..1faea2b0e 100644
  static int __nocfi my_setprocattr(const char *name, void *value, size_t size)
  {
      int error;
-@@ -241,11 +243,12 @@ static int __nocfi my_setprocattr(const char *name, void *value, size_t size)
+@@ -243,11 +245,12 @@ static int __nocfi my_setprocattr(const char *name, void *value, size_t size)
  call_orig:
      return ((setprocattr_fn)selinux_setprocattr_hook.original)(name, value, size);
  }
@@ -825,7 +825,7 @@ index 5bb59bfe4..1faea2b0e 100644
  {
      mutex_lock(&selinux_state.status_lock);
      if (fake_status)
-@@ -308,21 +311,51 @@ static int my_sel_open_handle_status(struct inode *inode, struct file *filp)
+@@ -319,21 +322,51 @@ static int my_sel_open_handle_status(struct inode *inode, struct file *filp)
  }
  
  static void hook_selinux_status_open();
@@ -885,7 +885,7 @@ index 5bb59bfe4..1faea2b0e 100644
  
  #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
      security_dump_masked_av_fn = find_kernel_symbol_exact("security_dump_masked_av");
-@@ -338,6 +371,14 @@ static int ksu_selinux_hide_enable()
+@@ -349,6 +382,14 @@ static int ksu_selinux_hide_enable()
      fake_state.policy = backup_sepolicy;
  #endif
  
@@ -900,7 +900,7 @@ index 5bb59bfe4..1faea2b0e 100644
      context_write = &selinux_write_op[SEL_CONTEXT];
      pr_info("selinux_hide: context_write: 0x%lx [%pSb]\n", (unsigned long)*context_write, *context_write);
      write_op_fn my = my_write_context;
-@@ -363,47 +404,17 @@ static int ksu_selinux_hide_enable()
+@@ -374,47 +415,17 @@ static int ksu_selinux_hide_enable()
          pr_err("selinux_hide: init: selinux_setprocattr_hook err: %d\n", ret);
          goto unhook;
      }
@@ -953,7 +953,7 @@ index 5bb59bfe4..1faea2b0e 100644
  }
  
  static int selinux_hide_feature_get(u64 *value)
-@@ -432,6 +443,8 @@ static int selinux_hide_feature_set(u64 value)
+@@ -443,6 +454,8 @@ static int selinux_hide_feature_set(u64 value)
              ksu_selinux_hide_running = false;
          }
      }
@@ -962,7 +962,7 @@ index 5bb59bfe4..1faea2b0e 100644
      mutex_unlock(&selinux_hide_mutex);
      return ret;
  }
-@@ -605,7 +618,7 @@ out:
+@@ -616,7 +629,7 @@ out:
      return rc;
  }
  
@@ -971,7 +971,7 @@ index 5bb59bfe4..1faea2b0e 100644
                                                 u32 *sid, u32 def_sid, gfp_t gfp_flags)
  {
      struct policydb *policydb;
-@@ -712,7 +725,7 @@ static int sidtab_entry_to_string(struct policydb *p, struct sidtab *sidtab, str
+@@ -723,7 +736,7 @@ static int sidtab_entry_to_string(struct policydb *p, struct sidtab *sidtab, str
      return rc;
  }
  
@@ -980,7 +980,7 @@ index 5bb59bfe4..1faea2b0e 100644
                                                 u32 *scontext_len)
  {
      struct policydb *policydb;
-@@ -899,7 +912,7 @@ static int constraint_expr_eval(struct policydb *policydb, struct context *scont
+@@ -910,7 +923,7 @@ static int constraint_expr_eval(struct policydb *policydb, struct context *scont
                  l2 = &(scontext->range.level[1]);
                  goto mls_ops;
              case CEXPR_L2H2:
@@ -989,7 +989,7 @@ index 5bb59bfe4..1faea2b0e 100644
                  l2 = &(tcontext->range.level[1]);
                  goto mls_ops;
              mls_ops:
-@@ -1085,7 +1098,7 @@ static void context_struct_compute_av(struct policydb *policydb, struct context
+@@ -1096,7 +1109,7 @@ static void context_struct_compute_av(struct policydb *policydb, struct context
      type_attribute_bounds_av(policydb, scontext, tcontext, tclass, avd);
  }
  
@@ -998,20 +998,11 @@ index 5bb59bfe4..1faea2b0e 100644
                                                           struct av_decision *avd)
  {
      struct policydb *policydb;
-@@ -1132,4 +1145,8 @@ allow:
-     avd->allowed = 0xffffffff;
-     goto out;
- }
-+
-+EXPORT_SYMBOL(security_context_to_sid_with_policy);
-+EXPORT_SYMBOL(security_sid_to_context_with_policy);
-+EXPORT_SYMBOL(security_compute_av_user_with_policy);
- #endif
 diff --git a/kernel/feature/selinux_hide.h b/kernel/feature/selinux_hide.h
-index 5a0437108..7932830b6 100644
+index 5a0437108..faecb73d8 100644
 --- a/kernel/feature/selinux_hide.h
 +++ b/kernel/feature/selinux_hide.h
-@@ -1,10 +1,31 @@
+@@ -1,10 +1,25 @@
  #ifndef __KSU_H_SELINUX_HIDE
  #define __KSU_H_SELINUX_HIDE
  
@@ -1035,12 +1026,6 @@ index 5a0437108..7932830b6 100644
 +
 +struct selinux_state;
 +extern struct selinux_state fake_state;
-+
-+struct selinux_policy;
-+struct av_decision;
-+extern int security_context_to_sid_with_policy(struct selinux_policy *policy, const char *scontext, u32 scontext_len, u32 *sid, u32 def_sid, gfp_t gfp_flags);
-+extern int security_sid_to_context_with_policy(struct selinux_policy *policy, u32 sid, char **scontext, u32 *scontext_len);
-+extern void security_compute_av_user_with_policy(struct selinux_policy *policy, u32 ssid, u32 tsid, u16 tclass, struct av_decision *avd);
 +
  #endif
 diff --git a/kernel/feature/sucompat.c b/kernel/feature/sucompat.c
@@ -1504,7 +1489,7 @@ index 5e2cfe11b..fca60b336 100644
  
  #endif
 diff --git a/kernel/hook/setuid_hook.c b/kernel/hook/setuid_hook.c
-index 3cccc7800..c05fbd97b 100644
+index 3cccc7800..bf144eb5e 100644
 --- a/kernel/hook/setuid_hook.c
 +++ b/kernel/hook/setuid_hook.c
 @@ -3,6 +3,7 @@
@@ -1527,7 +1512,7 @@ index 3cccc7800..c05fbd97b 100644
  #include "policy/allowlist.h"
  #include "hook/setuid_hook.h"
  #include "klog.h" // IWYU pragma: keep
-@@ -21,6 +27,146 @@
+@@ -21,6 +27,157 @@
  #include "hook/tp_marker.h"
  #include "feature/kernel_umount.h"
  
@@ -1566,8 +1551,13 @@ index 3cccc7800..c05fbd97b 100644
 +        return 0;
 +    }
 +
-+    // we should not umount for webview zygote
++    // Check if webview zygote should be umounted
 +    if (unlikely(ruid == WEBVIEW_ZYGOTE_UID)) {
++        if (ksu_webview_zygote_umount_enabled) {
++            susfs_set_current_proc_no_su();
++            susfs_set_current_proc_umounted();
++            goto do_umount;
++        }
 +        susfs_set_current_proc_no_su();
 +        return 0;
 +    }
@@ -1620,8 +1610,14 @@ index 3cccc7800..c05fbd97b 100644
 +        return 0;
 +    }
 +
-+    // we should not umount for webview zygote
++    // Check if webview zygote should be umounted
 +    if (unlikely(ruid == WEBVIEW_ZYGOTE_UID)) {
++        if (ksu_webview_zygote_umount_enabled) {
++            susfs_set_current_proc_no_su();
++            susfs_set_current_proc_umounted();
++            susfs_set_current_proc_umounted_for_zygote_next();
++            goto do_susfs_work;
++        }
 +        susfs_set_current_proc_no_su();
 +        return 0;
 +    }
@@ -1674,7 +1670,7 @@ index 3cccc7800..c05fbd97b 100644
  int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
  {
      // we rely on the fact that zygote always call setresuid(3) with same uids
-@@ -28,10 +174,8 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
+@@ -28,10 +185,8 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
      pr_info("handle_setresuid from %d to %d\n", old_uid, new_uid);
  
      if (unlikely(is_uid_manager(new_uid))) {
@@ -1686,7 +1682,7 @@ index 3cccc7800..c05fbd97b 100644
  
          pr_info("install fd for manager: %d\n", new_uid);
          ksu_install_fd();
-@@ -39,12 +183,7 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
+@@ -39,12 +194,7 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
      }
  
      if (ksu_is_allow_uid_for_current(new_uid)) {
@@ -1700,7 +1696,7 @@ index 3cccc7800..c05fbd97b 100644
          ksu_set_task_tracepoint_flag(current);
      } else {
          ksu_clear_task_tracepoint_flag_if_needed(current);
-@@ -55,6 +194,7 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
+@@ -55,6 +205,7 @@ int ksu_handle_setresuid(uid_t old_uid, uid_t new_uid)
  
      return 0;
  }
@@ -1854,10 +1850,10 @@ index 48ab764db..9fcd5f3ee 100644
      return ret;
  }
 diff --git a/kernel/policy/allowlist.c b/kernel/policy/allowlist.c
-index 6996e365f..537f5f9c2 100644
+index 4372d2b2c..9e2997afb 100644
 --- a/kernel/policy/allowlist.c
 +++ b/kernel/policy/allowlist.c
-@@ -297,6 +297,7 @@ bool ksu_uid_should_umount(uid_t uid)
+@@ -298,6 +298,7 @@ bool ksu_uid_should_umount(uid_t uid)
  {
      struct app_profile *profile;
      bool res;
@@ -1866,8 +1862,8 @@ index 6996e365f..537f5f9c2 100644
          // we should not umount on manager!
          return false;
 @@ -305,6 +306,7 @@ bool ksu_uid_should_umount(uid_t uid)
-         // we should not umount for webview zygote
-         return false;
+     if (unlikely(uid == WEBVIEW_ZYGOTE_UID)) {
+         return ksu_webview_zygote_umount_enabled;
      }
 +#endif
  #ifdef CONFIG_KSU_DISABLE_POLICY
