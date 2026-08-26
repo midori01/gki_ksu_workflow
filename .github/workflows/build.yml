@@ -89,6 +89,11 @@ on:
         required: true
         default: false
         type: boolean
+      upload_vmlinux:
+        description: 'Upload vmlinux'
+        required: true
+        default: false
+        type: boolean
       use_ccache:
         description: 'Ccache Speedup'
         required: true
@@ -111,11 +116,6 @@ on:
         type: boolean
       use_rekernel:
         description: 'Re:Kernel(-X)'
-        required: true
-        default: true
-        type: boolean
-      build_scene_hider:
-        description: 'eBPF Scene Hider'
         required: true
         default: true
         type: boolean
@@ -340,7 +340,6 @@ jobs:
       source_mirror: ${{ inputs.source_mirror }}
       use_ccache: ${{ inputs.use_ccache }}
       susfs_commit: ${{ inputs.susfs_commit }}
-      build_ebpf: ${{ inputs.build_scene_hider }}
       kernel_localversion: ${{ needs.setup.outputs.kernel_localversion }}
       build_epoch: ${{ needs.setup.outputs.build_epoch }}
       build_timestamp: ${{ needs.setup.outputs.build_timestamp }}
@@ -353,26 +352,15 @@ jobs:
       midorisu_xx_branch: ${{ inputs.midorisu_xx_branch }}
       hook_mode: ${{ needs.setup.outputs.hook_mode_val }}
       ksu_debug: ${{ inputs.ksu_debug }}
-
-  build_scene_hider:
-    name: "eBPF ${{ matrix.kernel_version }}"
-    needs: [setup]
-    if: always() && inputs.build_scene_hider && needs.setup.result == 'success'
-    strategy:
-      matrix:
-        kernel_version: ${{ fromJson(needs.setup.outputs.kernel_versions) }}
-    uses: ./.github/workflows/build-ebpf.yml
-    with:
-      kernel_version: ${{ matrix.kernel_version }}
+      upload_vmlinux: ${{ inputs.upload_vmlinux }}
 
   release:
-    needs: [setup, build, build_scene_hider]
+    needs: [setup, build]
     if: |
       always() &&
       inputs.release_type != 'no-release' &&
       needs.setup.result == 'success' &&
-      needs.build.result == 'success' &&
-      (needs.build_scene_hider.result == 'success' || needs.build_scene_hider.result == 'skipped')
+      needs.build.result == 'success'
     strategy:
       matrix:
         kv: ${{ fromJson(needs.setup.outputs.kernel_versions) }}
@@ -418,18 +406,6 @@ jobs:
           pattern: 'Kernel-${{ matrix.kv }}-*'
           path: release_zips
           merge-multiple: true
-
-      - uses: actions/download-artifact@v8
-        if: inputs.build_scene_hider == true
-        with:
-          name: ScenePortHider-eBPF-${{ matrix.kv }}
-          path: release_zips
-        continue-on-error: true
-
-      - name: Check eBPF artifact
-        run: |
-          ebpf=$(find ${{ github.workspace }}/release_zips -maxdepth 1 -name 'ScenePortHider-eBPF*.zip' 2>/dev/null | head -n 1)
-          echo "EBPF_FILE=$(basename "$ebpf" 2>/dev/null)" >> $GITHUB_ENV
 
       - name: Download KSU Toolkit Module
         run: |
@@ -536,7 +512,6 @@ jobs:
             - **ADIOS I/O Scheduler**: ${{ inputs.use_adios && matrix.kv != '6.1' && '✅' || '❌' }}　**LZ4/ZSTD ZRAM**: ${{ inputs.use_lz4_zstd && matrix.kv == '6.12' && '✅' || '❌' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
-            - **eBPF**: ${{ env.EBPF_FILE && format('✅ `({0})`', env.EBPF_FILE) || '❌' }}
             - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}
             - **Compiler**: `clang-${{ env.CLANG_VERSION }}`${{ env.RUST_VERSION && format('　**Rust**: `{0}`', env.RUST_VERSION) || '' }}
           files: |

@@ -104,7 +104,6 @@
 | :--- | :--- |
 | **커널 버전** | `6.1`, `6.6`, `6.12` 중 단일 버전을 선택하거나 `all`을 통해 전체 버전을 선택할 수 있습니다. 서브 레벨, 리비전, 컴파일러, Rust 설정 등은 중앙 집중식 config에서 자동으로 적용됩니다. |
 | **소스 미러** | 커널 소스 및 툴체인 다운로드 시 Google 공식 AOSP 미러 또는 자체 호스팅 미러 중에서 선택할 수 있습니다. |
-| **eBPF Scene Hider** | 선택적으로 [Scene Port Hider by eBPF](https://github.com/Andrea-lyz/Scene-Port-Hider-by-eBPF)를 커널 결과물과 함께 컴파일하여 포함할 수 있습니다. 첫 번째 커널 빌드 완료와 동시에 실행되며 다른 매트릭스 작업과는 독립적으로 동작합니다. |
 | **SUSFS 모듈** | SUSFS 활성화 시 최신 [susfs4ksu-module](https://github.com/sidex15/susfs4ksu-module)을 자동으로 가져와 릴리스에 포함합니다. 모든 배리언트의 SUSFS 버전은 단일 `susfs_commit` 입력값을 통해 통합 관리됩니다. |
 | **KSU 툴킷** | 최신 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 모듈을 nightly.link에서 자동으로 가져와 릴리스에 포함합니다. |
 | **Droidspaces** | [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS)를 활용한 컨테이너 지원 기능으로 SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, 네트워킹 기능을 제공합니다. `use_droidspaces` 옵션을 통해 배리언트마다 활성화할 수 있습니다. |

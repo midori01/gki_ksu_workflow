@@ -53,6 +53,10 @@ on:
         required: false
         type: boolean
         default: false
+      upload_vmlinux:
+        required: false
+        type: boolean
+        default: false
       source_mirror:
         required: true
         type: string
@@ -72,9 +76,6 @@ on:
         required: false
         type: string
         default: ''
-      build_ebpf:
-        required: true
-        type: boolean
       kernel_localversion:
         required: true
         type: string
@@ -504,13 +505,13 @@ jobs:
           [ "${{ inputs.use_ccache }}" = "true" ] && ccache -s || true
 
       - name: Export vmlinux for eBPF
-        if: inputs.build_ebpf
+        if: inputs.upload_vmlinux
         working-directory: kernel_workspace/common/out
         run: |
           [ -f "vmlinux" ] && zstd -T0 -10 vmlinux -o vmlinux.zst
 
       - name: Upload vmlinux Artifact
-        if: inputs.build_ebpf
+        if: inputs.upload_vmlinux
         uses: actions/upload-artifact@v7
         with:
           name: vmlinux-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ env.SUSFS_SUFFIX }}${{ env.DS_SUFFIX }}${{ env.ADIOS_SUFFIX }}${{ env.ZRAM_SUFFIX }}
