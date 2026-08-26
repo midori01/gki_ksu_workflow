@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Wed, 26 Aug 2026 08:00:00 +0900
+Date: Thu, 27 Aug 2026 06:50:24 +0900
 Subject: [PATCH] Enable SUSFS for MidoriSU-KX
 
 ---
@@ -9,8 +9,8 @@ Subject: [PATCH] Enable SUSFS for MidoriSU-KX
  kernel/feature/adb_root.c         |  66 ++---
  kernel/feature/adb_root.h         |   3 +-
  kernel/feature/kernel_umount.c    |  24 --
- kernel/feature/selinux_hide.c     | 425 +++---------------------------
- kernel/feature/sucompat.c         | 385 +++++++++++++--------------
+ kernel/feature/selinux_hide.c     | 434 +++---------------------------
+ kernel/feature/sucompat.c         | 385 +++++++++++++-------------
  kernel/feature/sucompat.h         |  14 +-
  kernel/hook/setuid_hook.c         | 158 +++++++++--
  kernel/hook/setuid_hook.h         |   3 -
@@ -20,16 +20,16 @@ Subject: [PATCH] Enable SUSFS for MidoriSU-KX
  kernel/policy/app_profile.h       |   5 +-
  kernel/runtime/boot_event.c       |   6 +-
  kernel/runtime/ksud.h             |  18 +-
- kernel/runtime/ksud_integration.c | 262 ++++++------------
+ kernel/runtime/ksud_integration.c | 265 ++++++------------
  kernel/selinux/rules.c            |   2 +
- kernel/selinux/selinux.c          |  89 +++++++
+ kernel/selinux/selinux.c          |  89 ++++++
  kernel/selinux/selinux.h          |   9 +
  kernel/sulog/event.c              |  56 ++--
  kernel/sulog/event.h              |  10 +-
- kernel/supercall/dispatch.c       | 176 +++++++++----
+ kernel/supercall/dispatch.c       | 176 ++++++++----
  kernel/supercall/supercall.c      |  53 ++--
  kernel/supercall/supercall.h      |   1 +
- 26 files changed, 886 insertions(+), 1170 deletions(-)
+ 26 files changed, 889 insertions(+), 1179 deletions(-)
 
 diff --git a/kernel/Kbuild b/kernel/Kbuild
 index a69ac83e9..18c25f2cb 100644
@@ -581,7 +581,7 @@ index d77494df2..034db9174 100644
      pr_info("handle umount for uid: %d, pid: %d\n", new_uid, current->pid);
  
 diff --git a/kernel/feature/selinux_hide.c b/kernel/feature/selinux_hide.c
-index fbb6c44f5..1b34903f4 100644
+index fbb6c44f5..ede4667ce 100644
 --- a/kernel/feature/selinux_hide.c
 +++ b/kernel/feature/selinux_hide.c
 @@ -1,6 +1,4 @@
@@ -659,10 +659,23 @@ index fbb6c44f5..1b34903f4 100644
 -static void (*context_struct_compute_av_fn)(struct policydb *policydb, struct context *scontext,
 -                                            struct context *tcontext, u16 tclass, struct av_decision *avd,
 -                                            struct extended_perms *xperms) = NULL;
--#else
++extern void security_dump_masked_av_fn(struct policydb *policydb,
++				    struct context *scontext,
++				    struct context *tcontext,
++				    u16 tclass,
++				    u32 permissions,
++				    const char *reason);
++extern void context_struct_compute_av_fn(struct policydb *policydb,
++				      struct context *scontext,
++				      struct context *tcontext,
++				      u16 tclass,
++				      struct av_decision *avd,
++				      struct extended_perms *xperms);
+ #else
 -static struct selinux_state fake_state;
--#endif
--
++struct selinux_state fake_state;
+ #endif
+ 
 -static write_op_fn *context_write, *access_write;
 -static write_op_fn orig_context_write, orig_access_write;
 -
@@ -804,22 +817,9 @@ index fbb6c44f5..1b34903f4 100644
 -
 -#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0)
 -    error = avc_has_perm(mysid, mysid, SECCLASS_PROCESS, PROCESS__SETCURRENT, NULL);
-+extern void security_dump_masked_av_fn(struct policydb *policydb,
-+				    struct context *scontext,
-+				    struct context *tcontext,
-+				    u16 tclass,
-+				    u32 permissions,
-+				    const char *reason);
-+extern void context_struct_compute_av_fn(struct policydb *policydb,
-+				      struct context *scontext,
-+				      struct context *tcontext,
-+				      u16 tclass,
-+				      struct av_decision *avd,
-+				      struct extended_perms *xperms);
- #else
+-#else
 -    error = avc_has_perm(&selinux_state, mysid, mysid, SECCLASS_PROCESS, PROCESS__SETCURRENT, NULL);
-+struct selinux_state fake_state;
- #endif
+-#endif
 -    if (error) {
 -        return error;
 -    }
@@ -842,7 +842,7 @@ index fbb6c44f5..1b34903f4 100644
 -call_orig:
 -    return ((setprocattr_fn)selinux_setprocattr_hook.original)(name, value, size);
 -}
- 
+-
 -static DEFINE_STATIC_KEY_FALSE(fake_status_initialize_key);
 -static struct page *fake_status = NULL;
 +DEFINE_STATIC_KEY_FALSE(fake_status_initialize_key);
@@ -1122,7 +1122,17 @@ index fbb6c44f5..1b34903f4 100644
                                                 u32 *scontext_len)
  {
      struct policydb *policydb;
-@@ -1096,7 +755,7 @@ static void context_struct_compute_av(struct policydb *policydb, struct context
+@@ -815,8 +474,7 @@ static void __nocfi type_attribute_bounds_av(struct policydb *policydb, struct c
+     avd->allowed &= ~masked;
+ 
+     /* audit masked permissions */
+-    if (security_dump_masked_av_fn)
+-        security_dump_masked_av_fn(policydb, scontext, tcontext, tclass, masked, "bounds");
++    security_dump_masked_av_fn(policydb, scontext, tcontext, tclass, masked, "bounds");
+ }
+ 
+ /*
+@@ -1096,7 +754,7 @@ static void context_struct_compute_av(struct policydb *policydb, struct context
      type_attribute_bounds_av(policydb, scontext, tcontext, tclass, avd);
  }
  
@@ -1131,6 +1141,19 @@ index fbb6c44f5..1b34903f4 100644
                                                           struct av_decision *avd)
  {
      struct policydb *policydb;
+@@ -1132,11 +790,7 @@ static void __nocfi security_compute_av_user_with_policy(struct selinux_policy *
+         goto out;
+     }
+ 
+-    if (context_struct_compute_av_fn) {
+-        context_struct_compute_av_fn(policydb, scontext, tcontext, tclass, avd, NULL);
+-    } else {
+-        context_struct_compute_av(policydb, scontext, tcontext, tclass, avd, NULL);
+-    }
++    context_struct_compute_av_fn(policydb, scontext, tcontext, tclass, avd, NULL);
+ out:
+     return;
+ allow:
 diff --git a/kernel/feature/sucompat.c b/kernel/feature/sucompat.c
 index 73c012713..983364bd3 100644
 --- a/kernel/feature/sucompat.c
@@ -2091,7 +2114,7 @@ index 09384deff..ba238519d 100644
 +                             struct user_arg_ptr *envp, int *flags);
  #endif
 diff --git a/kernel/runtime/ksud_integration.c b/kernel/runtime/ksud_integration.c
-index 5bf84cb66..24e1b361c 100644
+index 5bf84cb66..6f81803c4 100644
 --- a/kernel/runtime/ksud_integration.c
 +++ b/kernel/runtime/ksud_integration.c
 @@ -11,7 +11,6 @@
@@ -2283,19 +2306,24 @@ index 5bf84cb66..24e1b361c 100644
  {
      struct file *file = fget(fd);
      if (!file) {
-@@ -485,7 +489,10 @@ int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *v
+@@ -482,11 +486,13 @@ int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *v
+         int val = *value;
+         pr_info("KEY_VOLUMEDOWN val: %d\n", val);
+         if (val) {
++	    // - We cannot call static_branch_disable() here as we are within the
++	    //   spinlock section, which is not sleepable.
++            // - So if volumedown is enough, just do nothing until it gets disabled by on_post_fs_data().
++            if (is_volumedown_enough(volumedown_pressed_count))
++                return 0;
              // key pressed, count it
              volumedown_pressed_count += 1;
-             if (is_volumedown_enough(volumedown_pressed_count)) {
+-            if (is_volumedown_enough(volumedown_pressed_count)) {
 -                ksu_stop_input_hook_runtime();
-+                if (static_key_enabled(&ksu_is_input_hook_enabled)) {
-+                    static_branch_disable(&ksu_is_input_hook_enabled);
-+                    pr_info("ksu_input_hook is disabled\n");
-+                }
-             }
+-            }
          }
      }
-@@ -501,12 +508,11 @@ bool ksu_is_safe_mode()
+ 
+@@ -501,12 +507,11 @@ bool ksu_is_safe_mode()
          return true;
      }
  
@@ -2312,7 +2340,7 @@ index 5bf84cb66..24e1b361c 100644
  
      pr_info("volumedown_pressed_count: %d\n", volumedown_pressed_count);
      if (is_volumedown_enough(volumedown_pressed_count)) {
-@@ -519,66 +525,13 @@ bool ksu_is_safe_mode()
+@@ -519,66 +524,13 @@ bool ksu_is_safe_mode()
      return false;
  }
  
@@ -2341,7 +2369,8 @@ index 5bf84cb66..24e1b361c 100644
 -}
 -
 -void ksu_execve_hook_ksud(const struct pt_regs *regs)
--{
++void ksu_handle_vfs_fstat(int fd, loff_t *kstat_size_ptr)
+ {
 -    const char __user *filename_user = (const char __user *)PT_REGS_PARM1(regs);
 -    const char __user *const __user *argv_user = (const char __user *const __user *)PT_REGS_PARM2(regs);
 -
@@ -2369,8 +2398,7 @@ index 5bf84cb66..24e1b361c 100644
 -
 -static long (*orig_sys_fstat)(const struct pt_regs *regs);
 -static long ksu_sys_fstat(const struct pt_regs *regs)
-+void ksu_handle_vfs_fstat(int fd, loff_t *kstat_size_ptr)
- {
+-{
 -    unsigned int fd = PT_REGS_PARM1(regs);
 -    void __user *statbuf = (void __user *)PT_REGS_PARM2(regs);
 +    loff_t orig_size = *kstat_size_ptr;
@@ -2383,7 +2411,7 @@ index 5bf84cb66..24e1b361c 100644
      if (file) {
          if (is_init_rc(file)) {
              pr_info("stat init.rc");
-@@ -588,85 +541,20 @@ static long ksu_sys_fstat(const struct pt_regs *regs)
+@@ -588,85 +540,20 @@ static long ksu_sys_fstat(const struct pt_regs *regs)
          fput(file);
      }
  

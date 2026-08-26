@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Wed, 26 Aug 2026 15:00:00 +0900
+Date: Thu, 27 Aug 2026 06:50:24 +0900
 Subject: [PATCH] Enable SUSFS for MidoriSU-XX
 
 ---
@@ -8,12 +8,12 @@ Subject: [PATCH] Enable SUSFS for MidoriSU-XX
  kernel/feature/kernel_umount.c        |  56 ++++++---
  kernel/hook/setuid_hook.c             | 169 +++++++++++++++++++++++---
  kernel/ksu.c                          |   8 ++
- kernel/selinux/rules.c                |  13 +-
+ kernel/selinux/rules.c                |   7 ++
  kernel/selinux/selinux.c              | 103 ++++++++++++++++
  kernel/selinux/selinux.h              |  14 +++
  kernel/supercall/dispatch.c           |  24 ++++
  kernel/supercall/supercall.c          |  99 +++++++++++++++
- 10 files changed, 545 insertions(+), 43 deletions(-)
+ 10 files changed, 545 insertions(+), 37 deletions(-)
 
 diff --git a/kernel/Kconfig b/kernel/Kconfig
 index 18b97b7f5..77df2e4bb 100644
@@ -453,23 +453,10 @@ index ff786d174..7441a2200 100644
  
  	ksu_file_wrapper_init();
 diff --git a/kernel/selinux/rules.c b/kernel/selinux/rules.c
-index 12a7a1709..5849441bf 100644
+index 12a7a1709..9f7743f33 100644
 --- a/kernel/selinux/rules.c
 +++ b/kernel/selinux/rules.c
-@@ -171,12 +171,6 @@ out_unlock:
- 	if (!lock)
- 		goto do_stop_machine;
- 
--	/*
--	 * HACK: write_lock() is held with preempt enabled. DO NOT let the
--	 * task be migrated to any other CPU than the current CPU. And since
--	 * set_cpus_allowed_ptr() can sleep, use raw_smp_processor_id() to get
--	 * current CPU and bypass preemption checks.
--	 */
- 	cpumask_t old_mask;
- 	cpumask_copy(&old_mask, ksu_get_current_cpumask_t());
- 	set_cpus_allowed_ptr(current, cpumask_of(raw_smp_processor_id()));
-@@ -200,6 +194,13 @@ out_flush:
+@@ -200,6 +200,13 @@ out_flush:
  	smp_mb();
  	reset_avc_cache();
  #endif
