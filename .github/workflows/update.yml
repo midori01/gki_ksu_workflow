@@ -4,7 +4,23 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+    inputs:
+      kernel_version:
+        description: 'Kernel Version to Check'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - '6.1'
+          - '6.6'
+          - '6.12'
   workflow_call:
+    inputs:
+      kernel_version:
+        required: false
+        type: string
+        default: 'all'
 
 jobs:
   check:
@@ -25,6 +41,7 @@ jobs:
       - name: Run update check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KERNEL_VERSION_TO_CHECK: ${{ inputs.kernel_version || 'all' }}
         run: bash .github/scripts/check_updates.sh
 
       - name: Commit changes

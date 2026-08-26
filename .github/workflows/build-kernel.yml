@@ -111,6 +111,11 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Pull latest config
+        run: |
+          git fetch origin ${{ github.ref_name }} --depth=1 2>/dev/null || true
+          git checkout FETCH_HEAD -- .github/config/kernel_versions.json 2>/dev/null || true
+
       - name: Load Config
         id: cfg
         run: |

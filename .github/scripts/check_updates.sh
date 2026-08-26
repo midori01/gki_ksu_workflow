@@ -8,16 +8,34 @@ mkdir -p "$TMP_DIR"
 
 REPO="${GITHUB_REPOSITORY:-midori01/gki_ksu_workflow}"
 
-TAG_DATES_612=$(jq -r '.["6.12"].revisions | to_entries[] | select(.value.asb_date != "lts") | .value.asb_date' "$CONFIG_FILE")
-TAG_DATES_66=$(jq -r '.["6.6"].revisions | to_entries[] | select(.value.asb_date != "lts") | .value.asb_date' "$CONFIG_FILE")
-TAG_DATES_61=$(jq -r '.["6.1"].revisions | to_entries[] | select(.value.asb_date != "lts") | .value.asb_date' "$CONFIG_FILE")
+KERNEL_VERSION_INPUT="${KERNEL_VERSION_TO_CHECK:-${1:-all}}"
 
-SUB_612_LTS=$(jq -r '[.["6.12"].revisions | to_entries[] | select(.value.asb_date == "lts") | .key | tonumber] | max' "$CONFIG_FILE")
-SUB_66_LTS=$(jq -r '[.["6.6"].revisions | to_entries[] | select(.value.asb_date == "lts") | .key | tonumber] | max' "$CONFIG_FILE")
-SUB_61_LTS=$(jq -r '[.["6.1"].revisions | to_entries[] | select(.value.asb_date == "lts") | .key | tonumber] | max' "$CONFIG_FILE")
+if [ "$KERNEL_VERSION_INPUT" = "all" ]; then
+  KERNEL_VERSIONS=("6.12" "6.6" "6.1")
+else
+  case "$KERNEL_VERSION_INPUT" in
+    "6.1"|"6.6"|"6.12")
+      KERNEL_VERSIONS=("$KERNEL_VERSION_INPUT")
+      ;;
+    *)
+      echo "ERROR: Invalid kernel version: $KERNEL_VERSION_INPUT"
+      echo "Valid options: all, 6.1, 6.6, 6.12"
+      exit 1
+      ;;
+  esac
+fi
+
+declare -A TAG_DATES
+declare -A SUB_LTS
+
+for kv in "${KERNEL_VERSIONS[@]}"; do
+  TAG_DATES[$kv]=$(jq -r ".[\"$kv\"].revisions | to_entries[] | select(.value.asb_date != \"lts\") | .value.asb_date" "$CONFIG_FILE")
+  SUB_LTS[$kv]=$(jq -r "[.[\"$kv\"].revisions | to_entries[] | select(.value.asb_date == \"lts\") | .key | tonumber] | max" "$CONFIG_FILE")
+done
 
 NEEDS_COMMIT=false
 
+echo "=== Checking kernel versions: ${KERNEL_VERSIONS[*]} ==="
 echo "=== Fetching refs from AOSP common kernel ==="
 git ls-remote https://android.googlesource.com/kernel/common.git 2>/dev/null > "$TMP_DIR/all_refs.txt"
 grep 'refs/tags/' "$TMP_DIR/all_refs.txt" | awk '{print $2}' | sed 's|refs/tags/||; s|\^{}||' | sort -Vu > "$TMP_DIR/all_tags.txt"
@@ -485,26 +503,17 @@ check_lts() {
   fi
 }
 
-for date in $TAG_DATES_612; do
-  sub=$(jq -r ".[\"6.12\"].revisions | to_entries[] | select(.value.asb_date == \"$date\") | .key" "$CONFIG_FILE")
-  r=$(jq -r ".[\"6.12\"].revisions[\"$sub\"].default_r" "$CONFIG_FILE")
-  check_tag "6.12" "$date" "$sub" "$r"
+for kv in "${KERNEL_VERSIONS[@]}"; do
+  echo "=== Processing kernel version $kv ==="
+  
+  for date in ${TAG_DATES[$kv]}; do
+    sub=$(jq -r ".[\"$kv\"].revisions | to_entries[] | select(.value.asb_date == \"$date\") | .key" "$CONFIG_FILE")
+    r=$(jq -r ".[\"$kv\"].revisions[\"$sub\"].default_r" "$CONFIG_FILE")
+    check_tag "$kv" "$date" "$sub" "$r"
+  done
+  
+  check_lts "$kv" "${SUB_LTS[$kv]}"
 done
-check_lts "6.12" "$SUB_612_LTS"
-
-for date in $TAG_DATES_66; do
-  sub=$(jq -r ".[\"6.6\"].revisions | to_entries[] | select(.value.asb_date == \"$date\") | .key" "$CONFIG_FILE")
-  r=$(jq -r ".[\"6.6\"].revisions[\"$sub\"].default_r" "$CONFIG_FILE")
-  check_tag "6.6" "$date" "$sub" "$r"
-done
-check_lts "6.6" "$SUB_66_LTS"
-
-for date in $TAG_DATES_61; do
-  sub=$(jq -r ".[\"6.1\"].revisions | to_entries[] | select(.value.asb_date == \"$date\") | .key" "$CONFIG_FILE")
-  r=$(jq -r ".[\"6.1\"].revisions[\"$sub\"].default_r" "$CONFIG_FILE")
-  check_tag "6.1" "$date" "$sub" "$r"
-done
-check_lts "6.1" "$SUB_61_LTS"
 
 if [ "$NEEDS_COMMIT" = true ]; then
   git config user.name "github-actions"
