@@ -311,7 +311,8 @@ jobs:
               patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
               ;;
             MidoriSU-XX)
-              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/51_deinlined_susfs_hooks_gki-${PATCH_VER}.patch"
+              bash "${{ github.workspace }}/.github/scripts/susfs_deinlined.sh" "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              patch -p1 < deinlined.patch && patch -p1 < "${{ github.workspace }}/.github/patches/55_try_umount_for_susfs.patch"
               patch -p1 -d KernelSU < "${{ github.workspace }}/.github/patches/11_enable_susfs_for_ksu.patch"
               ;;
           esac
