@@ -1,11 +1,11 @@
 From: midori01 <lv@lvlv.lv>
-Date: Thu, 27 Aug 2026 06:50:24 +0900
+Date: Fri, 28 Aug 2026 13:50:24 +0900
 Subject: [PATCH] Enable SUSFS for MidoriSU-XX
 
 ---
  kernel/Kconfig                        |  98 +++++++++++++++
  kernel/downstream/ksu_hostsredirect.h |   4 +
- kernel/feature/kernel_umount.c        |  56 ++++++---
+ kernel/feature/kernel_umount.c        |  54 +++++---
  kernel/hook/setuid_hook.c             | 169 +++++++++++++++++++++++---
  kernel/ksu.c                          |   8 ++
  kernel/selinux/rules.c                |   7 ++
@@ -13,7 +13,7 @@ Subject: [PATCH] Enable SUSFS for MidoriSU-XX
  kernel/selinux/selinux.h              |  14 +++
  kernel/supercall/dispatch.c           |  24 ++++
  kernel/supercall/supercall.c          |  99 +++++++++++++++
- 10 files changed, 545 insertions(+), 37 deletions(-)
+ 10 files changed, 545 insertions(+), 35 deletions(-)
 
 diff --git a/kernel/Kconfig b/kernel/Kconfig
 index 18b97b7f5..77df2e4bb 100644
@@ -139,7 +139,7 @@ index 07e7ca99c..c5a5ef8b3 100644
  static __always_inline void ksu_hosts_file_redirect(const char __user *filename, int flags, int *fd_ptr)
  {
 diff --git a/kernel/feature/kernel_umount.c b/kernel/feature/kernel_umount.c
-index a931624b8..fe988bfc7 100644
+index 3d6eb6f1e..001b1f0b1 100644
 --- a/kernel/feature/kernel_umount.c
 +++ b/kernel/feature/kernel_umount.c
 @@ -1,5 +1,14 @@
@@ -223,7 +223,7 @@ index a931624b8..fe988bfc7 100644
  	// There are 6 scenarios:
  	// 1. Normal app: zygote -> appuid
  	// 2. Isolated process forked from zygote: zygote -> isolated_process
-@@ -94,18 +126,6 @@ static inline int ksu_handle_umount(struct cred *new, const struct cred *old)
+@@ -94,16 +126,6 @@ static inline int ksu_handle_umount(struct cred *new, const struct cred *old)
  	if (!ksu_uid_should_umount(new_uid) && !is_isolated_process(new_uid))
  		return 0;
  
@@ -237,11 +237,9 @@ index a931624b8..fe988bfc7 100644
 -		return 0;
 -	}
 -
--	set_thread_flag(TIF_KSU_UNMOUNTABLE);
--
- 	// umount the target mnt
- 	pr_info("handle umount for uid: %d, pid: %d\n", new_uid, current->pid);
- 
+ #ifdef CONFIG_KSU_HOSTSREDIRECT
+ 	set_thread_flag(TIF_KSU_UNMOUNTABLE);
+ #endif
 diff --git a/kernel/hook/setuid_hook.c b/kernel/hook/setuid_hook.c
 index 925798048..c0cdcad33 100644
 --- a/kernel/hook/setuid_hook.c
