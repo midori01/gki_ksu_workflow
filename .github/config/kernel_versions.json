@@ -94,6 +94,16 @@
         "commit": "94013ba6a50b0cf285d5c60a6032784c1d523b64",
         "commit_date": "2026-08-26 17:16:54 -0700"
       },
+      "81": {
+        "asb_date": "2026-06",
+        "default_r": "r21",
+        "supported_r": [
+          "r21",
+          "none"
+        ],
+        "commit": "f265951f3837d0f846a8c688d30195d45dba5324",
+        "commit_date": "2026-08-27 02:47:56 -0700"
+      },
       "92": {
         "asb_date": "lts",
         "default_r": "r00",
