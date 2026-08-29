@@ -15,7 +15,7 @@ on:
       kernel_version:
         description: 'Kernel Version'
         required: true
-        default: 'all'
+        default: '6.12'
         type: choice
         options:
           - 'all'
@@ -105,9 +105,9 @@ on:
         default: true
         type: boolean
       use_lz4_zstd:
-        description: 'LZ4/ZSTD ZRAM (6.12 only)'
+        description: 'LZ4/ZSTD ZRAM (6.12.23 only)'
         required: true
-        default: true
+        default: false
         type: boolean
       use_droidspaces:
         description: 'Droidspaces & NTSync'
@@ -331,7 +331,7 @@ jobs:
           echo "hook_mode_val=$hook_mode_val" >> $GITHUB_OUTPUT
 
   build:
-    name: "${{ matrix.kernel_version }}.${{ matrix.sub_level }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}${{ inputs.use_adios && matrix.kernel_version != '6.1' && ' (ADIOS)' || '' }}${{ inputs.use_lz4_zstd && matrix.kernel_version == '6.12' && ' (LZ4/Zstd)' || '' }}"
+    name: "${{ matrix.kernel_version }}.${{ matrix.sub_level }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}${{ inputs.use_adios && matrix.kernel_version != '6.1' && ' (ADIOS)' || '' }}${{ inputs.use_lz4_zstd && matrix.kernel_version == '6.12' && ' (LZ4/ZSTD)' || '' }}"
     needs: setup
     if: needs.setup.outputs.build_matrix != '{"include":[]}'
     strategy:
