@@ -290,6 +290,16 @@ jobs:
           cp "$SUSFS_DIR"/kernel_patches/include/linux/* include/linux/
           if [ "${{ inputs.kernel_version }}" = "6.12" ]; then
             PATCH_VER="$KMI_VERSION.${{ inputs.sub_level }}"
+            PATCH_DIR="${{ github.workspace }}/.github/patches/$KMI_VERSION"
+            if [ ! -f "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch" ]; then
+              for p in $(ls -rv "$PATCH_DIR"/50_add_susfs_in_gki-${KMI_VERSION}.*.patch 2>/dev/null); do
+                if [ "$(basename "$p" .patch | awk -F. '{print $NF}')" -le "${{ inputs.sub_level }}" ]; then
+                  PATCH_VER=$(basename "$p" .patch | sed 's/50_add_susfs_in_gki-//')
+                  echo "Using fallback patch version: $PATCH_VER"
+                  break
+                fi
+              done
+            fi
           else
             PATCH_VER="$KMI_VERSION"
           fi

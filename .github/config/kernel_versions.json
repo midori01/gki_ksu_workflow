@@ -61,8 +61,8 @@
   },
   "6.12": {
     "android_version": "android16",
-    "default_sub_level": "69",
-    "use_lts": false,
+    "default_sub_level": "92",
+    "use_lts": true,
     "revisions": {
       "23": {
         "asb_date": "2025-06",

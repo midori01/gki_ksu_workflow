@@ -251,19 +251,16 @@ jobs:
             default_sub_level=$(echo "$config" | jq -r '.default_sub_level')
             use_lts=$(echo "$config" | jq -r '.use_lts')
             
-            if [ "$use_lts" = "false" ]; then
-              revisions=$(echo "$config" | jq -r '.revisions | keys[]')
-              sub_levels_to_build=""
-              for rev in $revisions; do
-                asb_date=$(echo "$config" | jq -r '.revisions["'$rev'"].asb_date')
-                if [ "$asb_date" != "lts" ]; then
-                  sub_levels_to_build="$sub_levels_to_build $rev"
-                fi
-              done
-              sub_levels_to_build=$(echo "$sub_levels_to_build" | tr ' ' '\n' | sort -n | uniq | tr '\n' ' ')
-            else
-              sub_levels_to_build="$default_sub_level"
-            fi
+            revisions=$(echo "$config" | jq -r '.revisions | keys[]')
+            sub_levels_to_build=""
+            for rev in $revisions; do
+              asb_date=$(echo "$config" | jq -r '.revisions["'$rev'"].asb_date')
+              if [ "$use_lts" = "false" ] && [ "$asb_date" = "lts" ]; then
+                continue
+              fi
+              sub_levels_to_build="$sub_levels_to_build $rev"
+            done
+            sub_levels_to_build=$(echo "$sub_levels_to_build" | tr ' ' '\n' | sort -n | uniq | tr '\n' ' ')
             
             for sub_level in $sub_levels_to_build; do
               revision=$(echo "$config" | jq -c '.revisions["'$sub_level'"]')
