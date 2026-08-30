@@ -1,6 +1,6 @@
 From: midori01 <lv@lvlv.lv>
 Date: Mon, 31 Aug 2026 05:51:37 +0900
-Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2026-06
+Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-lts
 
 ---
  drivers/input/input.c          |  10 ++
@@ -1048,7 +1048,7 @@ index d2aa8985c055..ad8b5f980114 100644
  			   inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
  			   inotify_mark_user_mask(mark));
 diff --git a/fs/open.c b/fs/open.c
-index 99fc54ecdc8a..9783c216e8e9 100644
+index 820bff16d02d..603710e73f8e 100644
 --- a/fs/open.c
 +++ b/fs/open.c
 @@ -33,6 +33,9 @@
@@ -1061,7 +1061,7 @@ index 99fc54ecdc8a..9783c216e8e9 100644
  
  #include "internal.h"
  #include <trace/hooks/syscall_check.h>
-@@ -465,6 +468,12 @@ static const struct cred *access_override_creds(void)
+@@ -463,6 +466,12 @@ static const struct cred *access_override_creds(void)
  	return old_cred;
  }
  
@@ -1074,7 +1074,7 @@ index 99fc54ecdc8a..9783c216e8e9 100644
  static long do_faccessat(int dfd, const char __user *filename, int mode, int flags)
  {
  	struct path path;
-@@ -472,6 +481,9 @@ static long do_faccessat(int dfd, const char __user *filename, int mode, int fla
+@@ -470,6 +479,9 @@ static long do_faccessat(int dfd, const char __user *filename, int mode, int fla
  	int res;
  	unsigned int lookup_flags = LOOKUP_FOLLOW;
  	const struct cred *old_cred = NULL;
@@ -1084,7 +1084,7 @@ index 99fc54ecdc8a..9783c216e8e9 100644
  
  	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
  		return -EINVAL;
-@@ -491,7 +503,23 @@ static long do_faccessat(int dfd, const char __user *filename, int mode, int fla
+@@ -489,7 +501,23 @@ static long do_faccessat(int dfd, const char __user *filename, int mode, int fla
  	}
  
  retry:
@@ -1660,7 +1660,7 @@ index e133b507ddf3..aa151dfe72e4 100644
  }
  
 diff --git a/fs/read_write.c b/fs/read_write.c
-index b4204f045fa4..5f8500d2b323 100644
+index 537ece0e5638..e475a4239ca6 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
 @@ -718,8 +718,18 @@ ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count)
@@ -2249,7 +2249,7 @@ index 45681d03d331..a81ca58e3f37 100644
  	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
  		return -EPERM;
 diff --git a/kernel/sys.c b/kernel/sys.c
-index 1a154c425e1b..2391fca30ffa 100644
+index c9da55d573cf..d90b83740e43 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
 @@ -678,6 +678,9 @@ SYSCALL_DEFINE1(setuid, uid_t, uid)
@@ -2371,7 +2371,7 @@ index 29a9bf8543ce..18456f388b10 100644
  	audit_log_format(ab, " tclass=%s", tclass);
  
 diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
-index fb7e7d17230b..2d8ee8f138d4 100644
+index 2a49b36476e3..49b89db7ae8f 100644
 --- a/security/selinux/hooks.c
 +++ b/security/selinux/hooks.c
 @@ -110,6 +110,12 @@
@@ -2387,7 +2387,7 @@ index fb7e7d17230b..2d8ee8f138d4 100644
  
  /*
   * ANDROID: selinux_state is part of the KMI, and backporting capabilities into
-@@ -6623,6 +6629,41 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
+@@ -6624,6 +6630,41 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
  	return -EINVAL;
  }
  
@@ -2429,7 +2429,7 @@ index fb7e7d17230b..2d8ee8f138d4 100644
  static int selinux_ismaclabel(const char *name)
  {
  	return (strcmp(name, XATTR_SELINUX_SUFFIX) == 0);
-@@ -7253,7 +7294,11 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
+@@ -7254,7 +7295,11 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
  	LSM_HOOK_INIT(getselfattr, selinux_getselfattr),
  	LSM_HOOK_INIT(setselfattr, selinux_setselfattr),
  	LSM_HOOK_INIT(getprocattr, selinux_getprocattr),
@@ -2442,7 +2442,7 @@ index fb7e7d17230b..2d8ee8f138d4 100644
  	LSM_HOOK_INIT(ismaclabel, selinux_ismaclabel),
  	LSM_HOOK_INIT(secctx_to_secid, selinux_secctx_to_secid),
 diff --git a/security/selinux/selinuxfs.c b/security/selinux/selinuxfs.c
-index 73fb4be22586..d698936c8ec3 100644
+index fe41c8fb0338..4901b573f6eb 100644
 --- a/security/selinux/selinuxfs.c
 +++ b/security/selinux/selinuxfs.c
 @@ -44,6 +44,21 @@
@@ -2509,7 +2509,7 @@ index 73fb4be22586..d698936c8ec3 100644
  	.read		= sel_read_handle_status,
  	.mmap		= sel_mmap_handle_status,
  	.llseek		= generic_file_llseek,
-@@ -665,6 +707,45 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
+@@ -641,6 +683,45 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
  	return length;
  }
  
@@ -2555,7 +2555,7 @@ index 73fb4be22586..d698936c8ec3 100644
  static ssize_t sel_read_checkreqprot(struct file *filp, char __user *buf,
  				     size_t count, loff_t *ppos)
  {
-@@ -810,14 +891,26 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size);
+@@ -786,14 +867,26 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size);
  static ssize_t sel_write_relabel(struct file *file, char *buf, size_t size);
  static ssize_t sel_write_user(struct file *file, char *buf, size_t size);
  static ssize_t sel_write_member(struct file *file, char *buf, size_t size);
@@ -2582,7 +2582,7 @@ index 73fb4be22586..d698936c8ec3 100644
  };
  
  static ssize_t selinux_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)
-@@ -902,6 +995,60 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
+@@ -878,6 +971,60 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
  	return length;
  }
  

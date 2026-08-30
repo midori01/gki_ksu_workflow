@@ -1,23 +1,23 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sun, 23 Aug 2026 07:00:00 +0900
+Date: Mon, 31 Aug 2026 05:51:37 +0900
 Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2026-03
 
 ---
  drivers/input/input.c          |  10 ++
  fs/Makefile                    |   2 +
  fs/exec.c                      |  27 ++++
- fs/namei.c                     | 232 ++++++++++++++++++++++++++++
- fs/namespace.c                 | 274 +++++++++++++++++++++++++++++++++
+ fs/namei.c                     | 232 +++++++++++++++++++++++++++
+ fs/namespace.c                 | 285 +++++++++++++++++++++++++++++++++
  fs/notify/fdinfo.c             |  58 +++++++
  fs/open.c                      |  28 ++++
  fs/proc/base.c                 |  24 +++
  fs/proc/bootconfig.c           |  13 ++
- fs/proc/fd.c                   |  78 ++++++++++
+ fs/proc/fd.c                   |  78 +++++++++
  fs/proc/task_mmu.c             |  76 ++++++++-
- fs/proc_namespace.c            | 174 +++++++++++++++++++++
+ fs/proc_namespace.c            | 174 ++++++++++++++++++++
  fs/read_write.c                |  10 ++
  fs/readdir.c                   | 126 +++++++++++++++
- fs/stat.c                      |  69 +++++++++
+ fs/stat.c                      |  69 ++++++++
  fs/statfs.c                    |  45 ++++++
  kernel/kallsyms.c              |  31 ++++
  kernel/reboot.c                |  12 ++
@@ -25,9 +25,9 @@ Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2026-03
  mm/memory.c                    |  13 ++
  security/selinux/avc.c         |  21 ++-
  security/selinux/hooks.c       |  45 ++++++
- security/selinux/selinuxfs.c   | 147 ++++++++++++++++++
+ security/selinux/selinuxfs.c   | 147 +++++++++++++++++
  security/selinux/ss/services.c |  24 +++
- 24 files changed, 1552 insertions(+), 2 deletions(-)
+ 24 files changed, 1563 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 372c9df9051f..66d671b769fb 100644
@@ -558,7 +558,7 @@ index bdc243fc4e03..72d94d225df7 100644
  	do_delayed_call(&done);
  	return res;
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 3e9b092e018d..46720d2fd597 100644
+index 3e9b092e018d..53efb1a2b98f 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -33,11 +33,22 @@
@@ -584,7 +584,17 @@ index 3e9b092e018d..46720d2fd597 100644
  /* Maximum number of mounts in a mount namespace */
  static unsigned int sysctl_mount_max __read_mostly = 100000;
  
-@@ -258,6 +269,11 @@ static int mnt_alloc_id(struct mount *mnt)
+@@ -82,6 +93,9 @@ static DEFINE_IDA(mnt_group_ida);
+ /* Don't allow confusion with old 32bit mount ID */
+ #define MNT_UNIQUE_ID_OFFSET (1ULL << 31)
+ static atomic64_t mnt_id_ctr = ATOMIC64_INIT(MNT_UNIQUE_ID_OFFSET);
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++static atomic64_t sus_mnt_id_ctr = ATOMIC64_INIT(0);
++#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+ 
+ static struct hlist_head *mount_hashtable __ro_after_init;
+ static struct hlist_head *mountpoint_hashtable __ro_after_init;
+@@ -258,6 +272,11 @@ static int mnt_alloc_id(struct mount *mnt)
  
  static void mnt_free_id(struct mount *mnt)
  {
@@ -596,7 +606,7 @@ index 3e9b092e018d..46720d2fd597 100644
  	ida_free(&mnt_id_ida, mnt->mnt_id);
  }
  
-@@ -266,7 +282,25 @@ static void mnt_free_id(struct mount *mnt)
+@@ -266,7 +285,25 @@ static void mnt_free_id(struct mount *mnt)
   */
  static int mnt_alloc_group_id(struct mount *mnt)
  {
@@ -622,7 +632,7 @@ index 3e9b092e018d..46720d2fd597 100644
  
  	if (res < 0)
  		return res;
-@@ -316,6 +350,123 @@ int mnt_get_count(struct mount *mnt)
+@@ -316,6 +353,131 @@ int mnt_get_count(struct mount *mnt)
  #endif
  }
  
@@ -636,7 +646,11 @@ index 3e9b092e018d..46720d2fd597 100644
 +
 +	if (mnt) {
 +		mnt->mnt_id = old_mnt_id;
-+		mnt->mnt_id_unique = atomic64_inc_return(&mnt_id_ctr);
++		// - Do not inc the original mnt_id_ctr, instead, we do
++		//   "atomic64_read(&mnt_id_ctr) + atomic64_inc_return(&sus_mnt_id_ctr);"
++		// - It will not do any harm for now even if the next few legit mounts
++		//   collide with the same mnt_id_unique as the previous sus mounts.
++		mnt->mnt_id_unique = atomic64_read(&mnt_id_ctr) + atomic64_inc_return(&sus_mnt_id_ctr);
 +
 +		if (name) {
 +			mnt->mnt_devname = kstrdup_const(name,
@@ -695,7 +709,11 @@ index 3e9b092e018d..46720d2fd597 100644
 +			goto out_free_cache;
 +
 +		mnt->mnt_id = res;
-+		mnt->mnt_id_unique = atomic64_inc_return(&mnt_id_ctr);
++		// - Do not inc the original mnt_id_ctr, instead, we do
++		//   "atomic64_read(&mnt_id_ctr) + atomic64_inc_return(&sus_mnt_id_ctr);"
++		// - It will not do any harm for now even if the next few legit mounts
++		//   collide with the same mnt_id_unique as the previous sus mounts.
++		mnt->mnt_id_unique = atomic64_read(&mnt_id_ctr) + atomic64_inc_return(&sus_mnt_id_ctr);
 +
 +		if (name) {
 +			mnt->mnt_devname = kstrdup_const(name,
@@ -746,7 +764,7 @@ index 3e9b092e018d..46720d2fd597 100644
  static struct mount *alloc_vfsmnt(const char *name)
  {
  	struct mount *mnt = kmem_cache_zalloc(mnt_cache, GFP_KERNEL);
-@@ -811,6 +962,18 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
+@@ -811,6 +973,18 @@ struct mount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
  	struct hlist_head *head = m_hash(mnt, dentry);
  	struct mount *p;
  
@@ -765,7 +783,7 @@ index 3e9b092e018d..46720d2fd597 100644
  	hlist_for_each_entry_rcu(p, head, mnt_hash)
  		if (&p->mnt_parent->mnt == mnt && p->mnt_mountpoint == dentry)
  			return p;
-@@ -1213,7 +1376,21 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
+@@ -1213,7 +1387,21 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
  	if (!fc->root)
  		return ERR_PTR(-EINVAL);
  
@@ -787,7 +805,7 @@ index 3e9b092e018d..46720d2fd597 100644
  	if (!mnt)
  		return ERR_PTR(-ENOMEM);
  
-@@ -1295,8 +1472,42 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
+@@ -1295,8 +1483,42 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
  	struct super_block *sb = old->mnt.mnt_sb;
  	struct mount *mnt;
  	int err;
@@ -830,7 +848,7 @@ index 3e9b092e018d..46720d2fd597 100644
  	if (!mnt)
  		return ERR_PTR(-ENOMEM);
  
-@@ -1314,6 +1525,11 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
+@@ -1314,6 +1536,11 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
  	mnt->mnt.mnt_flags = old->mnt.mnt_flags;
  	mnt->mnt.mnt_flags &= ~(MNT_WRITE_HOLD|MNT_MARKED|MNT_INTERNAL);
  
@@ -842,7 +860,7 @@ index 3e9b092e018d..46720d2fd597 100644
  	atomic_inc(&sb->s_active);
  	mnt->mnt.mnt_idmap = mnt_idmap_get(mnt_idmap(&old->mnt));
  
-@@ -1558,6 +1774,12 @@ static struct mount *mnt_find_id_at(struct mnt_namespace *ns, u64 mnt_id)
+@@ -1558,6 +1785,12 @@ static struct mount *mnt_find_id_at(struct mnt_namespace *ns, u64 mnt_id)
  			node = node->rb_right;
  		}
  	}
@@ -855,7 +873,7 @@ index 3e9b092e018d..46720d2fd597 100644
  	return ret;
  }
  
-@@ -3991,6 +4213,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3991,6 +4224,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE;
@@ -865,7 +883,7 @@ index 3e9b092e018d..46720d2fd597 100644
  	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
  	if (IS_ERR(new)) {
  		namespace_unlock();
-@@ -5485,6 +5710,12 @@ static ssize_t do_listmount(struct klistmount *kls, bool reverse)
+@@ -5485,6 +5721,12 @@ static ssize_t do_listmount(struct klistmount *kls, bool reverse)
  			continue;
  		if (!is_path_reachable(r, r->mnt.mnt_root, &orig))
  			continue;
@@ -878,7 +896,7 @@ index 3e9b092e018d..46720d2fd597 100644
  		*mnt_ids = r->mnt_id_unique;
  		mnt_ids++;
  		nr_mnt_ids--;
-@@ -5912,3 +6143,46 @@ static int __init init_fs_namespace_sysctls(void)
+@@ -5912,3 +6154,46 @@ static int __init init_fs_namespace_sysctls(void)
  fs_initcall(init_fs_namespace_sysctls);
  
  #endif /* CONFIG_SYSCTL */
