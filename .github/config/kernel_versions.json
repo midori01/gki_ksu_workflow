@@ -6,13 +6,13 @@
     "revisions": {
       "172": {
         "asb_date": "2026-06",
-        "default_r": "r8",
+        "default_r": "r9",
         "supported_r": [
-          "r8",
+          "r9",
           "none"
         ],
-        "commit": "549d0005dfee4850aa9ed3fe69c29349ddd7ed6a",
-        "commit_date": "2026-08-25 12:29:36 +0100"
+        "commit": "a53ef9cd393f13067c8fd0fec547c662158e8cba",
+        "commit_date": "2026-09-01 01:46:05 -0700"
       },
       "176": {
         "asb_date": "lts",
@@ -36,13 +36,13 @@
     "revisions": {
       "139": {
         "asb_date": "2026-07",
-        "default_r": "r5",
+        "default_r": "r7",
         "supported_r": [
-          "r5",
+          "r7",
           "none"
         ],
-        "commit": "fe03684c037b725207b5590feb3ec0891b10b49b",
-        "commit_date": "2026-08-05 15:41:46 -0700"
+        "commit": "4a3f51897142e0636640f7198cb964c9e435faa9",
+        "commit_date": "2026-08-31 15:34:27 -0700"
       },
       "142": {
         "asb_date": "lts",
@@ -76,33 +76,33 @@
       },
       "38": {
         "asb_date": "2025-09",
-        "default_r": "r37",
+        "default_r": "r38",
         "supported_r": [
-          "r37",
+          "r38",
           "none"
         ],
-        "commit": "7e082a418d84a78ab21e0b553282419217ac3885",
-        "commit_date": "2026-08-05 17:23:55 +0100"
+        "commit": "1b0462bd0618c9fa384498dce3d8c4476182bedf",
+        "commit_date": "2026-09-02 02:39:15 -0700"
       },
       "69": {
         "asb_date": "2026-03",
-        "default_r": "r64",
+        "default_r": "r67",
         "supported_r": [
-          "r64",
+          "r67",
           "none"
         ],
-        "commit": "94013ba6a50b0cf285d5c60a6032784c1d523b64",
-        "commit_date": "2026-08-26 17:16:54 -0700"
+        "commit": "f308562d94454be8c921fedca84378489ca32fcf",
+        "commit_date": "2026-09-02 14:13:50 +0000"
       },
       "81": {
         "asb_date": "2026-06",
-        "default_r": "r21",
+        "default_r": "r24",
         "supported_r": [
-          "r21",
+          "r24",
           "none"
         ],
-        "commit": "f265951f3837d0f846a8c688d30195d45dba5324",
-        "commit_date": "2026-08-27 02:47:56 -0700"
+        "commit": "b231f9ee4b2b260633b9ec5ee6cd116cc28c758d",
+        "commit_date": "2026-09-02 16:16:58 +0000"
       },
       "92": {
         "asb_date": "lts",
