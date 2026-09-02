@@ -257,7 +257,7 @@ jobs:
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_ox_branch }}"
               git clone --branch "${BRANCH}" "https://github.com/${REPO}.git" KernelSU
               patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/20_extra_features_for_ksu.patch" || true
-              [ "${{ inputs.use_susfs }}" != "true" ] && patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/31_ksu_toolkit_for_ksu.patch" || true
+              patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/30_ksu_toolkit_for_ksu.patch" || true
               ;;
             MidoriSU-RX)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_rx_branch }}"
@@ -315,7 +315,6 @@ jobs:
             MidoriSU-OX)
               patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
               patch -p1 -d KernelSU < "$SUSFS_DIR/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"
-              patch -p1 -d KernelSU < "${{ github.workspace }}/.github/patches/30_ksu_toolkit_for_ksu.patch"
               ;;
             MidoriSU-RX)
               patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
