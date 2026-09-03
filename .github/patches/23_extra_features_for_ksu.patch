@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sun, 12 Jul 2026 19:45:23 +0900
+Date: Thu, 3 Sep 2026 09:06:59 +0900
 Subject: [PATCH] Enable extra features for MidoriSU-RX
 
 ---
@@ -101,5 +101,5 @@ index 4eb2dfad5..303a6e29d 100644
  // 104 = old get_managers, deprecated
  DEFINE_KSU_UAPI_CONST(__u32, KSU_IOCTL_GET_MANAGERS, _IOC(_IOC_READ | _IOC_WRITE, 'K', 105, 0))
 -- 
-2.54.0
+2.55.0
 

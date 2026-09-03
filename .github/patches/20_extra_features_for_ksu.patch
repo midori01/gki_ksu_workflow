@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sun, 12 Jul 2026 19:45:23 +0900
+Date: Thu, 3 Sep 2026 09:06:59 +0900
 Subject: [PATCH] Enable extra features for MidoriSU-OX
 
 ---
@@ -123,5 +123,5 @@ index 8f345086c..5b0a803cd 100644
  
  #endif
 -- 
-2.54.0
+2.55.0
 
