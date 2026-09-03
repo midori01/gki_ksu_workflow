@@ -304,8 +304,9 @@ jobs:
           fi
           case "${{ inputs.variant }}" in
             MidoriSU-KX)
-              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
-              patch -p1 -d KernelSU < <(curl -sL "https://github.com/midori01/KernelSU/commit/kow.patch")
+              bash "${{ github.workspace }}/.github/scripts/susfs_deinlined.sh" "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              patch -p1 < deinlined.patch && patch -p1 < "${{ github.workspace }}/.github/patches/55_try_umount_for_susfs.patch"
+              patch -p1 -d KernelSU < <(curl -sL "https://github.com/midori01/KernelSU/commit/kow-susfs-deinlined.patch")
               ;;
             MidoriSU-NX)
               patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"

@@ -1,5 +1,5 @@
 From: midori01 <lv@lvlv.lv>
-Date: Thu, 3 Sep 2026 09:06:59 +0900
+Date: Fri, 4 Sep 2026 07:00:00 +0900
 Subject: [PATCH] Enable extra features for MidoriSU-KX
 
 ---
@@ -8,7 +8,7 @@ Subject: [PATCH] Enable extra features for MidoriSU-KX
  2 files changed, 80 insertions(+)
 
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 294c75b9b..39d9f486c 100644
+index 294c75b9b..36d4b3737 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
 @@ -753,6 +753,53 @@ static int do_disable_escape_to_root(void __user *arg)
@@ -20,7 +20,7 @@ index 294c75b9b..39d9f486c 100644
 +    struct ksu_hook_type_cmd cmd = { 0 };
 +
 +#ifdef CONFIG_KSU_SUSFS
-+    const char *type = "Inline";
++    const char *type = "De-inlined SUSFS";
 +#else
 +    const char *type = "Kprobes";
 +#endif
