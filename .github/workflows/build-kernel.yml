@@ -257,7 +257,6 @@ jobs:
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_ox_branch }}"
               git clone --branch "${BRANCH}" "https://github.com/${REPO}.git" KernelSU
               patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/20_extra_features_for_ksu.patch" || true
-              patch -p1 -d KernelSU --forward < "${{ github.workspace }}/.github/patches/30_ksu_toolkit_for_ksu.patch" || true
               ;;
             MidoriSU-RX)
               IFS=':' read -r REPO BRANCH <<< "${{ inputs.midorisu_rx_branch }}"
@@ -325,6 +324,12 @@ jobs:
               patch -p1 -d KernelSU < <(curl -sL "https://github.com/midori01/KernelSU/commit/xx.patch")
               ;;
           esac
+
+      - name: Setup KSU Toolkit (OX only)
+        if: inputs.variant == 'MidoriSU-OX'
+        working-directory: kernel_workspace/common/KernelSU
+        run: |
+          patch -p1 < "${{ github.workspace }}/.github/patches/30_ksu_toolkit_for_ksu.patch"
 
       - name: Setup Manual Hooks
         if: >-
