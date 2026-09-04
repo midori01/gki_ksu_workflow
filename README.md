@@ -41,16 +41,16 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | :--- | :---: | :---: | :--- |
 | [MidoriSU-KX](https://github.com/KOWX712/KernelSU) | ❌ | ❌ | `Kprobes` |
 | [MidoriSU-KX-DS](https://github.com/KOWX712/KernelSU) | ❌ | ✅ | `Kprobes` |
-| [MidoriSU-KX-SUSFS](https://github.com/KOWX712/KernelSU) | ✅ | ❌ | `Inline` |
-| [MidoriSU-KX-SUSFS-DS](https://github.com/KOWX712/KernelSU) | ✅ | ✅ | `Inline` |
+| [MidoriSU-KX-SUSFS](https://github.com/KOWX712/KernelSU) | ✅ | ❌ | `De-inlined` |
+| [MidoriSU-KX-SUSFS-DS](https://github.com/KOWX712/KernelSU) | ✅ | ✅ | `De-inlined` |
 | [MidoriSU-NX](https://github.com/KernelSU-Next/KernelSU-Next) | ❌ | ❌ | `Tracepoint` |
 | [MidoriSU-NX-DS](https://github.com/KernelSU-Next/KernelSU-Next) | ❌ | ✅ | `Tracepoint` |
 | [MidoriSU-NX-SUSFS](https://github.com/KernelSU-Next/KernelSU-Next) | ✅ | ❌ | `Inline` |
 | [MidoriSU-NX-SUSFS-DS](https://github.com/KernelSU-Next/KernelSU-Next) | ✅ | ✅ | `Inline` |
 | [MidoriSU-OX](https://github.com/tiann/KernelSU) | ❌ | ❌ | `Kprobes` |
 | [MidoriSU-OX-DS](https://github.com/tiann/KernelSU) | ❌ | ✅ | `Kprobes` |
-| [MidoriSU-OX-SUSFS](https://github.com/tiann/KernelSU) | ✅ | ❌ | `Inline` |
-| [MidoriSU-OX-SUSFS-DS](https://github.com/tiann/KernelSU) | ✅ | ✅ | `Inline` |
+| [MidoriSU-OX-SUSFS](https://github.com/tiann/KernelSU) | ✅ | ❌ | `De-inlined` |
+| [MidoriSU-OX-SUSFS-DS](https://github.com/tiann/KernelSU) | ✅ | ✅ | `De-inlined` |
 | [MidoriSU-RX](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ❌ | `Manual` |
 | [MidoriSU-RX-DS](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | `Manual` |
 | [MidoriSU-RX-SUSFS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | `Inline` |
@@ -89,12 +89,12 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 
 | Type | Mechanism & Characteristics |
 | :--- | :--- |
-| `Kprobes` | Dynamically instruments kernel functions at runtime via kprobe breakpoints. Minimal kernel footprint, broad compatibility. **Default for MidoriSU-KX and MidoriSU-OX** (non-SUSFS). |
-| `Tracepoint` | Hooks into the kernel's static syscall tracepoint infrastructure (`sys_enter`/`sys_exit`) without modifying kernel source. **Default for MidoriSU-NX** (non-SUSFS). |
-| `Inline` | Compile-time injection via `#ifdef CONFIG_KSU_SUSFS` blocks embedded directly into kernel subsystem source. Uses `static_key` branches for runtime toggling. No reliance on kprobes or LSM hooks. Hardwired into VFS (`exec`, `open`, `stat`, `readdir`, `statfs`), SELinux (`avc`, `hooks`, `services`), input, mounts, and procfs. **Used by MidoriSU-KX-SUSFS, MidoriSU-NX-SUSFS, MidoriSU-RX-SUSFS, MidoriSU-OX-SUSFS.** |
-| `De-inlined` | SUSFS hooks applied via kernel source patching rather than inline `#ifdef CONFIG_KSU_SUSFS` blocks. Cleaner separation of SUSFS logic from core kernel subsystems. **Used by MidoriSU-XX-SUSFS.** |
-| `Manual` | Static kernel source patching. Custom hooks injected at compile time into core kernel subsystems. **Default for MidoriSU-RX** (non-SUSFS). |
-| `Hookless` | Pure KernelSU built-in mechanisms. Always enables `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` regardless of kernel version. Zero kernel source modification. Relies entirely on KernelSU's internal hooking infrastructure. **Default for MidoriSU-XX** (non-SUSFS). |
+| `Kprobes` | Dynamically instruments kernel functions at runtime via kprobe breakpoints. Minimal kernel footprint, broad compatibility. |
+| `Tracepoint` | Hooks into the kernel's static syscall tracepoint infrastructure (`sys_enter`/`sys_exit`) without modifying kernel source. |
+| `Inline` | Compile-time injection via `#ifdef CONFIG_KSU_SUSFS` blocks embedded directly into kernel subsystem source. Uses `static_key` branches for runtime toggling. No reliance on kprobes or LSM hooks. Hardwired into VFS (`exec`, `open`, `stat`, `readdir`, `statfs`), SELinux (`avc`, `hooks`, `services`), input, mounts, and procfs. |
+| `De-inlined` | SUSFS hooks applied via kernel source patching rather than inline `#ifdef CONFIG_KSU_SUSFS` blocks. Cleaner separation of SUSFS logic from core kernel subsystems. |
+| `Manual` | Static kernel source patching. Custom hooks injected at compile time into core kernel subsystems. |
+| `Hookless` | Pure KernelSU built-in mechanisms. Always enables `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` regardless of kernel version. Zero kernel source modification. Relies entirely on KernelSU's internal hooking infrastructure. |
 
 ---
 

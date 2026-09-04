@@ -274,6 +274,12 @@ jobs:
           grep -q "kernelsu" drivers/Makefile || echo 'obj-$(CONFIG_KSU) += kernelsu/' >> drivers/Makefile
           grep -q "drivers/kernelsu/Kconfig" drivers/Kconfig || sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' drivers/Kconfig
 
+      - name: Setup KSU Toolkit (OX only)
+        if: inputs.variant == 'MidoriSU-OX'
+        working-directory: kernel_workspace/common/KernelSU
+        run: |
+          patch -p1 < "${{ github.workspace }}/.github/patches/30_ksu_toolkit_for_ksu.patch"
+
       - name: Setup SUSFS
         if: inputs.use_susfs
         working-directory: kernel_workspace/common
@@ -282,58 +288,49 @@ jobs:
           SUSFS_REPO: ${{ inputs.susfs_repo == 'GitHub' && 'https://github.com/midori01/susfs4ksu' || 'https://gitlab.com/simonpunk/susfs4ksu' }}
           SUSFS_COMMIT: ${{ inputs.susfs_commit }}
           KMI_VERSION: ${{ steps.cfg.outputs.kmi_version }}
+          PATCH_DIR: ${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}
+          DEINLINED_SCRIPT: ${{ github.workspace }}/.github/scripts/susfs_deinlined.sh
         run: |
           [ -n "$SUSFS_COMMIT" ] && git clone "$SUSFS_REPO" "$SUSFS_DIR" || git clone --depth 1 --no-single-branch "$SUSFS_REPO" "$SUSFS_DIR"
           git -C "$SUSFS_DIR" checkout "${SUSFS_COMMIT:-gki-$KMI_VERSION}"     
           cp "$SUSFS_DIR"/kernel_patches/fs/* fs/
           cp "$SUSFS_DIR"/kernel_patches/include/linux/* include/linux/
+          PATCH_VER="$KMI_VERSION"
           if [ "${{ inputs.kernel_version }}" = "6.12" ]; then
             PATCH_VER="$KMI_VERSION.${{ inputs.sub_level }}"
-            PATCH_DIR="${{ github.workspace }}/.github/patches/$KMI_VERSION"
             if [ ! -f "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch" ]; then
               for p in $(ls -rv "$PATCH_DIR"/50_add_susfs_in_gki-${KMI_VERSION}.*.patch 2>/dev/null); do
-                if [ "$(basename "$p" .patch | awk -F. '{print $NF}')" -le "${{ inputs.sub_level }}" ]; then
-                  PATCH_VER=$(basename "$p" .patch | sed 's/50_add_susfs_in_gki-//')
-                  echo "Using fallback patch version: $PATCH_VER"
-                  break
-                fi
+                sub="${p%.patch}"; sub="${sub##*.}"
+                [ "$sub" -le "${{ inputs.sub_level }}" ] && PATCH_VER="$KMI_VERSION.$sub" && break
               done
             fi
-          else
-            PATCH_VER="$KMI_VERSION"
           fi
           case "${{ inputs.variant }}" in
             MidoriSU-KX)
-              bash "${{ github.workspace }}/.github/scripts/susfs_deinlined.sh" "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
               patch -p1 < deinlined.patch && patch -p1 < "${{ github.workspace }}/.github/patches/55_try_umount_for_susfs.patch"
-              patch -p1 -d KernelSU < <(curl -sL "https://github.com/midori01/KernelSU/commit/kow-susfs-deinlined.patch")
+              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/kow-susfs-deinlined.patch")
               ;;
             MidoriSU-NX)
-              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
-              patch -p1 -d KernelSU < <(curl -sL "https://github.com/midori01/KernelSU/commit/next.patch")
+              patch -p1 < "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/next.patch")
               ;;
             MidoriSU-OX)
-              bash "${{ github.workspace }}/.github/scripts/susfs_deinlined.sh" "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
               patch -p1 < deinlined.patch && patch -p1 < "${{ github.workspace }}/.github/patches/55_try_umount_for_susfs.patch"
-              patch -p1 -d KernelSU < <(curl -sL "https://github.com/midori01/KernelSU/commit/official-susfs-deinlined.patch")
+              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/official-susfs-deinlined.patch")
               ;;
             MidoriSU-RX)
-              patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              patch -p1 < "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
               ;;
             MidoriSU-XX)
-              bash "${{ github.workspace }}/.github/scripts/susfs_deinlined.sh" "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
               patch -p1 < deinlined.patch && patch -p1 < "${{ github.workspace }}/.github/patches/55_try_umount_for_susfs.patch"
-              patch -p1 -d KernelSU < <(curl -sL "https://github.com/midori01/KernelSU/commit/xx.patch")
+              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/xx.patch")
               ;;
           esac
 
-      - name: Setup KSU Toolkit (OX only)
-        if: inputs.variant == 'MidoriSU-OX'
-        working-directory: kernel_workspace/common/KernelSU
-        run: |
-          patch -p1 < "${{ github.workspace }}/.github/patches/30_ksu_toolkit_for_ksu.patch"
-
-      - name: Setup Manual Hooks
+      - name: Setup Manual Hooks (RX/XX only)
         if: >-
           (inputs.variant == 'MidoriSU-XX' && inputs.hook_mode != 'hookless') ||
           (inputs.variant == 'MidoriSU-RX' && inputs.hook_mode == 'manual' && inputs.use_susfs != true)
@@ -398,13 +395,13 @@ jobs:
         run: |
           patch -p1 < "${{ github.workspace }}/.github/patches/unicode_bypass_fix_6.1+.patch"
 
-      - name: Apply ADIOS I/O Scheduler
+      - name: Apply ADIOS I/O Scheduler (6.6/6.12 only)
         if: inputs.use_adios && inputs.kernel_version != '6.1'
         working-directory: kernel_workspace/common
         run: |
           patch -p1 --forward --fuzz=3 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/adios.patch"
 
-      - name: Apply LZ4/ZSTD ZRAM
+      - name: Apply LZ4/ZSTD ZRAM (6.12 only)
         if: inputs.use_lz4_zstd && inputs.kernel_version == '6.12'
         working-directory: kernel_workspace/common
         run: |
