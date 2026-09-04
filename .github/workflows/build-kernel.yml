@@ -312,8 +312,9 @@ jobs:
               patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/kow-susfs-deinlined.patch")
               ;;
             MidoriSU-NX)
-              patch -p1 < "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/next.patch")
+              bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              patch -p1 < deinlined.patch && patch -p1 < "${{ github.workspace }}/.github/patches/55_try_umount_for_susfs.patch"
+              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/next-susfs-deinlined.patch")
               ;;
             MidoriSU-OX)
               bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"

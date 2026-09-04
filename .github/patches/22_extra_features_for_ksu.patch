@@ -1,17 +1,17 @@
 From: midori01 <lv@lvlv.lv>
-Date: Thu, 3 Sep 2026 09:06:59 +0900
+Date: Thu, 3 Sep 2026 09:13:07 +0900
 Subject: [PATCH] Enable extra features for MidoriSU-NX
 
 ---
- kernel/supercall/dispatch.c | 61 ++++++++++++++++++++++++++++++++-----
+ kernel/supercall/dispatch.c | 59 +++++++++++++++++++++++++++++++------
  uapi/supercall.h            | 16 ++++++++--
- 2 files changed, 66 insertions(+), 11 deletions(-)
+ 2 files changed, 63 insertions(+), 12 deletions(-)
 
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index 902631d99..46e3354b6 100644
+index 902631d99..9d1c2411d 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
-@@ -690,24 +690,57 @@ static int add_try_umount(void __user *arg)
+@@ -690,24 +690,53 @@ static int add_try_umount(void __user *arg)
      return 0;
  }
  
@@ -21,18 +21,15 @@ index 902631d99..46e3354b6 100644
 -    struct ksu_get_hook_mode_cmd cmd = {0};
 +    struct ksu_hook_type_cmd cmd = {0};
  
-+#ifndef CONFIG_KSU_SUSFS
- #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
+-#ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 -    strscpy(cmd.mode, "Tracepoint", sizeof(cmd.mode));
++#ifdef CONFIG_KSU_SUSFS
++    strscpy(cmd.hook_type, "De-inlined SUSFS", sizeof(cmd.hook_type));
++#elif defined(CONFIG_HAVE_SYSCALL_TRACEPOINTS)
 +    strscpy(cmd.hook_type, "Tracepoint", sizeof(cmd.hook_type));
  #else
 -    strscpy(cmd.mode, "Kprobes", sizeof(cmd.mode));
 +    strscpy(cmd.hook_type, "Kprobes", sizeof(cmd.hook_type));
-+#endif
-+#elif defined(CONFIG_HAVE_SYSCALL_TRACEPOINTS) || defined(CONFIG_KPROBES)
-+    strscpy(cmd.hook_type, "Hybrid", sizeof(cmd.hook_type));
-+#else
-+    strscpy(cmd.hook_type, "Inline", sizeof(cmd.hook_type));
  #endif
  
      if (copy_to_user(arg, &cmd, sizeof(cmd))) {
@@ -74,7 +71,7 @@ index 902631d99..46e3354b6 100644
  static int do_get_version_tag(void __user *arg)
  {
      struct ksu_get_version_tag_cmd cmd = {0};
-@@ -926,9 +959,21 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
+@@ -926,9 +955,21 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
          .perm_check = only_root 
      },
      {
