@@ -1,970 +1,448 @@
-From c734fb78feed4384dbac49a6f3c106eb1b13767c Mon Sep 17 00:00:00 2001
-From: MiCat-S <86354789+MiCat-S@users.noreply.github.com>
-Date: Thu, 3 Sep 2026 13:29:54 +0800
-Subject: [PATCH] Add universal KernelSU toolkit with private SULOG
+From: midori01 <lv@lvlv.lv>
+Date: Fri, 4 Sep 2026 20:12:12 +0900
+Subject: [PATCH] Import ksu_toolkit for Midori-OX
 
 ---
- kernel/Kbuild               |   5 +
- kernel/core/init.c          |   3 +
- kernel/feature/sucompat.h   |  16 +
- kernel/ksu_toolkit.c        | 792 ++++++++++++++++++++++++++++++++++++
- kernel/ksu_toolkit.h        |  11 +
- kernel/sulog/event.h        |  12 +
- kernel/supercall/dispatch.c |  17 +
- 7 files changed, 856 insertions(+)
- create mode 100644 kernel/ksu_toolkit.c
- create mode 100644 kernel/ksu_toolkit.h
+ kernel/feature/sucompat.c    |   5 +
+ kernel/supercall/dispatch.c  |  63 ++++++++++
+ kernel/supercall/supercall.c |   8 ++
+ kernel/supercall/supercall.h |  15 +++
+ kernel/toolkit.h             | 232 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 323 insertions(+)
+ create mode 100644 kernel/toolkit.h
 
-diff --git a/kernel/Kbuild b/kernel/Kbuild
-index 85932d39..e2ac227e 100644
---- a/kernel/Kbuild
-+++ b/kernel/Kbuild
-@@ -1,4 +1,9 @@
- kernelsu-objs := core/init.o
-+kernelsu-objs += ksu_toolkit.o
-+
-+ifndef CONFIG_KSU_SUSFS
-+CFLAGS_feature/sucompat.o += -DKSU_TOOLKIT_SUCOMPAT_TU
-+endif
- 
- kernelsu-objs += feature/kernel_umount.o
- kernelsu-objs += feature/sulog.o
-diff --git a/kernel/core/init.c b/kernel/core/init.c
-index e9cd1023..93b3e3e0 100644
---- a/kernel/core/init.c
-+++ b/kernel/core/init.c
-@@ -19,6 +19,7 @@
- #include "runtime/ksud_boot.h"
- #include "feature/sulog.h"
- #include "supercall/supercall.h"
-+#include "ksu_toolkit.h"
+diff --git a/kernel/feature/sucompat.c b/kernel/feature/sucompat.c
+index 1ba7b58e6..fc1362767 100644
+--- a/kernel/feature/sucompat.c
++++ b/kernel/feature/sucompat.c
+@@ -26,6 +26,7 @@
+ #include "sulog/event.h"
  #include "ksu.h"
- #include "infra/file_wrapper.h"
- #include "selinux/selinux.h"
-@@ -187,2 +188,3 @@ int __init kernelsu_init(void)
-+    ksu_toolkit_init();
-     return 0;
- }
-@@ -194,2 +196,3 @@ void __exit kernelsu_exit(void)
-+    ksu_toolkit_exit();
-     ksu_supercalls_exit();
+ #include "util.h"
++#include "supercall/supercall.h"
  
-diff --git a/kernel/feature/sucompat.h b/kernel/feature/sucompat.h
-index 5e2cfe11..644bcead 100644
---- a/kernel/feature/sucompat.h
-+++ b/kernel/feature/sucompat.h
-@@ -8,2 +8,18 @@
- void ksu_sucompat_init(void);
-+
-+#ifdef CONFIG_KSU_SUSFS
-+struct filename;
-+noinline int ksu_handle_faccessat(int *dfd, struct filename **filename,
-+                                  int *mode, int *__unused_flags);
-+noinline int ksu_handle_stat(int *dfd, struct filename **filename, int *flags);
-+#else
-+noinline long ksu_handle_faccessat_sucompat(int orig_nr, struct pt_regs *regs);
-+noinline long ksu_handle_stat_sucompat(int orig_nr, struct pt_regs *regs);
-+#ifdef KSU_TOOLKIT_SUCOMPAT_TU
-+#define is_ksud_exists ksu_toolkit_is_ksud_exists
-+static noinline __used bool ksu_toolkit_is_ksud_exists(void)
-+    __asm__("ksu_toolkit_is_ksud_exists");
-+#endif
-+#endif
-+
- void ksu_sucompat_exit(void);
-diff --git a/kernel/ksu_toolkit.c b/kernel/ksu_toolkit.c
-new file mode 100644
-index 00000000..dd9c0660
---- /dev/null
-+++ b/kernel/ksu_toolkit.c
-@@ -0,0 +1,792 @@
-+#include <linux/atomic.h>
-+#include <linux/compiler.h>
-+#include <linux/cred.h>
-+#include <linux/err.h>
-+#include <linux/fs.h>
-+#include <linux/kprobes.h>
-+#include <linux/list.h>
-+#include <linux/module.h>
-+#include <linux/namei.h>
-+#include <linux/ptrace.h>
-+#include <linux/sched.h>
-+#include <linux/slab.h>
-+#include <linux/spinlock.h>
-+#include <linux/string.h>
-+#include <linux/task_work.h>
-+#include <linux/timekeeping.h>
-+#include <linux/uaccess.h>
-+#include <linux/uidgid.h>
-+#include <linux/utsname.h>
-+#include <linux/wait.h>
-+
-+#include "arch.h"
-+#include "feature/sucompat.h"
-+#include "klog.h"
-+#include "ksu.h"
-+#include "ksu_toolkit.h"
-+#include "manager/manager_identity.h"
-+#include "policy/allowlist.h"
-+#include "runtime/ksud.h"
-+#include "selinux/selinux.h"
-+#include "sulog/event.h"
-+#include "uapi/supercall.h"
-+
-+#define TOOLKIT_CHANGE_MANAGER_UID 10006
-+#define TOOLKIT_GET_SULOG_DUMP_V2 10010
-+#define TOOLKIT_CHANGE_KSUVER 10011
-+#define TOOLKIT_CHANGE_SPOOF_UNAME 10012
-+#define TOOLKIT_CHANGE_KSUFLAGS 10013
-+
-+#define TOOLKIT_SU_PATH "/system/bin/su"
-+#define TOOLKIT_SH_PATH "/system/bin/sh"
-+#define TOOLKIT_SULOG_ENTRY_MAX 250U
-+
-+struct toolkit_sulog_entry {
-+    u32 s_time;
-+    u32 data;
-+} __packed;
-+
-+struct toolkit_sulog_receive {
-+    u64 index_ptr;
-+    u64 buf_ptr;
-+    u64 uptime_ptr;
-+};
-+
-+struct toolkit_work {
-+    struct callback_head work;
-+    u32 op;
-+    u32 value;
-+    unsigned long user_arg;
-+};
-+
-+#ifdef CONFIG_KSU_SUSFS
-+struct toolkit_susfs_as_data {
-+    struct filename *filename;
-+    u32 uid;
-+    u8 sym;
-+    bool was_su;
-+};
-+#else
-+struct toolkit_nosus_as_data {
-+    struct hlist_node node;
-+    struct task_struct *task;
-+    u32 uid;
-+    u8 sym;
-+    bool active;
-+};
-+
-+struct toolkit_nosus_ksud_data {
-+    u32 uid;
-+    u8 sym;
-+    bool active;
-+};
-+#endif
-+
-+static u32 ksuver_override;
-+static u32 ksuflags_override;
-+
-+__ADDRESSABLE(ksu_sulog_emit_grant_root);
-+__ADDRESSABLE(ksu_sulog_capture_sucompat);
-+#ifdef CONFIG_KSU_SUSFS
-+__ADDRESSABLE(ksu_handle_faccessat);
-+__ADDRESSABLE(ksu_handle_stat);
-+#else
-+__ADDRESSABLE(ksu_handle_faccessat_sucompat);
-+__ADDRESSABLE(ksu_handle_stat_sucompat);
-+#endif
-+
-+u32 ksu_toolkit_version_override(void)
-+{
-+    return READ_ONCE(ksuver_override);
-+}
-+
-+u32 ksu_toolkit_flags_override(void)
-+{
-+    return READ_ONCE(ksuflags_override);
-+}
-+
-+static struct toolkit_sulog_entry toolkit_sulog_entries[TOOLKIT_SULOG_ENTRY_MAX];
-+static DEFINE_SPINLOCK(toolkit_sulog_lock);
-+static u32 toolkit_sulog_next;
-+static bool toolkit_sulog_enabled;
-+static atomic_t toolkit_accepting = ATOMIC_INIT(0);
-+
-+static bool reboot_registered;
-+static bool grant_registered;
-+static bool exec_registered;
-+static bool faccess_registered;
-+static bool stat_registered;
-+#ifndef CONFIG_KSU_SUSFS
-+static bool ksud_registered;
-+static HLIST_HEAD(toolkit_nosus_active);
-+static DEFINE_SPINLOCK(toolkit_nosus_active_lock);
-+static atomic_t toolkit_nosus_active_count = ATOMIC_INIT(0);
-+static DECLARE_WAIT_QUEUE_HEAD(toolkit_nosus_active_wait);
-+#endif
-+
-+#ifdef MODULE
-+static struct rw_semaphore *toolkit_uts_sem;
-+
-+#ifdef CONFIG_ARM64
-+typedef unsigned long (*toolkit_lookup_name_fn)(const char *name);
-+
-+static int __nocfi toolkit_resolve_uts_sem(void)
-+{
-+    struct kprobe lookup_probe = {
-+        .symbol_name = "kallsyms_lookup_name",
-+    };
-+    toolkit_lookup_name_fn lookup_name;
-+    int ret;
-+
-+    ret = register_kprobe(&lookup_probe);
-+    if (ret)
-+        return ret;
-+
-+    lookup_name = (toolkit_lookup_name_fn)lookup_probe.addr;
-+    unregister_kprobe(&lookup_probe);
-+    if (!lookup_name)
-+        return -ENOENT;
-+
-+    toolkit_uts_sem = (struct rw_semaphore *)lookup_name("uts_sem");
-+    return toolkit_uts_sem ? 0 : -ENOENT;
-+}
-+#else
-+static int toolkit_resolve_uts_sem(void)
-+{
-+    return -EOPNOTSUPP;
-+}
-+#endif
-+#else
-+#define toolkit_uts_sem (&uts_sem)
-+#endif
-+
-+static void toolkit_sulog_write(u8 sym, u32 uid)
-+{
-+    struct toolkit_sulog_entry entry;
-+    unsigned long flags;
-+
-+    if (!atomic_read(&toolkit_accepting) || !READ_ONCE(toolkit_sulog_enabled))
-+        return;
-+
-+    entry.s_time = (u32)ktime_get_boottime_seconds();
-+    entry.data = (uid & 0x00ffffffU) | ((u32)sym << 24);
-+
-+    spin_lock_irqsave(&toolkit_sulog_lock, flags);
-+    if (toolkit_sulog_enabled) {
-+        toolkit_sulog_entries[toolkit_sulog_next] = entry;
-+        toolkit_sulog_next = (toolkit_sulog_next + 1U) % TOOLKIT_SULOG_ENTRY_MAX;
-+    }
-+    spin_unlock_irqrestore(&toolkit_sulog_lock, flags);
-+}
-+
-+static bool toolkit_user_path_is_su(const char __user *path)
-+{
-+    char value[sizeof(TOOLKIT_SU_PATH)];
-+
-+    if (!path)
-+        return false;
-+
-+    if (copy_from_user_nofault(value,
-+                               (const void __user *)untagged_addr((unsigned long)path),
-+                               sizeof(value)))
-+        return false;
-+
-+    return !memcmp(value, TOOLKIT_SU_PATH, sizeof(value));
-+}
-+
-+static int toolkit_ack(unsigned long user_arg)
-+{
-+    unsigned long reply = user_arg;
-+
-+    if (!user_arg)
-+        return -EINVAL;
-+
-+    return copy_to_user((void __user *)user_arg, &reply, sizeof(reply)) ? -EFAULT : 0;
-+}
-+
-+static int toolkit_dump_sulog(unsigned long user_arg)
-+{
-+    struct toolkit_sulog_entry *snapshot;
-+    struct toolkit_sulog_receive receive;
-+    unsigned long flags;
-+    u32 next;
-+    u32 uptime;
-+    int ret = 0;
-+
-+    if (!READ_ONCE(toolkit_sulog_enabled))
-+        return -EOPNOTSUPP;
-+
-+    if (copy_from_user(&receive, (void __user *)user_arg, sizeof(receive)))
-+        return -EFAULT;
-+    if (!receive.index_ptr || !receive.buf_ptr || !receive.uptime_ptr)
-+        return -EINVAL;
-+
-+    snapshot = kmalloc(sizeof(toolkit_sulog_entries), GFP_KERNEL);
-+    if (!snapshot)
-+        return -ENOMEM;
-+
-+    spin_lock_irqsave(&toolkit_sulog_lock, flags);
-+    if (!toolkit_sulog_enabled) {
-+        spin_unlock_irqrestore(&toolkit_sulog_lock, flags);
-+        kfree(snapshot);
-+        return -EOPNOTSUPP;
-+    }
-+    memcpy(snapshot, toolkit_sulog_entries, sizeof(toolkit_sulog_entries));
-+    next = toolkit_sulog_next;
-+    uptime = (u32)ktime_get_boottime_seconds();
-+    spin_unlock_irqrestore(&toolkit_sulog_lock, flags);
-+
-+    if (copy_to_user((void __user *)(uintptr_t)receive.buf_ptr, snapshot,
-+                     sizeof(toolkit_sulog_entries)) ||
-+        copy_to_user((void __user *)(uintptr_t)receive.index_ptr, &next, sizeof(next)) ||
-+        copy_to_user((void __user *)(uintptr_t)receive.uptime_ptr, &uptime, sizeof(uptime)))
-+        ret = -EFAULT;
-+
-+    kfree(snapshot);
-+    return ret;
-+}
-+
-+static int toolkit_spoof_uname(unsigned long user_arg)
-+{
-+    static char original_release[__NEW_UTS_LEN + 1];
-+    static char original_version[__NEW_UTS_LEN + 1];
-+    char release[__NEW_UTS_LEN + 1];
-+    char version[__NEW_UTS_LEN + 1];
-+    struct new_utsname *name;
-+    u64 strings_ptr;
-+    u64 release_ptr;
-+    long copied;
-+    size_t release_len;
-+
-+    if (copy_from_user(&strings_ptr, (void __user *)user_arg, sizeof(strings_ptr)) ||
-+        !strings_ptr)
-+        return -EFAULT;
-+    if (copy_from_user(&release_ptr, (void __user *)(uintptr_t)strings_ptr,
-+                       sizeof(release_ptr)) ||
-+        !release_ptr)
-+        return -EFAULT;
-+
-+    copied = strncpy_from_user(release, (char __user *)(uintptr_t)release_ptr,
-+                               sizeof(release));
-+    if (copied < 0)
-+        return -EFAULT;
-+    if (copied >= sizeof(release))
-+        return -ENAMETOOLONG;
-+    release[sizeof(release) - 1] = '\0';
-+    release_len = strnlen(release, sizeof(release));
-+
-+    copied = strncpy_from_user(version,
-+                               (char __user *)(uintptr_t)(release_ptr + release_len + 1),
-+                               sizeof(version));
-+    if (copied < 0)
-+        return -EFAULT;
-+    if (copied >= sizeof(version))
-+        return -ENAMETOOLONG;
-+    version[sizeof(version) - 1] = '\0';
-+
-+    down_write(toolkit_uts_sem);
-+    name = utsname();
-+    if (!original_release[0]) {
-+        strscpy(original_release, name->release, sizeof(original_release));
-+        strscpy(original_version, name->version, sizeof(original_version));
-+    }
-+    if (!strcmp(release, "default"))
-+        strscpy(release, original_release, sizeof(release));
-+    if (!strcmp(version, "default"))
-+        strscpy(version, original_version, sizeof(version));
-+    strscpy(name->release, release, sizeof(name->release));
-+    strscpy(name->version, version, sizeof(name->version));
-+    up_write(toolkit_uts_sem);
-+
-+    return 0;
-+}
-+
-+static int toolkit_handle_command(struct toolkit_work *tw)
-+{
-+    int ret;
-+
-+    switch (tw->op) {
-+    case TOOLKIT_CHANGE_MANAGER_UID:
-+        ksu_set_manager_appid(tw->value);
-+        ret = tw->value == ksu_get_manager_appid() ? 0 : -EINVAL;
-+        break;
-+    case TOOLKIT_GET_SULOG_DUMP_V2:
-+        ret = toolkit_dump_sulog(tw->user_arg);
-+        break;
-+    case TOOLKIT_CHANGE_KSUVER:
-+        WRITE_ONCE(ksuver_override, tw->value);
-+        ret = 0;
-+        break;
-+    case TOOLKIT_CHANGE_SPOOF_UNAME:
-+        ret = toolkit_spoof_uname(tw->user_arg);
-+        break;
-+    case TOOLKIT_CHANGE_KSUFLAGS:
-+        WRITE_ONCE(ksuflags_override, tw->value);
-+        ret = 0;
-+        break;
-+    default:
-+        return -EINVAL;
-+    }
-+
-+    if (!ret)
-+        ret = toolkit_ack(tw->user_arg);
-+    return ret;
-+}
-+
-+static void toolkit_work_func(struct callback_head *work)
-+{
-+    struct toolkit_work *tw = container_of(work, struct toolkit_work, work);
-+
-+    if (atomic_read(&toolkit_accepting) && current->mm &&
-+        !(current->flags & PF_EXITING) &&
-+        uid_eq(current_uid(), GLOBAL_ROOT_UID) && toolkit_handle_command(tw))
-+        pr_debug("toolkit command %u failed\n", tw->op);
-+
-+    kfree(tw);
-+    module_put(THIS_MODULE);
-+}
-+
-+static bool toolkit_queue_work(u32 op, u32 value, unsigned long user_arg)
-+{
-+    struct toolkit_work *tw;
-+
-+    if (!atomic_read(&toolkit_accepting))
-+        return false;
-+
-+    tw = kzalloc(sizeof(*tw), GFP_ATOMIC);
-+    if (!tw)
-+        return false;
-+
-+    if (!try_module_get(THIS_MODULE)) {
-+        kfree(tw);
-+        return false;
-+    }
-+
-+    init_task_work(&tw->work, toolkit_work_func);
-+    tw->op = op;
-+    tw->value = value;
-+    tw->user_arg = user_arg;
-+
-+    if (task_work_add(current, &tw->work, TWA_RESUME)) {
-+        module_put(THIS_MODULE);
-+        kfree(tw);
-+        return false;
-+    }
-+    return true;
-+}
-+
-+static bool toolkit_is_command(u32 op)
-+{
-+    return op == TOOLKIT_CHANGE_MANAGER_UID || op == TOOLKIT_GET_SULOG_DUMP_V2 ||
-+           op == TOOLKIT_CHANGE_KSUVER || op == TOOLKIT_CHANGE_SPOOF_UNAME ||
-+           op == TOOLKIT_CHANGE_KSUFLAGS;
-+}
-+
-+static int toolkit_reboot_pre(struct kprobe *probe, struct pt_regs *regs)
-+{
-+    struct pt_regs *sys_regs = PT_REAL_REGS(regs);
-+    u32 magic1 = (u32)PT_REGS_PARM1(sys_regs);
-+    u32 op = (u32)PT_REGS_PARM2(sys_regs);
-+
-+    if (magic1 != KSU_INSTALL_MAGIC1 || !toolkit_is_command(op) ||
-+        !uid_eq(current_uid(), GLOBAL_ROOT_UID))
-+        return 0;
-+
-+    toolkit_queue_work(op, (u32)PT_REGS_PARM3(sys_regs),
-+                       (unsigned long)PT_REGS_SYSCALL_PARM4(sys_regs));
-+    return 0;
-+}
-+
-+static int toolkit_grant_pre(struct kprobe *probe, struct pt_regs *regs)
-+{
-+    toolkit_sulog_write('i', (u32)PT_REGS_PARM2(regs));
-+    return 0;
-+}
-+
-+static int toolkit_exec_pre(struct kprobe *probe, struct pt_regs *regs)
-+{
-+#ifdef CONFIG_KSU_SUSFS
-+    const char *path = (const char *)PT_REGS_PARM1(regs);
-+
-+    if (path && !is_init(current_cred()) && !memcmp(path, KSUD_PATH, sizeof(KSUD_PATH)))
-+        toolkit_sulog_write('x', current_uid().val);
-+#else
-+    const char __user *path = (const char __user *)PT_REGS_PARM1(regs);
-+
-+    if (toolkit_user_path_is_su(path))
-+        toolkit_sulog_write('x', current_uid().val);
-+#endif
-+    return 0;
-+}
-+
-+#ifdef CONFIG_KSU_SUSFS
-+static int toolkit_susfs_as_entry(struct kretprobe_instance *instance,
-+                                  struct pt_regs *regs, u8 sym)
-+{
-+    struct toolkit_susfs_as_data *data = (void *)instance->data;
-+    struct filename **filename_ptr = (struct filename **)PT_REGS_PARM2(regs);
-+    struct filename *filename = filename_ptr ? READ_ONCE(*filename_ptr) : NULL;
-+
-+    data->filename = filename;
-+    data->uid = current_uid().val;
-+    data->sym = sym;
-+    data->was_su = !IS_ERR_OR_NULL(filename) && filename->name &&
-+                   !memcmp(filename->name, TOOLKIT_SU_PATH, sizeof(TOOLKIT_SU_PATH));
-+    return data->was_su ? 0 : 1;
-+}
-+
-+static int toolkit_susfs_faccess_entry(struct kretprobe_instance *instance,
-+                                       struct pt_regs *regs)
-+{
-+    return toolkit_susfs_as_entry(instance, regs, 'a');
-+}
-+
-+static int toolkit_susfs_stat_entry(struct kretprobe_instance *instance,
-+                                    struct pt_regs *regs)
-+{
-+    return toolkit_susfs_as_entry(instance, regs, 's');
-+}
-+
-+static int toolkit_susfs_as_return(struct kretprobe_instance *instance,
-+                                   struct pt_regs *regs)
-+{
-+    struct toolkit_susfs_as_data *data = (void *)instance->data;
-+
-+    if (data->was_su && !IS_ERR_OR_NULL(data->filename) && data->filename->name &&
-+        !memcmp(data->filename->name, TOOLKIT_SH_PATH, sizeof(TOOLKIT_SH_PATH)))
-+        toolkit_sulog_write(data->sym, data->uid);
-+    return 0;
-+}
-+#else
-+static int toolkit_nosus_as_entry(struct kretprobe_instance *instance,
-+                                  struct pt_regs *regs, u8 sym)
-+{
-+    struct toolkit_nosus_as_data *data = (void *)instance->data;
-+    struct pt_regs *sys_regs = (struct pt_regs *)PT_REGS_PARM2(regs);
-+    const char __user *path;
-+    unsigned long flags;
-+
-+    INIT_HLIST_NODE(&data->node);
-+    data->active = false;
-+
-+    if (!sys_regs || !ksu_is_allow_uid_for_current(current_uid().val))
-+        return 1;
-+
-+    path = (const char __user *)PT_REGS_PARM2(sys_regs);
-+    if (!toolkit_user_path_is_su(path))
-+        return 1;
-+
-+    data->task = current;
-+    data->uid = current_uid().val;
-+    data->sym = sym;
-+    data->active = true;
-+
-+    spin_lock_irqsave(&toolkit_nosus_active_lock, flags);
-+    if (!atomic_read(&toolkit_accepting)) {
-+        spin_unlock_irqrestore(&toolkit_nosus_active_lock, flags);
-+        data->active = false;
-+        return 1;
-+    }
-+    hlist_add_head(&data->node, &toolkit_nosus_active);
-+    atomic_inc(&toolkit_nosus_active_count);
-+    spin_unlock_irqrestore(&toolkit_nosus_active_lock, flags);
-+    return 0;
-+}
-+
-+static int toolkit_nosus_faccess_entry(struct kretprobe_instance *instance,
-+                                       struct pt_regs *regs)
-+{
-+    return toolkit_nosus_as_entry(instance, regs, 'a');
-+}
-+
-+static int toolkit_nosus_stat_entry(struct kretprobe_instance *instance,
-+                                    struct pt_regs *regs)
-+{
-+    return toolkit_nosus_as_entry(instance, regs, 's');
-+}
-+
-+static int toolkit_nosus_as_return(struct kretprobe_instance *instance,
-+                                   struct pt_regs *regs)
-+{
-+    struct toolkit_nosus_as_data *data = (void *)instance->data;
-+    unsigned long flags;
-+    bool wake = false;
-+
-+    if (!data->active)
-+        return 0;
-+
-+    spin_lock_irqsave(&toolkit_nosus_active_lock, flags);
-+    if (!hlist_unhashed(&data->node)) {
-+        hlist_del_init(&data->node);
-+        wake = atomic_dec_and_test(&toolkit_nosus_active_count);
-+    }
-+    spin_unlock_irqrestore(&toolkit_nosus_active_lock, flags);
-+    data->active = false;
-+
-+    if (wake)
-+        wake_up_all(&toolkit_nosus_active_wait);
-+    return 0;
-+}
-+
-+static int toolkit_nosus_ksud_entry(struct kretprobe_instance *instance,
-+                                    struct pt_regs *regs)
-+{
-+    struct toolkit_nosus_ksud_data *data = (void *)instance->data;
-+    struct toolkit_nosus_as_data *active;
-+    unsigned long flags;
-+
-+    data->active = false;
-+    spin_lock_irqsave(&toolkit_nosus_active_lock, flags);
-+    hlist_for_each_entry(active, &toolkit_nosus_active, node) {
-+        if (active->task == current) {
-+            data->uid = active->uid;
-+            data->sym = active->sym;
-+            data->active = true;
-+            break;
-+        }
-+    }
-+    spin_unlock_irqrestore(&toolkit_nosus_active_lock, flags);
-+
-+    return data->active ? 0 : 1;
-+}
-+
-+static int toolkit_nosus_ksud_return(struct kretprobe_instance *instance,
-+                                     struct pt_regs *regs)
-+{
-+    struct toolkit_nosus_ksud_data *data = (void *)instance->data;
-+
-+    if (data->active && (u8)regs_return_value(regs))
-+        toolkit_sulog_write(data->sym, data->uid);
-+    return 0;
-+}
-+#endif
-+
-+static struct kprobe reboot_probe = {
-+    .symbol_name = REBOOT_SYMBOL,
-+    .pre_handler = toolkit_reboot_pre,
-+};
-+
-+static struct kprobe grant_probe = {
-+    .symbol_name = "ksu_sulog_emit_grant_root",
-+    .pre_handler = toolkit_grant_pre,
-+};
-+
-+static struct kprobe exec_probe = {
-+    .symbol_name = "ksu_sulog_capture_sucompat",
-+    .pre_handler = toolkit_exec_pre,
-+};
-+
-+#ifdef CONFIG_KSU_SUSFS
-+static struct kretprobe faccess_probe = {
-+    .kp.symbol_name = "ksu_handle_faccessat",
-+    .entry_handler = toolkit_susfs_faccess_entry,
-+    .handler = toolkit_susfs_as_return,
-+    .data_size = sizeof(struct toolkit_susfs_as_data),
-+    .maxactive = 64,
-+};
-+
-+static struct kretprobe stat_probe = {
-+    .kp.symbol_name = "ksu_handle_stat",
-+    .entry_handler = toolkit_susfs_stat_entry,
-+    .handler = toolkit_susfs_as_return,
-+    .data_size = sizeof(struct toolkit_susfs_as_data),
-+    .maxactive = 64,
-+};
-+#else
-+static struct kretprobe faccess_probe = {
-+    .kp.symbol_name = "ksu_handle_faccessat_sucompat",
-+    .entry_handler = toolkit_nosus_faccess_entry,
-+    .handler = toolkit_nosus_as_return,
-+    .data_size = sizeof(struct toolkit_nosus_as_data),
-+    .maxactive = 64,
-+};
-+
-+static struct kretprobe stat_probe = {
-+    .kp.symbol_name = "ksu_handle_stat_sucompat",
-+    .entry_handler = toolkit_nosus_stat_entry,
-+    .handler = toolkit_nosus_as_return,
-+    .data_size = sizeof(struct toolkit_nosus_as_data),
-+    .maxactive = 64,
-+};
-+
-+static struct kretprobe ksud_probe = {
-+    .kp.symbol_name = "ksu_toolkit_is_ksud_exists",
-+    .entry_handler = toolkit_nosus_ksud_entry,
-+    .handler = toolkit_nosus_ksud_return,
-+    .data_size = sizeof(struct toolkit_nosus_ksud_data),
-+    .maxactive = 128,
-+};
-+#endif
-+
-+static void toolkit_unregister_sulog_probes(void)
-+{
-+#ifdef CONFIG_KSU_SUSFS
-+    if (stat_registered)
-+        unregister_kretprobe(&stat_probe);
-+    if (faccess_registered)
-+        unregister_kretprobe(&faccess_probe);
-+#else
-+    if (stat_registered)
-+        unregister_kretprobe(&stat_probe);
-+    if (faccess_registered)
-+        unregister_kretprobe(&faccess_probe);
-+    if (ksud_registered)
-+        unregister_kretprobe(&ksud_probe);
-+#endif
-+    if (exec_registered)
-+        unregister_kprobe(&exec_probe);
-+    if (grant_registered)
-+        unregister_kprobe(&grant_probe);
-+
-+    stat_registered = false;
-+    faccess_registered = false;
-+#ifndef CONFIG_KSU_SUSFS
-+    ksud_registered = false;
-+#endif
-+    exec_registered = false;
-+    grant_registered = false;
-+}
-+
-+static int toolkit_register_sulog_probes(void)
-+{
-+    int ret;
-+
-+    ret = register_kprobe(&grant_probe);
-+    if (ret) {
-+        pr_err("toolkit SULOG disabled: required probe %s failed: %d\n",
-+               grant_probe.symbol_name, ret);
-+        return ret;
-+    }
-+    grant_registered = true;
-+
-+    ret = register_kprobe(&exec_probe);
-+    if (ret) {
-+        pr_err("toolkit SULOG disabled: required probe %s failed: %d\n",
-+               exec_probe.symbol_name, ret);
-+        goto error;
-+    }
-+    exec_registered = true;
-+
-+#ifndef CONFIG_KSU_SUSFS
-+    ret = register_kretprobe(&ksud_probe);
-+    if (ret) {
-+        pr_err("toolkit SULOG disabled: required probe %s failed: %d\n",
-+               ksud_probe.kp.symbol_name, ret);
-+        goto error;
-+    }
-+    ksud_registered = true;
-+#endif
-+
-+    ret = register_kretprobe(&faccess_probe);
-+    if (ret) {
-+        pr_err("toolkit SULOG disabled: required probe %s failed: %d\n",
-+               faccess_probe.kp.symbol_name, ret);
-+        goto error;
-+    }
-+    faccess_registered = true;
-+
-+    ret = register_kretprobe(&stat_probe);
-+    if (ret) {
-+        pr_err("toolkit SULOG disabled: required probe %s failed: %d\n",
-+               stat_probe.kp.symbol_name, ret);
-+        goto error;
-+    }
-+    stat_registered = true;
-+    return 0;
-+
-+error:
-+    toolkit_unregister_sulog_probes();
-+    return ret;
-+}
-+
-+noinline void ksu_toolkit_init(void)
-+{
-+    unsigned long flags;
-+    int ret;
-+
-+    BUILD_BUG_ON(sizeof(struct toolkit_sulog_entry) != 8);
-+
-+    atomic_set(&toolkit_accepting, 0);
-+    WRITE_ONCE(ksuver_override, 0);
-+    WRITE_ONCE(ksuflags_override, 0);
-+
-+#ifdef MODULE
-+    ret = toolkit_resolve_uts_sem();
-+    if (ret) {
-+        pr_err("toolkit cannot resolve uts_sem: %d\n", ret);
-+        return;
-+    }
-+#endif
-+
-+    spin_lock_irqsave(&toolkit_sulog_lock, flags);
-+    memset(toolkit_sulog_entries, 0, sizeof(toolkit_sulog_entries));
-+    toolkit_sulog_next = 0;
-+    toolkit_sulog_enabled = false;
-+    spin_unlock_irqrestore(&toolkit_sulog_lock, flags);
-+
-+#ifndef CONFIG_KSU_SUSFS
-+    INIT_HLIST_HEAD(&toolkit_nosus_active);
-+    atomic_set(&toolkit_nosus_active_count, 0);
-+#endif
-+
-+    ret = register_kprobe(&reboot_probe);
-+    if (ret) {
-+        pr_err("toolkit reboot probe %s failed: %d\n", reboot_probe.symbol_name,
-+               ret);
-+        return;
-+    }
-+    reboot_registered = true;
-+
-+    ret = toolkit_register_sulog_probes();
-+    if (ret) {
-+        pr_err("toolkit SULOG probes failed: %d\n", ret);
-+    } else {
-+        spin_lock_irqsave(&toolkit_sulog_lock, flags);
-+        toolkit_sulog_enabled = true;
-+        spin_unlock_irqrestore(&toolkit_sulog_lock, flags);
-+        pr_info("toolkit SULOG probes registered\n");
-+    }
-+
-+    atomic_set(&toolkit_accepting, 1);
-+    pr_info("toolkit reboot probe registered\n");
-+}
-+
-+noinline void ksu_toolkit_exit(void)
-+{
-+    unsigned long flags;
-+
-+    atomic_set(&toolkit_accepting, 0);
-+    if (reboot_registered) {
-+        unregister_kprobe(&reboot_probe);
-+        reboot_registered = false;
-+    }
-+
-+#ifndef CONFIG_KSU_SUSFS
-+    spin_lock_irqsave(&toolkit_nosus_active_lock, flags);
-+    spin_unlock_irqrestore(&toolkit_nosus_active_lock, flags);
-+    wait_event(toolkit_nosus_active_wait,
-+               atomic_read(&toolkit_nosus_active_count) == 0);
-+#endif
-+
-+    toolkit_unregister_sulog_probes();
-+
-+#ifdef CONFIG_KSU_SUSFS
-+    if (faccess_probe.nmissed || stat_probe.nmissed)
-+        pr_warn("toolkit SULOG probes missed events: faccessat=%d stat=%d\n",
-+                faccess_probe.nmissed, stat_probe.nmissed);
-+#else
-+    if (faccess_probe.nmissed || stat_probe.nmissed || ksud_probe.nmissed)
-+        pr_warn("toolkit SULOG probes missed events: faccessat=%d stat=%d ksud=%d\n",
-+                faccess_probe.nmissed, stat_probe.nmissed, ksud_probe.nmissed);
-+#endif
-+
-+    spin_lock_irqsave(&toolkit_sulog_lock, flags);
-+    toolkit_sulog_enabled = false;
-+    memset(toolkit_sulog_entries, 0, sizeof(toolkit_sulog_entries));
-+    toolkit_sulog_next = 0;
-+    spin_unlock_irqrestore(&toolkit_sulog_lock, flags);
-+
-+#ifdef MODULE
-+    toolkit_uts_sem = NULL;
-+#endif
-+}
-diff --git a/kernel/ksu_toolkit.h b/kernel/ksu_toolkit.h
-new file mode 100644
-index 00000000..fed60e54
---- /dev/null
-+++ b/kernel/ksu_toolkit.h
-@@ -0,0 +1,11 @@
-+#ifndef __KSU_TOOLKIT_H
-+#define __KSU_TOOLKIT_H
-+
-+#include <linux/types.h>
-+
-+void ksu_toolkit_init(void);
-+void ksu_toolkit_exit(void);
-+u32 ksu_toolkit_version_override(void);
-+u32 ksu_toolkit_flags_override(void);
-+
-+#endif
-diff --git a/kernel/sulog/event.h b/kernel/sulog/event.h
-index 635ec01c..eb635317 100644
---- a/kernel/sulog/event.h
-+++ b/kernel/sulog/event.h
-@@ -9,6 +9,18 @@
- struct ksu_event_queue;
- struct ksu_sulog_pending_event;
+ #define SU_PATH "/system/bin/su"
+ #define SH_PATH "/system/bin/sh"
+@@ -104,6 +105,7 @@ long ksu_handle_faccessat_sucompat(int orig_nr, struct pt_regs *regs)
+     strncpy_from_user_nofault(path, *filename_user, sizeof(path));
  
-+#ifdef CONFIG_KSU_SUSFS
-+struct user_arg_ptr;
-+noinline struct ksu_sulog_pending_event *ksu_sulog_capture_sucompat(
-+    const char *filename, struct user_arg_ptr *argv_user, gfp_t gfp);
-+#else
-+noinline struct ksu_sulog_pending_event *ksu_sulog_capture_sucompat(
-+    const char __user *filename_user,
-+    const char __user *const __user *argv_user, gfp_t gfp);
-+#endif
-+noinline int ksu_sulog_emit_grant_root(int retval, __u32 uid, __u32 euid,
-+                                       gfp_t gfp);
-+
- int ksu_sulog_events_init(void);
- void ksu_sulog_events_exit(void);
+     if (unlikely(!memcmp(path, su_path, sizeof(su_path)))) {
++        write_sulog('a');
+         old_cred = override_creds(ksu_cred);
+         if (is_ksud_exists()) {
+             pr_info("faccessat su->ksud!\n");
+@@ -139,6 +141,7 @@ long ksu_handle_stat_sucompat(int orig_nr, struct pt_regs *regs)
+     strncpy_from_user_nofault(path, *filename_user, sizeof(path));
  
+     if (unlikely(!memcmp(path, su_path, sizeof(su_path)))) {
++        write_sulog('s');
+         old_cred = override_creds(ksu_cred);
+         if (is_ksud_exists()) {
+             pr_info("newfstatat su->ksud!\n");
+@@ -193,6 +196,8 @@ static long ksu_handle_execve_sucompat_common(const char __user **filename_user,
+     if (likely(memcmp(path, su_path, sizeof(su_path))))
+         goto do_orig_execve;
+ 
++    write_sulog('x');
++
+     pr_info("sys_execve su found\n");
+ 
+     tmp_fd = get_unused_fd_flags(O_CLOEXEC);
 diff --git a/kernel/supercall/dispatch.c b/kernel/supercall/dispatch.c
-index ccf7183f..1eed5c10 100644
+index ccf7183fe..4465144f7 100644
 --- a/kernel/supercall/dispatch.c
 +++ b/kernel/supercall/dispatch.c
-@@ -21,6 +21,7 @@
- #include "sulog/event.h"
- #include "sulog/fd.h"
- #include "supercall/supercall.h"
-+#include "ksu_toolkit.h"
+@@ -30,6 +30,8 @@ static int do_grant_root(void __user *arg)
  
- static int do_grant_root(void __user *arg)
- {
-@@ -40,6 +41,7 @@ static int do_grant_root(void __user *arg)
- static int do_get_info(void __user *arg)
- {
-     struct ksu_get_info_cmd cmd = { .version = KERNEL_SU_VERSION, .flags = 0 };
-+    u32 override;
+     // we already check uid above on allowed_for_su()
  
- #ifdef MODULE
-     cmd.flags |= KSU_GET_INFO_FLAG_LKM;
-@@ -57,6 +59,13 @@ static int do_get_info(void __user *arg)
++    write_sulog('i'); // log ioctl escalation
++
+     pr_info("allow root for: %d\n", audit_uid);
+     ret = escape_with_root_profile();
+     ksu_sulog_emit_grant_root(ret, audit_uid, audit_euid, GFP_KERNEL);
+@@ -57,6 +59,12 @@ static int do_get_info(void __user *arg)
      cmd.features = KSU_FEATURE_MAX;
      cmd.uapi_version = KERNEL_SU_UAPI_VERSION;
  
-+    override = ksu_toolkit_version_override();
-+    if (override)
-+        cmd.version = override;
-+    override = ksu_toolkit_flags_override();
-+    if (override)
-+        cmd.flags = override;
++    if (ksuver_override)
++        cmd.version = ksuver_override;
++
++    if (ksuflags_override)
++        cmd.flags = ksuflags_override;
 +
      if (copy_to_user(arg, &cmd, sizeof(cmd))) {
          pr_err("get_version: copy_to_user failed\n");
          return -EFAULT;
-@@ -68,6 +77,7 @@ static int do_get_info(void __user *arg)
- static int do_get_info_legacy(void __user *arg)
- {
-     struct ksu_get_info_legacy_cmd cmd = { .version = KERNEL_SU_VERSION, .flags = 0 };
-+    u32 override;
- 
- #ifdef MODULE
-     cmd.flags |= KSU_GET_INFO_FLAG_LKM;
-@@ -84,6 +94,13 @@ static int do_get_info_legacy(void __user *arg)
+@@ -84,6 +92,12 @@ static int do_get_info_legacy(void __user *arg)
  #endif
      cmd.features = KSU_FEATURE_MAX;
  
-+    override = ksu_toolkit_version_override();
-+    if (override)
-+        cmd.version = override;
-+    override = ksu_toolkit_flags_override();
-+    if (override)
-+        cmd.flags = override;
++    if (ksuver_override)
++        cmd.version = ksuver_override;
++
++    if (ksuflags_override)
++        cmd.flags = ksuflags_override;
 +
      if (copy_to_user(arg, &cmd, sizeof(cmd))) {
          pr_err("get_version: copy_to_user failed\n");
          return -EFAULT;
+@@ -622,6 +636,55 @@ static int add_try_umount(void __user *arg)
+         return 0;
+     }
+ 
++    // this way userspace can deduce the memory it has to prepare.
++    case KSU_UMOUNT_GETSIZE: {
++        // check for pointer first
++        if (!cmd.arg)
++            return -EFAULT;
++
++        size_t total_size = 0; // size of list in bytes
++
++        down_read(&mount_list_lock);
++        list_for_each_entry (entry, &mount_list, list) {
++            total_size = total_size + strlen(entry->umountable) + 1; // + 1 for \0
++        }
++        up_read(&mount_list_lock);
++
++        pr_info("cmd_add_try_umount: total_size: %zu\n", total_size);
++
++        if (copy_to_user((size_t __user *)cmd.arg, &total_size, sizeof(total_size)))
++            return -EFAULT;
++
++        return 0;
++    }
++
++    // WARNING! this is straight up pointerwalking.
++    // this way we dont need to redefine the ioctl defs.
++    // this also avoids us needing to kmalloc
++    // userspace have to send pointer to memory (malloc/alloca) or pointer to a VLA.
++    case KSU_UMOUNT_GETLIST: {
++        if (!cmd.arg)
++            return -EFAULT;
++
++        char *user_buf = (char *)cmd.arg;
++
++        down_read(&mount_list_lock);
++        list_for_each_entry (entry, &mount_list, list) {
++            pr_info("cmd_add_try_umount: entry: %s\n", entry->umountable);
++
++            if (copy_to_user((char __user *)user_buf, entry->umountable, strlen(entry->umountable) + 1)) {
++                up_read(&mount_list_lock);
++                return -EFAULT;
++            }
++
++            // walk it! +1 for null terminator
++            user_buf = user_buf + strlen(entry->umountable) + 1;
++        }
++        up_read(&mount_list_lock);
++
++        return 0;
++    }
++
+     default: {
+         pr_err("cmd_add_try_umount: invalid operation %u\n", cmd.mode);
+         return -EINVAL;
+diff --git a/kernel/supercall/supercall.c b/kernel/supercall/supercall.c
+index 3dfd4abf9..7cfa27fb7 100644
+--- a/kernel/supercall/supercall.c
++++ b/kernel/supercall/supercall.c
+@@ -10,6 +10,7 @@
+ #include <linux/task_work.h>
+ #include <linux/uaccess.h>
+ #include <linux/version.h>
++#include "toolkit.h"
+ 
+ #include "uapi/supercall.h"
+ #include "supercall/internal.h"
+@@ -100,6 +101,11 @@ static int reboot_handler_pre(struct kprobe *p, struct pt_regs *regs)
+         }
+     }
+ 
++    if (magic1 == KSU_INSTALL_MAGIC1 && current_uid().val == 0) {
++        if (handle_toolkit_reboot(magic2, (unsigned int)PT_REGS_PARM3(real_regs), (unsigned long)PT_REGS_SYSCALL_PARM4(real_regs)))
++            return 0;
++    }
++
+     return 0;
+ }
+ 
+@@ -113,6 +119,7 @@ void __init ksu_supercalls_init(void)
+     int rc;
+ 
+     ksu_supercall_dump_commands();
++    tiny_sulog_init_heap();
+ 
+     rc = register_kprobe(&reboot_kp);
+     if (rc) {
+@@ -126,4 +133,5 @@ void __exit ksu_supercalls_exit(void)
+ {
+     unregister_kprobe(&reboot_kp);
+     ksu_supercall_cleanup_state();
++    tiny_sulog_cleanup();
+ }
+diff --git a/kernel/supercall/supercall.h b/kernel/supercall/supercall.h
+index fbedd11f8..5765aabc9 100644
+--- a/kernel/supercall/supercall.h
++++ b/kernel/supercall/supercall.h
+@@ -21,4 +21,19 @@ int ksu_install_fd(void);
+ 
+ void ksu_supercalls_init(void);
+ void ksu_supercalls_exit(void);
++
++// extensions
++#define CHANGE_MANAGER_UID 10006
++#define KSU_UMOUNT_GETSIZE 107   // get list size // shit is u8 we cant fit 10k+ on it
++#define KSU_UMOUNT_GETLIST 108   // get list
++#define GET_SULOG_DUMP 10009     // get sulog dump, max, last 100 escalations
++#define GET_SULOG_DUMP_V2 10010  // get sulog dump, timestamped, last 250 escalations
++#define CHANGE_KSUVER 10011      // change ksu version
++#define CHANGE_SPOOF_UNAME 10012 // spoof uname
++#define CHANGE_KSUFLAGS 10013    // change ksuflags, do the bit calc on your own, 0 + 1 + 2 + 4 + 8 blah
++
++void write_sulog(uint8_t sym);
++extern uint32_t ksuver_override;
++extern uint32_t ksuflags_override;
++
+ #endif // __KSU_H_SUPERCALL
+diff --git a/kernel/toolkit.h b/kernel/toolkit.h
+new file mode 100644
+index 000000000..54dffb7f4
+--- /dev/null
++++ b/kernel/toolkit.h
+@@ -0,0 +1,232 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#ifndef __KSU_H_TOOLKIT
++#define __KSU_H_TOOLKIT
++
++#include <linux/types.h>
++#include <linux/slab.h>
++#include <linux/ktime.h>
++#include <linux/uaccess.h>
++#include <linux/math64.h>
++#include <linux/cred.h>
++#include <linux/utsname.h>
++#include <linux/preempt.h>
++#include "manager/manager_identity.h"
++#include "supercall/supercall.h"
++
++uint32_t ksuver_override = 0;
++uint32_t ksuflags_override = 0;
++
++struct sulog_entry {
++    uint32_t s_time;    // uptime in seconds
++    uint32_t data;      // uint8_t[0,1,2] = uid, uint8_t[3] = symbol
++} __attribute__((aligned(8)));
++
++#define SULOG_ENTRY_MAX 250
++#define SULOG_BUFSIZ (SULOG_ENTRY_MAX * (sizeof(struct sulog_entry)))
++
++static void *sulog_buf_ptr = NULL;
++static uint32_t sulog_index_next = 0;
++
++static inline void tiny_sulog_init_heap(void)
++{
++    sulog_buf_ptr = kzalloc(SULOG_BUFSIZ, GFP_KERNEL);
++    if (!sulog_buf_ptr)
++        return;
++
++    pr_info("sulog_init: allocated %lu bytes on 0x%lx \n", (unsigned long)SULOG_BUFSIZ, (uintptr_t)sulog_buf_ptr);
++}
++
++static inline void tiny_sulog_cleanup(void)
++{
++    if (sulog_buf_ptr) {
++        kfree(sulog_buf_ptr);
++        sulog_buf_ptr = NULL;
++    }
++}
++
++static inline uint32_t boottime_s_get(void)
++{
++    ktime_t boottime_kt = ktime_get_boottime();
++
++#ifdef CONFIG_64BIT
++    uint64_t boottime_s = *(uint64_t *)&boottime_kt / 1000000000;
++#else
++    uint64_t boottime_s = *(uint64_t *)&boottime_kt;
++    do_div(boottime_s, 1000000000);
++#endif
++
++    return (uint32_t)boottime_s;
++}
++
++void write_sulog(uint8_t sym)
++{
++    if (!sulog_buf_ptr)
++        return;
++
++    struct sulog_entry entry = {0};
++
++    entry.s_time = boottime_s_get();
++    entry.data = (uint32_t)current_uid().val;
++    *((char *)&entry.data + 3) = sym;
++
++    uint32_t slot = __atomic_load_n(&sulog_index_next, __ATOMIC_RELAXED);
++    uint32_t next_slot;
++
++retry:
++    if (slot + 1 >= SULOG_ENTRY_MAX)
++        next_slot = 0;
++    else
++        next_slot = slot + 1;
++
++    bool success = __atomic_compare_exchange(&sulog_index_next, &slot, &next_slot,
++                            true,
++                            __ATOMIC_RELEASE,
++                            __ATOMIC_RELAXED);
++    if (!success)
++        goto retry;
++
++    __atomic_store((uint64_t *)sulog_buf_ptr + slot, (uint64_t *)&entry, __ATOMIC_RELEASE);
++}
++
++struct sulog_entry_rcv_ptr {
++    uint64_t index_ptr; // send index here
++    uint64_t buf_ptr;   // send buf here
++    uint64_t uptime_ptr;// uptime
++};
++
++static noinline int send_sulog_dump(void __user *uptr)
++{
++    if (!sulog_buf_ptr)
++        return 1;
++
++    struct sulog_entry_rcv_ptr sbuf = {0};
++
++    if (copy_from_user(&sbuf, uptr, sizeof(sbuf)))
++        return 1;
++
++    if (!sbuf.index_ptr || !sbuf.buf_ptr || !sbuf.uptime_ptr)
++        return 1;
++
++    void *memory = kmalloc(SULOG_BUFSIZ, GFP_KERNEL);
++    if (!memory)
++        return -ENOMEM;
++
++    uint32_t uptime = boottime_s_get();
++    uint32_t current_idx = __atomic_load_n(&sulog_index_next, __ATOMIC_ACQUIRE);
++    memcpy(memory, sulog_buf_ptr, SULOG_BUFSIZ);
++
++    int ret = 0;
++    if (copy_to_user((void __user *)(uintptr_t)sbuf.uptime_ptr, &uptime, sizeof(uptime)))
++        ret = 1;
++    else if (copy_to_user((void __user *)(uintptr_t)sbuf.index_ptr, &current_idx, sizeof(current_idx)))
++        ret = 1;
++    else if (copy_to_user((void __user *)(uintptr_t)sbuf.buf_ptr, memory, SULOG_BUFSIZ))
++        ret = 1;
++
++    kfree(memory);
++    return ret;
++}
++
++static inline int handle_toolkit_reboot(int magic2, unsigned int cmd, unsigned long arg4)
++{
++    u64 reply = arg4;
++
++    if (magic2 == CHANGE_MANAGER_UID || magic2 == GET_SULOG_DUMP_V2 ||
++        magic2 == CHANGE_KSUVER || magic2 == CHANGE_SPOOF_UNAME ||
++        magic2 == CHANGE_KSUFLAGS) {
++        bool got_flipped = false;
++        if (likely(!preemptible())) {
++            preempt_enable();
++            got_flipped = true;
++        }
++
++        if (magic2 == CHANGE_MANAGER_UID) {
++            pr_info("sys_reboot: ksu_set_manager_appid to: %d\n", cmd);
++            ksu_set_manager_appid(cmd);
++
++            if (cmd == ksu_get_manager_appid()) {
++                if (copy_to_user((void __user *)arg4, &reply, sizeof(reply)))
++                    pr_info("sys_reboot: reply fail\n");
++            }
++        } else if (magic2 == GET_SULOG_DUMP_V2) {
++            int ret = send_sulog_dump((void __user *)arg4);
++            if (!ret) {
++                if (copy_to_user((void __user *)arg4, &reply, sizeof(reply)))
++                    pr_info("sys_reboot: reply fail\n");
++            }
++        } else if (magic2 == CHANGE_KSUVER) {
++            pr_info("sys_reboot: ksu_change_ksuver to: %d\n", cmd);
++            ksuver_override = cmd;
++
++            if (copy_to_user((void __user *)arg4, &reply, sizeof(reply)))
++                pr_info("sys_reboot: reply fail\n");
++        } else if (magic2 == CHANGE_SPOOF_UNAME) {
++            char release_buf[65];
++            char version_buf[65];
++            static char original_release_buf[65] = {0};
++            static char original_version_buf[65] = {0};
++
++            void ***ppptr = (void ***)&arg4;
++            uint64_t u_pptr = 0;
++            uint64_t u_ptr = 0;
++
++            pr_info("sys_reboot: ppptr: 0x%lx \n", (uintptr_t)ppptr);
++
++            if (!copy_from_user(&u_pptr, (void __user *)*ppptr, sizeof(u_pptr))) {
++                pr_info("sys_reboot: u_pptr: 0x%lx \n", (uintptr_t)u_pptr);
++
++                if (!copy_from_user(&u_ptr, (void __user *)u_pptr, sizeof(u_ptr))) {
++                    pr_info("sys_reboot: u_ptr: 0x%lx \n", (uintptr_t)u_ptr);
++
++                    if (strncpy_from_user(release_buf, (char __user *)u_ptr, sizeof(release_buf)) >= 0) {
++                        release_buf[sizeof(release_buf) - 1] = '\0';
++
++                        if (strncpy_from_user(version_buf, (char __user *)(u_ptr + strlen(release_buf) + 1), sizeof(version_buf)) >= 0) {
++                            version_buf[sizeof(version_buf) - 1] = '\0';
++
++                            if (original_release_buf[0] == '\0') {
++                                struct new_utsname *u_curr = utsname();
++                                strscpy(original_release_buf, u_curr->release, sizeof(original_release_buf));
++                                strscpy(original_version_buf, u_curr->version, sizeof(original_version_buf));
++                                pr_info("sys_reboot: original uname saved: %s %s\n", original_release_buf, original_version_buf);
++                            }
++
++                            if (!strcmp(release_buf, "default")) {
++                                memcpy(release_buf, original_release_buf, sizeof(release_buf));
++                            }
++                            if (!strcmp(version_buf, "default")) {
++                                memcpy(version_buf, original_version_buf, sizeof(version_buf));
++                            }
++
++                            pr_info("sys_reboot: spoofing kernel to: %s - %s\n", release_buf, version_buf);
++
++                            struct new_utsname *u = utsname();
++                            down_write(&uts_sem);
++                            strscpy(u->release, release_buf, sizeof(u->release));
++                            strscpy(u->version, version_buf, sizeof(u->version));
++                            up_write(&uts_sem);
++
++                            if (copy_to_user((void __user *)arg4, &reply, sizeof(reply)))
++                                pr_info("sys_reboot: reply fail\n");
++                        }
++                    }
++                }
++            }
++        } else if (magic2 == CHANGE_KSUFLAGS) {
++            pr_info("sys_reboot: ksu_change_ksuflags to: %d\n", cmd);
++            ksuflags_override = cmd;
++
++            if (copy_to_user((void __user *)arg4, &reply, sizeof(reply)))
++                pr_info("sys_reboot: reply fail\n");
++        }
++
++        if (got_flipped) {
++            preempt_disable();
++        }
++        return 1;
++    }
++
++    return 0;
++}
++
++#endif // __KSU_H_TOOLKIT
 -- 
-2.50.1 (Apple Git-155)
+2.55.0
+
