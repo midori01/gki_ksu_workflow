@@ -132,14 +132,6 @@ on:
         required: true
         default: true
         type: boolean
-      susfs_repo:
-        description: 'SUSFS Repository'
-        required: false
-        default: 'GitLab'
-        type: choice
-        options:
-          - GitLab
-          - GitHub
       susfs_commit:
         description: 'SUSFS Commit Hash (Leave blank for latest)'
         required: false
@@ -342,7 +334,6 @@ jobs:
       use_adios: ${{ inputs.use_adios }}
       use_lz4_zstd: ${{ inputs.use_lz4_zstd }}
       use_susfs: ${{ matrix.susfs }}
-      susfs_repo: ${{ inputs.susfs_repo }}
       source_mirror: ${{ inputs.source_mirror }}
       use_ccache: ${{ inputs.use_ccache }}
       susfs_commit: ${{ inputs.susfs_commit }}
@@ -468,7 +459,7 @@ jobs:
           if [ -f "commit_info/susfs_commit" ]; then
             sha=$(cat commit_info/susfs_commit)
             out "susfs_commit=\`$(short_sha commit_info/susfs_commit)\`"
-            if [ "${{ inputs.susfs_repo }}" = "GitHub" ]; then
+            if [ "$(cat commit_info/susfs_repo 2>/dev/null)" = "GitHub" ]; then
               out "susfs_url=https://github.com/midori01/susfs4ksu/commit/$sha"
             else
               out "susfs_url=https://gitlab.com/simonpunk/susfs4ksu/-/commit/$sha"
