@@ -55,15 +55,17 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | [MidoriSU-RX-DS](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | `Manual` |
 | [MidoriSU-RX-SUSFS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-RX-SUSFS-DS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ✅ | `De-inlined` |
-| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Hookless` |
-| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Hookless` |
+| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Branch Link` |
+| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Branch Link` |
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
 
-> \* **MidoriSU-XX & MidoriSU-RX Hook Type:** Runtime-configurable via `hook_mode`.
-> - `hookless` — default for MidoriSU-XX; uses `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` on all kernel versions
-> - `manual` — default for MidoriSU-RX
-> - `tracepoint` — MidoriSU-RX only
+> \* **MidoriSU-RX & MidoriSU-XX Hook Type:** Runtime-configurable via `midorisu_rx_hook_mode` and `midorisu_xx_hook_mode`.
+> - `midorisu_rx_hook_mode` — `manual` (default) / `tracepoint`
+> - `midorisu_xx_hook_mode`:
+>   - `branch link hijacking` — default for MidoriSU-XX; uses `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` to scan kernel text and overwrite call-site branch instructions (`b`/`bl`) directly to hooks, bypassing trampoline overhead and complying with ARM64 CFI
+>   - `syscall table tampering` — uses `CONFIG_KSU_TAMPER_SYSCALL_TABLE` to directly tamper with `sys_call_table` entries, avoiding indirect branch (`blr`) overhead while complying with Clang CFI
+>   - `manual` — manually-patched hooks via `scope-min-manual-hooks-v2.3.patch`
 
 > [!TIP]
 > **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With all 5 variants selected, this yields **5 builds per sublevel for each kernel version**. Choosing `all` from the `kernel_version` dropdown compiles all configured sublevels across 6.1, 6.6 and 6.12 in parallel for a total of **45 concurrent jobs**.
@@ -94,7 +96,8 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | `Inline` | Compile-time injection via `#ifdef CONFIG_KSU_SUSFS` blocks embedded directly into kernel subsystem source. Uses `static_key` branches for runtime toggling. No reliance on kprobes or LSM hooks. Hardwired into VFS (`exec`, `open`, `stat`, `readdir`, `statfs`), SELinux (`avc`, `hooks`, `services`), input, mounts, and procfs. |
 | `De-inlined` | SUSFS hooks applied via kernel source patching rather than inline `#ifdef CONFIG_KSU_SUSFS` blocks. Cleaner separation of SUSFS logic from core kernel subsystems. |
 | `Manual` | Static kernel source patching. Custom hooks injected at compile time into core kernel subsystems. |
-| `Hookless` | Pure KernelSU built-in mechanisms. Always enables `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` regardless of kernel version. Zero kernel source modification. Relies entirely on KernelSU's internal hooking infrastructure. |
+| `Branch Link Hijacking` | Scans kernel text to overwrite caller branch instructions (`b`/`bl`) directly to hooks without trampoline overhead. Complies with ARM64 Clang CFI. Enabled via `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`. |
+| `Syscall Table Tampering` | High-performance method that directly modifies function pointers in `sys_call_table` for sucompat and `sys_reboot`. Avoids indirect branch (`blr`) overhead and complies with Clang CFI. Enabled via `CONFIG_KSU_TAMPER_SYSCALL_TABLE`. |
 
 ---
 

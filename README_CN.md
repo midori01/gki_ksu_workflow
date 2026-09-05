@@ -55,15 +55,17 @@
 | [MidoriSU-RX-DS](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | `Manual` |
 | [MidoriSU-RX-SUSFS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-RX-SUSFS-DS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ✅ | `De-inlined` |
-| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Hookless` |
-| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Hookless` |
+| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Branch Link` |
+| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Branch Link` |
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
 
-> \* **MidoriSU-XX 和 MidoriSU-RX 的 Hook 类型：** 可通过 `hook_mode` 运行时配置。
-> - `hookless` — MidoriSU-XX 的默认值；所有内核版本均使用 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`
-> - `manual` — MidoriSU-RX 的默认值
-> - `tracepoint` — 仅限 MidoriSU-RX
+> \* **MidoriSU-RX 和 MidoriSU-XX 的 Hook 类型：** 可分别通过 `midorisu_rx_hook_mode` 与 `midorisu_xx_hook_mode` 运行时配置。
+> - `midorisu_rx_hook_mode` — `manual`（默认）/ `tracepoint`
+> - `midorisu_xx_hook_mode`：
+>   - `branch link hijacking` — MidoriSU-XX 的默认值；通过 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` 扫描内核 text 段并直接覆写调用处跳转指令（`b`/`bl`）重定向到 Hook，无 trampoline 开销且兼容 ARM64 CFI
+>   - `syscall table tampering` — 通过 `CONFIG_KSU_TAMPER_SYSCALL_TABLE` 直接修改 `sys_call_table` 系统调用表指针，避免间接跳转（`blr`）开销并兼容 Clang CFI
+>   - `manual` — 通过 `scope-min-manual-hooks-v2.3.patch` 打入的手动 hook
 
 > [!TIP]
 > **矩阵构建编排：** 矩阵始终为每个变体产出恰好 **1 个构件** — 启用的功能（Droidspaces 和/或 SUSFS）会应用到该单一构件上。选择全部 5 个变体时，每个内核版本的 **每个子版本产生 5 次构建**。从 `kernel_version` 下拉菜单中选择 `all` 将并行编译 6.1、6.6 和 6.12 的所有子版本，在默认配置下共 **45 个并发 Job**。
@@ -94,7 +96,8 @@
 | `Inline` | 编译时通过直接嵌入内核子系统源码的 `#ifdef CONFIG_KSU_SUSFS` 代码块注入。使用 `static_key` 分支实现运行时切换。不依赖 kprobes 或 LSM 钩子。硬编码于 VFS（`exec`、`open`、`stat`、`readdir`、`statfs`）、SELinux（`avc`、`hooks`、`services`）、input、mounts 和 procfs。 |
 | `De-inlined` | 通过内核源码打补丁而非内联 `#ifdef CONFIG_KSU_SUSFS` 代码块来应用 SUSFS 钩子。SUSFS 逻辑与核心内核子系统分离更清晰。 |
 | `Manual` | 静态内核源码打补丁。编译时将自定义钩子注入核心内核子系统。 |
-| `Hookless` | 纯 KernelSU 内置机制。所有内核版本均启用 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`。零内核源码修改。完全依赖 KernelSU 的内部 Hook 基础设施。 |
+| `Branch Link Hijacking` | 扫描内核 text 段并直接改写调用处的跳转指令（`b`/`bl`）重定向到 Hook，避免 trampoline 开销并兼容 Clang CFI。通过 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` 启用。 |
+| `Syscall Table Tampering` | 高性能系统调用表劫持方案，直接替换 `sys_call_table` 中特定系统调用指针（如 `sys_reboot`、`sys_execve` 等），避免间接跳转（`blr`）开销并兼容 Clang CFI。通过 `CONFIG_KSU_TAMPER_SYSCALL_TABLE` 启用。 |
 
 ---
 

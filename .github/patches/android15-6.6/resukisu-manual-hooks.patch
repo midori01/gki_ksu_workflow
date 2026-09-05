@@ -3,49 +3,30 @@ Date: Mon, 1 Jun 2026 15:00:47 +0900
 Subject: [PATCH] ReSukiSU manual hooks for android15-6.6-2026-04
 
 ---
- fs/exec.c       | 12 ++++++++++++
+ fs/exec.c       |  6 ++++++
  fs/open.c       |  9 +++++++++
  fs/read_write.c | 10 ++++++++++
  fs/stat.c       | 23 +++++++++++++++++++++++
  kernel/reboot.c |  9 ++++++++-
  kernel/sys.c    |  8 ++++++++
- 6 files changed, 70 insertions(+), 1 deletion(-)
+ 6 files changed, 65 insertions(+), 1 deletion(-)
 
 diff --git a/fs/exec.c b/fs/exec.c
-index 8dc93215b9c9..aa032f35bb9e 100644
+index 8dc93215b9c9..bb208af28911 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -2070,12 +2070,21 @@ int kernel_execve(const char *kernel_filename,
- 	return retval;
- }
+@@ -1934,6 +1934,12 @@ static int do_execveat_common(int fd, struct filename *filename,
+ 	struct linux_binprm *bprm;
+ 	int retval;
  
 +#ifdef CONFIG_KSU_MANUAL_HOOK
-+__attribute__((hot))
-+extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr,
-+				void *argv, void *envp, int *flags);
++	extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr,
++					void *argv, void *envp, int *flags);
++	ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
 +#endif
 +
- static int do_execve(struct filename *filename,
- 	const char __user *const __user *__argv,
- 	const char __user *const __user *__envp)
- {
- 	struct user_arg_ptr argv = { .ptr.native = __argv };
- 	struct user_arg_ptr envp = { .ptr.native = __envp };
-+#ifdef CONFIG_KSU_MANUAL_HOOK
-+	ksu_handle_execveat((int *)AT_FDCWD, &filename, &argv, &envp, 0);
-+#endif
- 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
- }
- 
-@@ -2103,6 +2112,9 @@ static int compat_do_execve(struct filename *filename,
- 		.is_compat = true,
- 		.ptr.compat = __envp,
- 	};
-+#ifdef CONFIG_KSU_MANUAL_HOOK // 32-bit ksud and 32-on-64 support
-+	ksu_handle_execveat((int *)AT_FDCWD, &filename, &argv, &envp, 0);
-+#endif
- 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
- }
+ 	if (IS_ERR(filename))
+ 		return PTR_ERR(filename);
  
 diff --git a/fs/open.c b/fs/open.c
 index 0641cb3fdd6b..d771cdb3c71a 100644

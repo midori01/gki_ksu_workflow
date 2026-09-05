@@ -55,15 +55,17 @@
 | [MidoriSU-RX-DS](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | `Manual` |
 | [MidoriSU-RX-SUSFS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-RX-SUSFS-DS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ✅ | `De-inlined` |
-| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Hookless` |
-| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Hookless` |
+| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Branch Link` |
+| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Branch Link` |
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
 
-> \* **MidoriSU-XX 및 MidoriSU-RX 후크 방식:** 실행 시 `hook_mode` 옵션을 통해 변경할 수 있습니다.
-> - `hookless` — MidoriSU-XX의 기본값; 모든 커널 버전에서 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` 사용
-> - `manual` — MidoriSU-RX의 기본값
-> - `tracepoint` — MidoriSU-RX 전용
+> \* **MidoriSU-RX 및 MidoriSU-XX 후크 방식:** `midorisu_rx_hook_mode` 및 `midorisu_xx_hook_mode` 옵션을 통해 각각 설정할 수 있습니다.
+> - `midorisu_rx_hook_mode` — `manual` (기본값) / `tracepoint`
+> - `midorisu_xx_hook_mode`:
+>   - `branch link hijacking` — MidoriSU-XX의 기본값; `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`를 사용하여 커널 text의 분기 명령(`b`/`bl`)을 후크로 직접 리다이렉션하여 트램펄린 오버헤드를 방지하고 ARM64 CFI를 준수
+>   - `syscall table tampering` — `CONFIG_KSU_TAMPER_SYSCALL_TABLE`를 사용하여 `sys_call_table` 항목을 직접 변조하여 간접 분기(`blr`) 오버헤드를 방지하고 Clang CFI를 준수
+>   - `manual` — `scope-min-manual-hooks-v2.3.patch`를 통한 수동 후크
 
 > [!TIP]
 > **매트릭스 빌드 동작 방식:** 매트릭스는 항상 배리언트당 정확히 **단 하나의 결과물**만 생성합니다. 활성화된 기능(Droidspaces / SUSFS)은 해당 결과물에 함께 적용됩니다. 5개 배리언트를 모두 선택하면 각 커널 버전의 **각 서브 레벨당 5개의 빌드**가 실행됩니다. `kernel_version`에서 `all`을 선택하면 6.1 / 6.6 / 6.12의 모든 서브 레벨이 병렬로 컴파일되어 기본 구성 기준 총 **45개의 작업(Job)**이 동시에 실행됩니다.
@@ -94,7 +96,8 @@
 | `Inline` | `#ifdef CONFIG_KSU_SUSFS` 블록을 커널 서브시스템 소스에 직접 삽입하는 컴파일 타임 주입 방식입니다. `static_key` 분기를 통해 런타임에 활성/비활성 전환이 가능하며, kprobe나 LSM 후크에 의존하지 않습니다. VFS(`exec`, `open`, `stat`, `readdir`, `statfs`), SELinux(`avc`, `hooks`, `services`), input, mounts, procfs에 내장됩니다. |
 | `De-inlined` | `#ifdef CONFIG_KSU_SUSFS` 인라인 블록을 사용하는 대신 커널 소스에 패치를 적용하여 SUSFS 후크를 통합합니다. 이를 통해 SUSFS 로직이 코어 커널 서브시스템과 더욱 명확하게 분리됩니다. |
 | `Manual` | 커널 소스에 대한 정적 패치 방식입니다. 컴파일 시 자체 후크를 코어 커널 서브시스템에 직접 주입합니다. |
-| `Hookless` | KernelSU 내장 메커니즘만을 사용합니다. 모든 커널 버전에서 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`를 활성화하며 커널 소스를 전혀 수정하지 않고 KernelSU 내부의 후크 인프라에 완전히 의존합니다. |
+| `Branch Link Hijacking` | 커널 text 섹션을 스캔하고 호출 위치의 분기 명령(`b`/`bl`)을 후크로 직접 덮어써 트램펄린 오버헤드를 우회하고 Clang CFI를 준수합니다. `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`로 활성화됩니다. |
+| `Syscall Table Tampering` | `sys_call_table`의 함수 포인터(`sys_reboot`, `sys_execve` 등)를 직접 교체하는 고성능 후크 방식입니다. 간접 분기(`blr`) 오버헤드를 방지하고 Clang CFI를 준수합니다. `CONFIG_KSU_TAMPER_SYSCALL_TABLE`로 활성화됩니다. |
 
 ---
 
