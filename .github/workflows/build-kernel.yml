@@ -322,7 +322,9 @@ jobs:
               patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/official-susfs-deinlined.patch")
               ;;
             MidoriSU-RX)
-              patch -p1 < "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
+              patch -p1 < deinlined.patch
+              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/resuki-susfs-deinlined.patch")
               ;;
             MidoriSU-XX)
               bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch"
@@ -334,7 +336,7 @@ jobs:
       - name: Setup Manual Hooks (RX/XX only)
         if: >-
           (inputs.variant == 'MidoriSU-XX' && inputs.hook_mode != 'hookless') ||
-          (inputs.variant == 'MidoriSU-RX' && inputs.hook_mode == 'manual' && inputs.use_susfs != true)
+          (inputs.variant == 'MidoriSU-RX' && inputs.hook_mode == 'manual')
         working-directory: kernel_workspace/common
         run: |
           case "${{ inputs.variant }}" in
