@@ -66,6 +66,14 @@ on:
         options:
           - 'ReSukiSU/ReSukiSU:main'
           - 'midori01/KernelSU:resuki'
+      midorisu_rx_hook_mode:
+        description: 'MidoriSU-RX Hook Mode'
+        required: true
+        default: 'manual'
+        type: choice
+        options:
+          - 'manual'
+          - 'tracepoint'
       midorisu_xx_branch:
         description: 'MidoriSU-XX Source'
         required: true
@@ -75,15 +83,15 @@ on:
           - 'backslashxx/KernelSU:master'
           - 'backslashxx/KernelSU:staging'
           - 'midori01/KernelSU:xx'
-      hook_mode:
-        description: "Hook Mode"
+      midorisu_xx_hook_mode:
+        description: 'MidoriSU-XX Hook Mode'
         required: true
-        default: 'hookless (XX only)'
+        default: 'branch link hijacking'
         type: choice
         options:
-          - 'manual (XX & RX)'
-          - 'hookless (XX only)'
-          - 'tracepoint (RX only)'
+          - 'branch link hijacking'
+          - 'syscall table tampering'
+          - 'manual'
       ksu_debug:
         description: 'KernelSU Debug'
         required: true
@@ -185,7 +193,6 @@ jobs:
       build_matrix: ${{ steps.config.outputs.build_matrix }}
       metadata: ${{ steps.config.outputs.metadata }}
       kernel_versions: ${{ steps.config.outputs.kernel_versions }}
-      hook_mode_val: ${{ steps.config.outputs.hook_mode_val }}
       kernel_localversion: ${{ steps.config.outputs.kernel_localversion }}
       build_timestamp: ${{ steps.config.outputs.build_timestamp }}
       build_epoch: ${{ steps.config.outputs.build_epoch }}
@@ -319,14 +326,6 @@ jobs:
           echo "metadata=$(jq -sc '.' /tmp/metadata.json)" >> $GITHUB_OUTPUT
           echo "build_matrix=$matrix" >> $GITHUB_OUTPUT
 
-          case "${{ inputs.hook_mode }}" in
-            'manual (XX & RX)') hook_mode_val="manual" ;;
-            'hookless (XX only)') hook_mode_val="hookless" ;;
-            'tracepoint (RX only)') hook_mode_val="tracepoint" ;;
-            *) hook_mode_val="manual" ;;
-          esac
-          echo "hook_mode_val=$hook_mode_val" >> $GITHUB_OUTPUT
-
   build:
     name: "${{ matrix.kernel_version }}.${{ matrix.sub_level }} - ${{ matrix.variant }}${{ matrix.susfs && (matrix.droidspaces && ' (SUSFS DS)' || ' (SUSFS)') || (matrix.droidspaces && ' (DS)' || '') }}${{ inputs.use_adios && matrix.kernel_version != '6.1' && ' (ADIOS)' || '' }}${{ inputs.use_lz4_zstd && matrix.kernel_version == '6.12' && ' (LZ4/ZSTD)' || '' }}"
     needs: setup
@@ -357,7 +356,8 @@ jobs:
       midorisu_ox_branch: ${{ inputs.midorisu_ox_branch }}
       midorisu_rx_branch: ${{ inputs.midorisu_rx_branch }}
       midorisu_xx_branch: ${{ inputs.midorisu_xx_branch }}
-      hook_mode: ${{ needs.setup.outputs.hook_mode_val }}
+      midorisu_rx_hook_mode: ${{ inputs.midorisu_rx_hook_mode }}
+      midorisu_xx_hook_mode: ${{ inputs.midorisu_xx_hook_mode }}
       ksu_debug: ${{ inputs.ksu_debug }}
       upload_vmlinux: ${{ inputs.upload_vmlinux }}
 

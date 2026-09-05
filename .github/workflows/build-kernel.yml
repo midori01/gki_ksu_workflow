@@ -46,9 +46,14 @@ on:
         required: false
         type: string
         default: 'backslashxx/KernelSU:master'
-      hook_mode:
+      midorisu_rx_hook_mode:
         required: false
         type: string
+        default: 'manual'
+      midorisu_xx_hook_mode:
+        required: false
+        type: string
+        default: 'branch link hijacking'
       ksu_debug:
         required: false
         type: boolean
@@ -335,8 +340,8 @@ jobs:
 
       - name: Setup Manual Hooks (RX/XX only)
         if: >-
-          (inputs.variant == 'MidoriSU-XX' && inputs.hook_mode != 'hookless') ||
-          (inputs.variant == 'MidoriSU-RX' && inputs.hook_mode == 'manual')
+          (inputs.variant == 'MidoriSU-XX' && inputs.midorisu_xx_hook_mode == 'manual') ||
+          (inputs.variant == 'MidoriSU-RX' && inputs.midorisu_rx_hook_mode == 'manual')
         working-directory: kernel_workspace/common
         run: |
           case "${{ inputs.variant }}" in
@@ -425,7 +430,8 @@ jobs:
           use_rekernel: ${{ inputs.use_rekernel }}
           use_adios: ${{ inputs.use_adios }}
           use_lz4_zstd: ${{ inputs.use_lz4_zstd }}
-          hook_mode: ${{ inputs.hook_mode }}
+          midorisu_rx_hook_mode: ${{ inputs.midorisu_rx_hook_mode }}
+          midorisu_xx_hook_mode: ${{ inputs.midorisu_xx_hook_mode }}
           ksu_debug: ${{ inputs.ksu_debug }}
 
       - name: Save Commit Info
