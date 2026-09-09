@@ -357,8 +357,8 @@ jobs:
           REKERNEL_X_DIR="${{ github.workspace }}/ReKernel_X"
           git clone --filter=blob:none https://github.com/Sakion-Team/Re-Kernel "$REKERNEL_DIR"
           git clone --filter=blob:none https://github.com/myflavor/ReKernel-X "$REKERNEL_X_DIR"
-          REKERNEL_TAG=$(git -C "$REKERNEL_DIR" describe --tags --abbrev=0) && git -C "$REKERNEL_DIR" checkout "tags/$REKERNEL_TAG"
-          REKERNEL_X_TAG=$(git -C "$REKERNEL_X_DIR" describe --tags --abbrev=0) && git -C "$REKERNEL_X_DIR" checkout "tags/$REKERNEL_X_TAG"
+          REKERNEL_TAG=$(git -C "$REKERNEL_DIR" describe --tags $(git -C "$REKERNEL_DIR" rev-list --tags -n 1)) && git -C "$REKERNEL_DIR" checkout "tags/$REKERNEL_TAG"
+          REKERNEL_X_TAG=$(git -C "$REKERNEL_X_DIR" describe --tags $(git -C "$REKERNEL_X_DIR" rev-list --tags -n 1)) && git -C "$REKERNEL_X_DIR" checkout "tags/$REKERNEL_X_TAG"
           cp -r "$REKERNEL_DIR"/LKM-Source drivers/rekernel
           sed -i 's/depends on MODULES/depends on KSU/' drivers/rekernel/Kconfig
           sed -i 's/obj-m := rekernel.o/obj-$(CONFIG_REKERNEL) += rekernel.o/' drivers/rekernel/Makefile
