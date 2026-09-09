@@ -97,11 +97,6 @@ on:
         required: true
         default: false
         type: boolean
-      upload_vmlinux:
-        description: 'Upload vmlinux'
-        required: true
-        default: false
-        type: boolean
       use_ccache:
         description: 'Ccache Speedup'
         required: true
@@ -124,6 +119,11 @@ on:
         type: boolean
       use_rekernel:
         description: 'Re:Kernel(-X)'
+        required: true
+        default: true
+        type: boolean
+      use_extra_features:
+        description: 'Extra Features & Fixes'
         required: true
         default: true
         type: boolean
@@ -333,6 +333,7 @@ jobs:
       use_rekernel: ${{ inputs.use_rekernel }}
       use_adios: ${{ inputs.use_adios }}
       use_lz4_zstd: ${{ inputs.use_lz4_zstd }}
+      use_extra_features: ${{ inputs.use_extra_features }}
       use_susfs: ${{ matrix.susfs }}
       source_mirror: ${{ inputs.source_mirror }}
       use_ccache: ${{ inputs.use_ccache }}
@@ -350,7 +351,6 @@ jobs:
       midorisu_rx_hook_mode: ${{ inputs.midorisu_rx_hook_mode }}
       midorisu_xx_hook_mode: ${{ inputs.midorisu_xx_hook_mode }}
       ksu_debug: ${{ inputs.ksu_debug }}
-      upload_vmlinux: ${{ inputs.upload_vmlinux }}
 
   release:
     needs: [setup, build]
