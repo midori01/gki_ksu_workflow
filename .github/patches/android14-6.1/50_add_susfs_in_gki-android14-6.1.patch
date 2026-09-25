@@ -1,10 +1,10 @@
 From: midori01 <lv@lvlv.lv>
-Date: Thu, 24 Sep 2026 12:07:59 +0900
+Date: Sat, 26 Sep 2026 06:08:06 +0900
 Subject: [PATCH] SUSFS inline hooks for gki-android14-6.1-lts
 X-Kernel-Target-Branch: android14-6.1-lts
 X-Kernel-Target-Commit: 38c2ee7f1213aaa84824aa93e0fbfb80bdb3efb6
 X-SUSFS-Source-Ref: origin/gki-android14-6.1
-X-SUSFS-Source-Commit: 60024a4cedd16c83c75cb225d9ae37ba4fd8dbca
+X-SUSFS-Source-Commit: 24743360ea08d98f6ad72b856851abed8de5854f
 
 ---
  drivers/input/input.c        |  10 ++
@@ -22,7 +22,7 @@ X-SUSFS-Source-Commit: 60024a4cedd16c83c75cb225d9ae37ba4fd8dbca
  fs/read_write.c              |  10 ++
  fs/readdir.c                 | 111 +++++++++++++++++++
  fs/stat.c                    |  83 +++++++++++++-
- fs/statfs.c                  |  77 +++++++++++++
+ fs/statfs.c                  |  81 ++++++++++++++
  fs/super.c                   |  24 ++++
  kernel/kallsyms.c            |  31 ++++++
  kernel/reboot.c              |  12 ++
@@ -31,7 +31,7 @@ X-SUSFS-Source-Commit: 60024a4cedd16c83c75cb225d9ae37ba4fd8dbca
  security/selinux/avc.c       |  21 +++-
  security/selinux/hooks.c     |  45 ++++++++
  security/selinux/selinuxfs.c | 143 ++++++++++++++++++++++++
- 24 files changed, 1583 insertions(+), 2 deletions(-)
+ 24 files changed, 1587 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 78be582b5766..5b548b1cf418 100644
@@ -2060,7 +2060,7 @@ index ef50573c72a2..60b31f5e40c5 100644
  
  	if (path.mnt->mnt_root == path.dentry)
 diff --git a/fs/statfs.c b/fs/statfs.c
-index 96d1c3edf289..4cb840a69446 100644
+index 96d1c3edf289..320223f57cf4 100644
 --- a/fs/statfs.c
 +++ b/fs/statfs.c
 @@ -9,8 +9,20 @@
@@ -2084,12 +2084,16 @@ index 96d1c3edf289..4cb840a69446 100644
  static int flags_by_mnt(int mnt_flags)
  {
  	int flags = 0;
-@@ -69,6 +81,38 @@ static int statfs_by_dentry(struct dentry *dentry, struct kstatfs *buf)
+@@ -69,6 +81,42 @@ static int statfs_by_dentry(struct dentry *dentry, struct kstatfs *buf)
  	return retval;
  }
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-+int susfs_calculate_f_flags(struct vfsmount *mnt)
++int statfs_by_dentry_wrapper(struct dentry *dentry, struct kstatfs *buf){
++	return statfs_by_dentry(dentry, buf);
++}
++
++int calculate_f_flags_wrapper(struct vfsmount *mnt)
 +{
 +	return calculate_f_flags(mnt);
 +}
@@ -2123,7 +2127,7 @@ index 96d1c3edf289..4cb840a69446 100644
  int vfs_get_fsid(struct dentry *dentry, __kernel_fsid_t *fsid)
  {
  	struct kstatfs st;
-@@ -87,6 +131,39 @@ int vfs_statfs(const struct path *path, struct kstatfs *buf)
+@@ -87,6 +135,39 @@ int vfs_statfs(const struct path *path, struct kstatfs *buf)
  {
  	int error;
  
