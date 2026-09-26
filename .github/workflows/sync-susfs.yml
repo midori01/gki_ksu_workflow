@@ -1,0 +1,151 @@
+name: Sync SUSFS Patches
+
+on:
+  schedule:
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+    inputs:
+      kernel_version:
+        description: 'Kernel Version to Sync'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - '6.1'
+          - '6.6'
+          - '6.12'
+  workflow_call:
+    inputs:
+      kernel_version:
+        required: false
+        type: string
+        default: 'all'
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      kernel_versions: ${{ steps.matrix.outputs.kernel_versions }}
+    steps:
+      - id: matrix
+        run: |
+          KV="${{ inputs.kernel_version || 'all' }}"
+          if [ "$KV" = "all" ]; then
+            echo 'kernel_versions=["6.1", "6.6", "6.12"]' >> $GITHUB_OUTPUT
+          else
+            echo "kernel_versions=[\"$KV\"]" >> $GITHUB_OUTPUT
+          fi
+
+  sync:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        kernel_version: ${{ fromJSON(needs.prepare.outputs.kernel_versions) }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends patch git curl
+
+      - name: Clone SUSFS Repo
+        run: |
+          SUSFS_DIR="/tmp/susfs4ksu"
+          SUSFS_REPO="https://gitlab.com/simonpunk/susfs4ksu"
+          git ls-remote "$SUSFS_REPO" >/dev/null 2>&1 || SUSFS_REPO="https://github.com/midori01/susfs4ksu"
+          echo "[+] Cloning upstream SUSFS from $SUSFS_REPO..."
+          git clone --depth 1 --no-single-branch "$SUSFS_REPO" "$SUSFS_DIR"
+
+      - name: Setup Kernel Tree
+        run: |
+          TREE_DIR="/tmp/kernel_tree"
+          mkdir -p "$TREE_DIR"
+          cd "$TREE_DIR"
+          git init -q
+          git remote add origin https://android.googlesource.com/kernel/common.git
+          git config --unset-all remote.origin.fetch
+
+          KV="${{ matrix.kernel_version }}"
+          if [ "$KV" = "6.1" ]; then
+            git config --add remote.origin.fetch "+refs/heads/android14-6.1-lts:refs/remotes/origin/android14-6.1-lts"
+            SINCE_DATE="2022-11-01"
+          elif [ "$KV" = "6.6" ]; then
+            git config --add remote.origin.fetch "+refs/heads/android15-6.6-lts:refs/remotes/origin/android15-6.6-lts"
+            SINCE_DATE="2023-08-01"
+          elif [ "$KV" = "6.12" ]; then
+            git config --add remote.origin.fetch "+refs/heads/android16-6.12*:refs/remotes/origin/android16-6.12*"
+            git config --add remote.origin.fetch "+refs/heads/deprecated/android16-6.12*:refs/remotes/origin/deprecated/android16-6.12*"
+            SINCE_DATE="2024-02-01"
+          fi
+
+          echo "[+] Fetching kernel tree for $KV (shallow since $SINCE_DATE)..."
+          git fetch --progress --no-tags --shallow-since="$SINCE_DATE" origin
+
+      - name: Sync SUSFS Patches
+        run: |
+          python3 .github/scripts/sync_susfs_patches.py \
+            --kernel "${{ matrix.kernel_version }}" \
+            --tree /tmp/kernel_tree \
+            --susfs-repo /tmp/susfs4ksu \
+            --patches-dir .github/patches \
+            --author "github-actions <actions@github.com>"
+
+      - name: Prepare Patches for Upload
+        run: |
+          mkdir -p /tmp/artifact_payload
+          KV="${{ matrix.kernel_version }}"
+          if [ "$KV" = "6.1" ]; then SUB="android14-6.1"; fi
+          if [ "$KV" = "6.6" ]; then SUB="android15-6.6"; fi
+          if [ "$KV" = "6.12" ]; then SUB="android16-6.12"; fi
+          mkdir -p "/tmp/artifact_payload/$SUB"
+          cp .github/patches/"$SUB"/50_add_susfs_in_gki* "/tmp/artifact_payload/$SUB/"
+
+      - name: Upload Synced Patches
+        uses: actions/upload-artifact@v7
+        with:
+          name: patches-${{ matrix.kernel_version }}
+          path: /tmp/artifact_payload/
+          retention-days: 1
+
+  commit:
+    needs: sync
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Synced Patches
+        uses: actions/download-artifact@v8
+        with:
+          pattern: patches-*
+          merge-multiple: true
+          path: .github/patches/
+
+      - name: Commit and Push Changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A .github/patches/
+          if git diff --staged --quiet; then
+            echo "[+] No substantive SUSFS patch changes detected across all kernel versions, skipping commit."
+          else
+            echo "[+] Substantive SUSFS patch changes detected, committing..."
+            git commit -m "auto: update susfs patches"
+            for i in 1 2 3 4 5; do
+              git pull --rebase origin ${{ github.ref_name }} 2>/dev/null && git push origin HEAD:${{ github.ref_name }} && break || sleep 3
+            done
+          fi
+

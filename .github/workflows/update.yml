@@ -49,5 +49,9 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add .github/config/kernel_versions.json
-          git diff --staged --quiet || git commit -m "auto: update kernel versions"
-          git push
+          if ! git diff --staged --quiet; then
+            git commit -m "auto: update kernel versions"
+            for i in 1 2 3 4 5; do
+              git pull --rebase origin ${{ github.ref_name }} 2>/dev/null && git push origin HEAD:${{ github.ref_name }} && break || sleep 3
+            done
+          fi

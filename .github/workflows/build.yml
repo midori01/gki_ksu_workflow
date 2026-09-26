@@ -132,6 +132,11 @@ on:
         required: true
         default: true
         type: boolean
+      update_susfs_patches:
+        description: 'Sync SUSFS Patches'
+        required: false
+        default: false
+        type: boolean
       susfs_commit:
         description: 'SUSFS Commit Hash (Leave blank for latest)'
         required: false
@@ -177,8 +182,15 @@ jobs:
     with:
       kernel_version: ${{ inputs.kernel_version }}
 
+  sync_susfs:
+    if: inputs.enable_susfs && inputs.update_susfs_patches
+    uses: ./.github/workflows/sync-susfs.yml
+    with:
+      kernel_version: ${{ inputs.kernel_version }}
+
   setup:
-    needs: fetch
+    needs: [fetch, sync_susfs]
+    if: always() && !cancelled() && !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.config.outputs.release_tag }}
@@ -198,10 +210,10 @@ jobs:
           ref: ${{ github.ref_name }}
           fetch-depth: 1
 
-      - name: Pull latest config from fetch job
+      - name: Pull latest config and patches
         run: |
           git fetch origin ${{ github.ref_name }} --depth=1 2>/dev/null || true
-          git checkout FETCH_HEAD -- .github/config/kernel_versions.json 2>/dev/null || true
+          git reset --hard FETCH_HEAD 2>/dev/null || true
 
       - id: config
         name: Prepare build matrix and metadata
