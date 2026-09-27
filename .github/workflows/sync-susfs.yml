@@ -23,27 +23,12 @@ on:
         default: 'all'
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      kernel_versions: ${{ steps.matrix.outputs.kernel_versions }}
-    steps:
-      - id: matrix
-        run: |
-          KV="${{ inputs.kernel_version || 'all' }}"
-          if [ "$KV" = "all" ]; then
-            echo 'kernel_versions=["6.1", "6.6", "6.12"]' >> $GITHUB_OUTPUT
-          else
-            echo "kernel_versions=[\"$KV\"]" >> $GITHUB_OUTPUT
-          fi
-
   sync:
-    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        kernel_version: ${{ fromJSON(needs.prepare.outputs.kernel_versions) }}
+        kernel_version: ${{ fromJSON((inputs.kernel_version == 'all' || !inputs.kernel_version) && '["6.1", "6.6", "6.12"]' || format('["{0}"]', inputs.kernel_version)) }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
