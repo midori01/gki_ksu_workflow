@@ -23,27 +23,12 @@ on:
         default: 'all'
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      kernel_versions: ${{ steps.matrix.outputs.kernel_versions }}
-    steps:
-      - id: matrix
-        run: |
-          KV="${{ inputs.kernel_version || 'all' }}"
-          if [ "$KV" = "all" ]; then
-            echo 'kernel_versions=["6.1", "6.6", "6.12"]' >> $GITHUB_OUTPUT
-          else
-            echo "kernel_versions=[\"$KV\"]" >> $GITHUB_OUTPUT
-          fi
-
   sync:
-    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        kernel_version: ${{ fromJSON(needs.prepare.outputs.kernel_versions) }}
+        kernel_version: ${{ fromJSON((inputs.kernel_version == 'all' || !inputs.kernel_version) && '["6.1", "6.6", "6.12"]' || format('["{0}"]', inputs.kernel_version)) }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
@@ -53,8 +38,12 @@ jobs:
 
       - name: Setup Tools
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends patch git curl
+          if ! command -v patch >/dev/null 2>&1; then
+            echo "[+] Installing patch tool..."
+            sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends patch
+          else
+            echo "[+] Patch and git tools already pre-installed in runner environment."
+          fi
 
       - name: Clone SUSFS Repo
         run: |
@@ -66,6 +55,10 @@ jobs:
 
       - name: Setup Kernel Tree
         run: |
+          git config --global pack.threads "0"
+          git config --global index.threads "true"
+          git config --global core.compression 1
+
           TREE_DIR="/tmp/kernel_tree"
           mkdir -p "$TREE_DIR"
           cd "$TREE_DIR"
@@ -73,30 +66,54 @@ jobs:
           git remote add origin https://android.googlesource.com/kernel/common.git
           git config --unset-all remote.origin.fetch
 
+          git config core.sparseCheckout true
+          mkdir -p .git/info
+          printf "%s\n" "Makefile" "fs/" "include/" "kernel/" "mm/" "security/" "drivers/input/" > .git/info/sparse-checkout
+
           KV="${{ matrix.kernel_version }}"
           if [ "$KV" = "6.1" ]; then
             git config --add remote.origin.fetch "+refs/heads/android14-6.1-lts:refs/remotes/origin/android14-6.1-lts"
-            SINCE_DATE="2022-11-01"
+            echo "[+] Fetching shallow kernel tree for $KV (--depth 50)..."
+            git fetch --progress --no-tags --depth=50 origin
+            FALLBACK_DATE="2023-10-01"
           elif [ "$KV" = "6.6" ]; then
             git config --add remote.origin.fetch "+refs/heads/android15-6.6-lts:refs/remotes/origin/android15-6.6-lts"
-            SINCE_DATE="2023-08-01"
+            SINCE_DATE="2025-06-01"
+            echo "[+] Fetching kernel tree for $KV (targeted shallow since $SINCE_DATE)..."
+            git fetch --progress --no-tags --shallow-since="$SINCE_DATE" origin
+            FALLBACK_DATE="2023-08-01"
           elif [ "$KV" = "6.12" ]; then
-            git config --add remote.origin.fetch "+refs/heads/android16-6.12*:refs/remotes/origin/android16-6.12*"
-            git config --add remote.origin.fetch "+refs/heads/deprecated/android16-6.12*:refs/remotes/origin/deprecated/android16-6.12*"
-            SINCE_DATE="2024-02-01"
+            git config --add remote.origin.fetch "+refs/heads/android16-6.12-20*:refs/remotes/origin/android16-6.12-20*"
+            git config --add remote.origin.fetch "+refs/heads/android16-6.12-lts:refs/remotes/origin/android16-6.12-lts"
+            git config --add remote.origin.fetch "+refs/heads/deprecated/android16-6.12-20*:refs/remotes/origin/deprecated/android16-6.12-20*"
+            SINCE_DATE="2025-04-01"
+            echo "[+] Fetching kernel tree for $KV (targeted shallow since $SINCE_DATE)..."
+            git fetch --progress --no-tags --shallow-since="$SINCE_DATE" origin
+            FALLBACK_DATE="2024-02-01"
           fi
 
-          echo "[+] Fetching kernel tree for $KV (shallow since $SINCE_DATE)..."
-          git fetch --progress --no-tags --shallow-since="$SINCE_DATE" origin
+          echo "FALLBACK_DATE=$FALLBACK_DATE" >> $GITHUB_ENV
 
       - name: Sync SUSFS Patches
         run: |
-          python3 .github/scripts/sync_susfs_patches.py \
-            --kernel "${{ matrix.kernel_version }}" \
-            --tree /tmp/kernel_tree \
-            --susfs-repo /tmp/susfs4ksu \
-            --patches-dir .github/patches \
-            --author "github-actions <actions@github.com>"
+          run_sync() {
+            python3 .github/scripts/sync_susfs_patches.py \
+              --kernel "${{ matrix.kernel_version }}" \
+              --tree /tmp/kernel_tree \
+              --susfs-repo /tmp/susfs4ksu \
+              --patches-dir .github/patches \
+              --author "github-actions <actions@github.com>"
+          }
+
+          if ! run_sync; then
+            echo "[!] Initial sync failed due to missing base-blob or unexpected conflict."
+            echo "[+] Self-healing tier: Deepening kernel tree history since $FALLBACK_DATE..."
+            cd /tmp/kernel_tree
+            git fetch --progress --no-tags --shallow-since="$FALLBACK_DATE" origin
+            cd - >/dev/null
+            echo "[+] Retrying sync with deep kernel history..."
+            run_sync
+          fi
 
       - name: Prepare Patches for Upload
         run: |
