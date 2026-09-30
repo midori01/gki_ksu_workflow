@@ -132,8 +132,8 @@ on:
         required: true
         default: true
         type: boolean
-      update_susfs_patches:
-        description: 'Sync SUSFS Patches'
+      sync_upstream:
+        description: 'Update Kernel Sources & SUSFS Patches'
         required: false
         default: false
         type: boolean
@@ -178,12 +178,13 @@ permissions:
 
 jobs:
   fetch:
+    if: inputs.sync_upstream
     uses: ./.github/workflows/update.yml
     with:
       kernel_version: ${{ inputs.kernel_version }}
 
   sync_susfs:
-    if: inputs.enable_susfs && inputs.update_susfs_patches
+    if: inputs.sync_upstream && inputs.enable_susfs
     uses: ./.github/workflows/sync-susfs.yml
     with:
       kernel_version: ${{ inputs.kernel_version }}
@@ -193,7 +194,7 @@ jobs:
     if: |
       always() &&
       !cancelled() &&
-      needs.fetch.result == 'success' &&
+      (needs.fetch.result == 'success' || needs.fetch.result == 'skipped') &&
       (needs.sync_susfs.result == 'success' || needs.sync_susfs.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
