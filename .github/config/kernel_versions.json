@@ -4,15 +4,15 @@
     "default_sub_level": "177",
     "use_lts": true,
     "revisions": {
-      "172": {
-        "asb_date": "2026-06",
-        "default_r": "r11",
+      "176": {
+        "asb_date": "2026-09",
+        "default_r": "r1",
         "supported_r": [
-          "r11",
+          "r1",
           "none"
         ],
-        "commit": "827d934a7fb2a47a826def0c1955820cc147a60f",
-        "commit_date": "2026-09-17 03:46:49 -0700"
+        "commit": "9957b9b69dbfcd8589c2d1b273b750c3f3bad65c",
+        "commit_date": "2026-09-16 16:08:42 +0000"
       },
       "177": {
         "asb_date": "lts",
