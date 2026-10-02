@@ -116,6 +116,7 @@
 | **KSU ツールキット** | 最新の [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) モジュールを nightly.link から自動取得し、リリースに同梱します。 |
 | **Droidspaces** | [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) を利用したコンテナ対応。SYSVIPC、IPC_NS、PID_NS、DEVTMPFS、NTSync、ネットワーク機能を提供します。`use_droidspaces` トグルでバリアントごとに有効化できます。 |
 | **Re:Kernel(-X)** | [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) および [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) モジュールをカーネルに直接組み込みます。tombstone によるフリーズ復旧、ネットワークトリガーによる解除、binder 非同期クリーンアップを提供します。`use_rekernel` スイッチで制御します。 |
+| **VPNHide Next** | In-tree kpatch（`CONFIG_VPNHIDE=y`）を介して [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend) を統合し、動的 LKM に依存することなくカーネルレベルで VPN ネットワークインターフェース、ルーティングルール、ソケット記述子を隠蔽します。付属の `vpnhide-bridge.zip` モジュールを自動取得してリリースに同梱します。`use_vpnhide` スイッチで制御します。 |
 | **Unicode バイパス修正** | 常に有効です。非標準の Unicode エンコーディングを用いたファイルシステムバイパス攻撃を防ぐため、カーネルの Unicode 正規化処理にパッチを適用します。 |
 | **ADIOS I/O スケジューラ** | [ADIOS](https://github.com/firelzrd/adios) をカーネル内蔵のデフォルト・マルチキュー I/O スケジューラとして統合します。`use_adios` スイッチで制御します。 |
 | **LZ4/ZSTD ZRAM バックエンド** | オプションでカーネルの LZ4 と ZSTD 実装を公式 LZ4 1.10.0 および Zstandard 1.5.7 に更新し、kernel 6.12 (6.12.23でのみテスト済み) の ZRAM バックエンドを有効化します。`use_lz4_zstd` トグルで制御し、6.1 および 6.6 ビルドは変更されません。 |

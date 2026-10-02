@@ -122,6 +122,11 @@ on:
         required: true
         default: true
         type: boolean
+      use_vpnhide:
+        description: 'VPNHide Next'
+        required: true
+        default: true
+        type: boolean
       use_extra_features:
         description: 'Extra Features & Fixes'
         required: true
@@ -346,6 +351,7 @@ jobs:
       variant: ${{ matrix.variant }}
       use_droidspaces: ${{ matrix.droidspaces }}
       use_rekernel: ${{ inputs.use_rekernel }}
+      use_vpnhide: ${{ inputs.use_vpnhide }}
       use_adios: ${{ inputs.use_adios }}
       use_lz4_zstd: ${{ inputs.use_lz4_zstd }}
       use_extra_features: ${{ inputs.use_extra_features }}
@@ -446,6 +452,18 @@ jobs:
           echo "MIDORISU_APK=$(basename "$apk" 2>/dev/null)" >> $GITHUB_ENV
           echo "KSUD_VERSION=$(echo "$apk" | grep -oP '\d+(?=-release\.apk$)' || echo "unknown")" >> $GITHUB_ENV
 
+      - name: Download VPNHide Bridge Module
+        if: inputs.use_vpnhide == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bridge=""
+          gh release download --repo soranerai/vpnhide_next_backend --pattern "vpnhide-bridge.zip" --dir release_zips 2>/dev/null || true
+          if [ -f "release_zips/vpnhide-bridge.zip" ]; then
+            bridge="vpnhide-bridge.zip"
+          fi
+          echo "VPNHIDE_BRIDGE_FILE=$bridge" >> $GITHUB_ENV
+
       - name: Read Commit Info
         id: ksu_info
         run: |
@@ -496,6 +514,13 @@ jobs:
             local date=$(cat "${file%_commit}_date")
             out "rekernel_x_line=- **${label}**: [\`$(echo $sha | cut -c1-7)\`](https://github.com/myflavor/ReKernel-X/commit/$sha) \`$date\`"
           }
+          vpnhide_line() {
+            local label=$1 file=$2
+            [ -f "$file" ] || return 0
+            local sha=$(cat "$file")
+            local date=$(cat "${file%_commit}_date")
+            out "vpnhide_line=- **${label}**: [\`$(echo $sha | cut -c1-7)\`](https://github.com/soranerai/vpnhide_next_backend/commit/$sha) \`$date\`"
+          }
           if [ -f "commit_info/susfs_commit" ]; then
             sha=$(cat commit_info/susfs_commit)
             out "susfs_commit=\`$(short_sha commit_info/susfs_commit)\`"
@@ -519,6 +544,7 @@ jobs:
           fi
           rekernel_line "Re:Kernel" commit_info/rekernel_commit
           rekernel_x_line "Re:Kernel-X" commit_info/rekernel_x_commit
+          vpnhide_line "VPNHide Next" commit_info/vpnhide_commit
           ksu_line MidoriSU-KX "$(cat commit_info/midorisu_kx_ksu_repo 2>/dev/null)" commit_info/midorisu_kx_ksu_commit
           ksu_line MidoriSU-NX "$(cat commit_info/midorisu_nx_ksu_repo 2>/dev/null)" commit_info/midorisu_nx_ksu_commit
           ksu_line MidoriSU-OX "$(cat commit_info/midorisu_ox_ksu_repo 2>/dev/null)" commit_info/midorisu_ox_ksu_commit
@@ -541,6 +567,7 @@ jobs:
             ${{ steps.ksu_info.outputs.susfs_url && format('- **SUSFS4KSU**: [{0}]({1}) {2}', steps.ksu_info.outputs.susfs_commit, steps.ksu_info.outputs.susfs_url, steps.ksu_info.outputs.susfs_date) || '' }}
             ${{ steps.ksu_info.outputs.rekernel_line }}
             ${{ steps.ksu_info.outputs.rekernel_x_line }}
+            ${{ steps.ksu_info.outputs.vpnhide_line }}
             - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version || env.KSUD_VERSION }}`　**KSU Daemon (ksud)**: `${{ env.KSUD_VERSION }}`
             - **Manager**: `${{ env.MIDORISU_APK }}`
             > **Spoofed Kernel Build Info**
@@ -552,6 +579,7 @@ jobs:
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
             - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}
+            - **VPNHide Next**: ${{ env.VPNHIDE_BRIDGE_FILE && format('✅ `({0})`', env.VPNHIDE_BRIDGE_FILE) || (inputs.use_vpnhide && '✅' || '❌') }}
             - **Compiler**: `clang-${{ env.CLANG_VERSION }}`${{ env.RUST_VERSION && format('　**Rust**: `{0}`', env.RUST_VERSION) || '' }}
           files: |
             release_zips/*.zip

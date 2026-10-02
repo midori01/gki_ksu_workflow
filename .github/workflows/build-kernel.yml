@@ -19,6 +19,10 @@ on:
         required: false
         type: boolean
         default: true
+      use_vpnhide:
+        required: false
+        type: boolean
+        default: true
       use_extra_features:
         required: false
         type: boolean
@@ -373,6 +377,15 @@ jobs:
           echo 'obj-y += rekernel_x/' >> drivers/Makefile
           echo "RKX_VERSION=v$REKERNEL_X_TAG" >> $GITHUB_ENV
 
+      - name: Setup VPNHide Next
+        if: inputs.use_vpnhide
+        working-directory: kernel_workspace/common
+        run: |
+          VPNHIDE_DIR="${{ github.workspace }}/vpnhide_next"
+          git clone --filter=blob:none https://github.com/soranerai/vpnhide_next_backend.git "$VPNHIDE_DIR"
+          VPNHIDE_TAG=$(git -C "$VPNHIDE_DIR" describe --tags $(git -C "$VPNHIDE_DIR" rev-list --tags -n 1)) && git -C "$VPNHIDE_DIR" checkout "tags/$VPNHIDE_TAG"
+          bash "$VPNHIDE_DIR/kpatch/scripts/apply.sh" . "${{ steps.cfg.outputs.kmi_version }}"
+
       - name: Apply CVE-2026-43499 Fix
         working-directory: kernel_workspace/common
         run: |
@@ -437,6 +450,7 @@ jobs:
           localversion: ${{ steps.localversion.outputs.localversion }}
           use_droidspaces: ${{ inputs.use_droidspaces }}
           use_rekernel: ${{ inputs.use_rekernel }}
+          use_vpnhide: ${{ inputs.use_vpnhide }}
           use_adios: ${{ inputs.use_adios }}
           use_lz4_zstd: ${{ inputs.use_lz4_zstd }}
           midorisu_rx_hook_mode: ${{ inputs.midorisu_rx_hook_mode }}
@@ -479,6 +493,14 @@ jobs:
               popd > /dev/null
             fi
           }
+          save_vpnhide_commit() {
+            if [ "${{ inputs.use_vpnhide }}" = "true" ] && [ -d "${{ github.workspace }}/vpnhide_next" ]; then
+              pushd "${{ github.workspace }}/vpnhide_next" > /dev/null
+              git rev-parse HEAD > "$COMMIT_DIR/vpnhide_commit"
+              git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M %z' HEAD > "$COMMIT_DIR/vpnhide_date"
+              popd > /dev/null
+            fi
+          }
           case "${{ inputs.variant }}" in
             MidoriSU-KX)
               save_ksu_commit midorisu_kx
@@ -513,6 +535,7 @@ jobs:
           esac
           save_rekernel_commit
           save_rekernel_x_commit
+          save_vpnhide_commit
 
       - name: Upload Commit Info
         uses: actions/upload-artifact@v7
