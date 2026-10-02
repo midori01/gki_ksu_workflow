@@ -6,13 +6,13 @@
     "revisions": {
       "176": {
         "asb_date": "2026-09",
-        "default_r": "r1",
+        "default_r": "r2",
         "supported_r": [
-          "r1",
+          "r2",
           "none"
         ],
-        "commit": "9957b9b69dbfcd8589c2d1b273b750c3f3bad65c",
-        "commit_date": "2026-09-16 16:08:42 +0000"
+        "commit": "f2efd971881efbc73ce2b9ed63e905ec75541b90",
+        "commit_date": "2026-09-28 15:43:41 -0700"
       },
       "177": {
         "asb_date": "lts",
@@ -66,13 +66,13 @@
     "revisions": {
       "38": {
         "asb_date": "2025-09",
-        "default_r": "r38",
+        "default_r": "r39",
         "supported_r": [
-          "r38",
+          "r39",
           "none"
         ],
-        "commit": "1b0462bd0618c9fa384498dce3d8c4476182bedf",
-        "commit_date": "2026-09-02 02:39:15 -0700"
+        "commit": "4ef93a700ec424fe0d4f7d133e7ba50e4dbf0e36",
+        "commit_date": "2026-09-28 18:49:39 -0700"
       },
       "69": {
         "asb_date": "2026-03",
