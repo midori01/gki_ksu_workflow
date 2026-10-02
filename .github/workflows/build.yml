@@ -202,8 +202,6 @@ jobs:
       build_matrix: ${{ steps.config.outputs.build_matrix }}
       metadata: ${{ steps.config.outputs.metadata }}
       kernel_versions: ${{ steps.config.outputs.kernel_versions }}
-      kernel_localversion: ${{ steps.config.outputs.kernel_localversion }}
-      kernel_localversion_6_1: ${{ steps.config.outputs.kernel_localversion_6_1 }}
       build_timestamp: ${{ steps.config.outputs.build_timestamp }}
       build_epoch: ${{ steps.config.outputs.build_epoch }}
       build_user: ${{ steps.config.outputs.build_user }}
@@ -232,21 +230,6 @@ jobs:
             kvs='["${{ inputs.kernel_version }}"]'
           fi
           echo "kernel_versions=$kvs" >> $GITHUB_OUTPUT
-
-          SUFFIX="-midori"
-          [ "${{ inputs.enable_susfs }}" = "true" ] && SUFFIX="${SUFFIX}-sus"
-          [ "${{ inputs.use_adios }}" = "true" ] && SUFFIX="${SUFFIX}-adios"
-          [ "${{ inputs.use_droidspaces }}" = "true" ] && SUFFIX="${SUFFIX}-droidspaces"
-
-          SUFFIX_6_1="-midori"
-          [ "${{ inputs.enable_susfs }}" = "true" ] && SUFFIX_6_1="${SUFFIX_6_1}-sus"
-          [ "${{ inputs.use_droidspaces }}" = "true" ] && SUFFIX_6_1="${SUFFIX_6_1}-droidspaces"
-
-          DEF_KLV="${{ inputs.kernel_localversion || 'SUFFIX_PLACEHOLDER' }}"
-          KLV_DEFAULT=$(echo "$DEF_KLV" | sed "s/SUFFIX_PLACEHOLDER/$SUFFIX/")
-          KLV_6_1=$(echo "$DEF_KLV" | sed "s/SUFFIX_PLACEHOLDER/$SUFFIX_6_1/")
-          echo "kernel_localversion=$KLV_DEFAULT" >> $GITHUB_OUTPUT
-          echo "kernel_localversion_6_1=$KLV_6_1" >> $GITHUB_OUTPUT
 
           if [ -z "${{ inputs.build_timestamp }}" ] || [ "${{ inputs.build_timestamp }}" = "''" ]; then
             build_ts="$(TZ='UTC' date +'%a %b %d %H:%M:%S UTC %Y')"
@@ -332,9 +315,7 @@ jobs:
                 local sus="false"
                 [ "${{ inputs.use_droidspaces }}" = "true" ] && ds="true"
                 [ "$has_susfs" = "true" ] && [ "${{ inputs.enable_susfs }}" = "true" ] && sus="true"
-                local klv="$KLV_DEFAULT"
-                [ "$kv" = "6.1" ] && klv="$KLV_6_1"
-                matrix=$(echo "$matrix" | jq -c --arg kv "$kv" --arg sub_level "$sub_level" --arg variant "$v" --argjson ds "$ds" --argjson sus "$sus" --arg klv "$klv" '.include += [{"kernel_version":$kv,"sub_level":$sub_level,"variant":$variant,"droidspaces":$ds,"susfs":$sus,"kernel_localversion":$klv}]')
+                matrix=$(echo "$matrix" | jq -c --arg kv "$kv" --arg sub_level "$sub_level" --arg variant "$v" --argjson ds "$ds" --argjson sus "$sus" '.include += [{"kernel_version":$kv,"sub_level":$sub_level,"variant":$variant,"droidspaces":$ds,"susfs":$sus}]')
               }
 
               [[ "$variant" =~ ^(all|MidoriSU-KX)$ ]] && add_variant MidoriSU-KX true
@@ -372,7 +353,7 @@ jobs:
       source_mirror: ${{ inputs.source_mirror }}
       use_ccache: ${{ inputs.use_ccache }}
       susfs_commit: ${{ inputs.susfs_commit }}
-      kernel_localversion: ${{ matrix.kernel_localversion }}
+      kernel_localversion: ${{ inputs.kernel_localversion }}
       build_epoch: ${{ needs.setup.outputs.build_epoch }}
       build_timestamp: ${{ needs.setup.outputs.build_timestamp }}
       build_user: ${{ needs.setup.outputs.build_user }}
@@ -411,11 +392,6 @@ jobs:
             UNAME_SUB="X"
           fi
           echo "UNAME_SUB=$UNAME_SUB" >> $GITHUB_ENV
-          if [ "${{ matrix.kv }}" = "6.1" ]; then
-            echo "RELEASE_LOCALVERSION=${{ needs.setup.outputs.kernel_localversion_6_1 }}" >> $GITHUB_ENV
-          else
-            echo "RELEASE_LOCALVERSION=${{ needs.setup.outputs.kernel_localversion }}" >> $GITHUB_ENV
-          fi
           echo "KERNEL_SOURCE_INFO<<EOF" >> $GITHUB_ENV
           jq -r '.[] | 
             .source_commit_date as $d |
@@ -473,6 +449,31 @@ jobs:
       - name: Read Commit Info
         id: ksu_info
         run: |
+          default_klv=""
+          if [ -n "${{ inputs.kernel_localversion }}" ]; then
+            default_klv="${{ inputs.kernel_localversion }}"
+            [[ "$default_klv" == -* ]] || default_klv="-$default_klv"
+          elif [ -f "commit_info/localversion" ]; then
+            default_klv="$(cat commit_info/localversion | head -n 1)"
+          fi
+
+          unique_klvs=$(cat commit_info/localversion_* 2>/dev/null | sort -u)
+          klv_count=$(echo "$unique_klvs" | grep -c . || true)
+          if [ "$klv_count" -gt 1 ]; then
+            uname_text="> - **Uname**:"
+            for f in $(ls commit_info/localversion_* 2>/dev/null | sort -V); do
+              sub=$(basename "$f" | sed 's/localversion_//')
+              sub_klv=$(cat "$f" | head -n 1)
+              uname_text=$(printf "%s\n>   - **${{ matrix.kv }}.%s**: \`${{ matrix.kv }}.%s%s\`" "$uname_text" "$sub" "$sub" "$sub_klv")
+            done
+          else
+            klv=$(echo "$unique_klvs" | head -n 1)
+            [ -z "$klv" ] && klv="$default_klv"
+            uname_text="> - **Uname**: \`${{ matrix.kv }}.${{ env.UNAME_SUB }}${klv}\`"
+          fi
+          echo "RELEASE_UNAME<<EOF" >> $GITHUB_ENV
+          echo "$uname_text" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
           variant="${{ inputs.ksu_variant }}"
           short_sha() { cut -c1-7 "$1"; }
           out() { echo "$1" >> $GITHUB_OUTPUT; }
@@ -543,7 +544,7 @@ jobs:
             - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version || env.KSUD_VERSION }}`　**KSU Daemon (ksud)**: `${{ env.KSUD_VERSION }}`
             - **Manager**: `${{ env.MIDORISU_APK }}`
             > **Spoofed Kernel Build Info**
-            > - **Uname**: `${{ matrix.kv }}.${{ env.UNAME_SUB }}${{ env.RELEASE_LOCALVERSION }}`
+            ${{ env.RELEASE_UNAME }}
             > - **Time**: `${{ needs.setup.outputs.build_timestamp }}`
             > - **Builder**: `${{ needs.setup.outputs.build_user }}@${{ needs.setup.outputs.build_host }}`
             - **Unicode Bypass Fix**: ✅　**CVE-2026-43499 Fix**: ${{ steps.ksu_info.outputs.cve_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_failed_subs) }}
