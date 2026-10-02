@@ -71,7 +71,7 @@
 >   - `manual` — 通过 `scope-min-manual-hooks-v2.3.patch` 打入的手动 hook
 
 > [!TIP]
-> **矩阵构建编排：** 矩阵始终为每个变体产出恰好 **1 个构件** — 启用的功能（Droidspaces 和/或 SUSFS）会应用到该单一构件上。选择全部 5 个变体时，每个内核版本的 **每个子版本产生 5 次构建**。从 `kernel_version` 下拉菜单中选择 `all` 将并行编译 6.1、6.6 和 6.12 的所有子版本，在默认配置下共 **40 个并发 Job**。
+> **矩阵构建编排：** 矩阵始终为每个变体产出恰好 **1 个构件** — 启用的功能（Droidspaces 和/或 SUSFS）会应用到该单一构件上。选择全部 5 个变体时，每个内核版本的 **每个子版本产生 5 次构建**。从 `kernel_version` 下拉菜单中选择 `all` 将并行编译 6.1、6.6 和 6.12 的所有子版本，在默认配置下共 **50 个并发 Job**。
 
 ---
 
@@ -81,13 +81,15 @@
 
 | 功能 | 描述 |
 | :--- | :--- |
-| **首页概览** | 现代化仪表盘状态卡片：动态显示 KSU 驱动名称（原生驱动名与 LKM 动态识别）、Hook 类型、SUSFS 版本、Droidspaces 版本、Re:Kernel(-X) 版本、内核构建时间与 OEM 解锁状态。 |
-| **双主题与外观定制** | 深度支持 Material 3 Expressive 与 Miuix 两套 UI 风格及实时主题预览；内置切换器，可在 **MidoriSU**、**KowSU** 与 **官方 KernelSU** 之间即时切换应用名称、图标及开屏主题。 |
-| **镜像与内核刷写** | 支持在应用内直接备份与刷写 `boot.img` 分区，支持直接刷写 AnyKernel3 ZIP 刷机包并选择目标槽位（Slot A/B）。 |
+| **现代化 Bento 仪表盘** | 便当盒式响应式仪表盘与弹性按压缩放回弹动效；动态显示 KSU 驱动名称（原生驱动名与 LKM 动态识别）、罗马数字 UAPI 版本、Hook 类型、SUSFS 版本、Droidspaces 版本、Re:Kernel(-X) 版本、内核构建时间与 OEM 解锁状态。 |
+| **双主题与外观定制** | 深度支持 Material 3 Expressive 与 Miuix 两套 UI 风格及实时主题预览；配备 Material 悬浮胶囊底部导航栏、重复点击底栏快速回顶、模块更新红点提示，内置切换器可在 **MidoriSU**、**KowSU** 与 **官方 KernelSU** 之间即时切换应用名称、图标及开屏主题。 |
+| **OTA Payload 抽取与 ARB 分析** | 支持从本地或在线 OTA ZIP / `payload.bin` 固件中秒级提取 `boot.img` 分区镜像，支持 HTTP Range Request 免下载数十 GB 完整包；内置防回滚（ARB）安全指数分析与内核版本检测。 |
+| **镜像刷写与安全预检** | 支持在应用内直接备份与刷写 `boot.img` 分区，支持直接刷写 AnyKernel3 ZIP 刷机包并选择目标槽位（Slot A/B）；新增模块刷入前安全静态预检，拦截高危脚本并规避死循环变砖风险。 |
+| **内核 Panic 与崩溃堆栈分析** | 专属内核崩溃日志分析工具：深度扫描 `/proc/last_kmsg`、`/sys/fs/pstore/console-ramoops*` 与 dmesg 崩溃日志，精准定位 Kernel Panic、OOPS 堆栈轨迹、内存故障与异常重启根因。 |
 | **授权列表备份与恢复** | 支持 Superuser 授权列表与应用配置文件的完整备份与恢复，跨机迁移与重装无忧。 |
 | **模块导出为 ZIP** | 支持将已安装的任意活动/非活动模块一键打包并导出为标准可刷写的 ZIP 模块包。 |
 | **内核模块 (LKM) 管理** | 浏览已加载的内核模块，支持动态加载与卸载操作。 |
-| **内核诊断工具** | 应用内浏览、搜索与分享 `/proc/kallsyms` 内核符号、实时 dmesg 内核日志与 `CONFIG_*` 内核编译配置。 |
+| **内核诊断工具箱** | 应用内浏览、搜索、过滤与分享 `/proc/kallsyms` 内核符号、实时 dmesg 内核日志与 `CONFIG_*` 内核编译配置，并支持底栏快捷切换控件。 |
 | **快捷开关与功能集成** | 支持即时切换 SELinux 运行模式（Enforcing / Permissive）、内置 SUSFS WebUI 快捷跳转入口与驱动更新检查开关。 |
 
 ---

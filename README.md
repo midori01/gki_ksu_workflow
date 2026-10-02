@@ -71,7 +71,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 >   - `manual` — manually-patched hooks via `scope-min-manual-hooks-v2.3.patch`
 
 > [!TIP]
-> **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With all 5 variants selected, this yields **5 builds per sublevel for each kernel version**. Choosing `all` from the `kernel_version` dropdown compiles all configured sublevels across 6.1, 6.6 and 6.12 in parallel for a total of **40 concurrent jobs**.
+> **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With all 5 variants selected, this yields **5 builds per sublevel for each kernel version**. Choosing `all` from the `kernel_version` dropdown compiles all configured sublevels across 6.1, 6.6 and 6.12 in parallel for a total of **50 concurrent jobs**.
 
 ---
 
@@ -81,13 +81,15 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 
 | Feature | Description |
 | :--- | :--- |
-| **Homepage Overview** | Modernized dashboard status card: dynamically displays KSU driver name (native driver name & dynamic LKM detection), hook type, SUSFS version, Droidspaces version, Re:Kernel(-X) version, kernel build timestamp, and OEM unlock status. |
-| **Dual Themes & Personalization** | Seamlessly supports both Material 3 Expressive and Miuix UI themes with live preview cards; includes a built-in switcher to toggle between **MidoriSU**, **KowSU**, and **Official KernelSU** app names, icons, and splash themes. |
-| **Flashing & Partition Tools** | Direct in-app backup and flashing of `boot.img`, as well as flashing AnyKernel3 zip packages with target slot selection (Slot A/B). |
+| **Modern Bento Dashboard** | Bento-style responsive dashboard with spring press bounce feedback; dynamically displays KSU driver name (native driver & dynamic LKM detection), Roman numeral UAPI version, hook type, SUSFS version, Droidspaces version, Re:Kernel(-X) version, kernel build timestamp, and OEM unlock status. |
+| **Dual Themes & Personalization** | Seamlessly supports both Material 3 Expressive and Miuix UI themes with live preview cards; includes a floating pill bottom navigation bar, re-tapping active tab to scroll to top, module update badges, and a built-in switcher to toggle between **MidoriSU**, **KowSU**, and **Official KernelSU** app names, icons, and splash themes. |
+| **OTA Payload & ARB Analyzer** | Instant extraction of `boot.img` from local or online OTA zip / `payload.bin` archives via HTTP Range Requests without downloading entire multi-gigabyte packages; includes built-in Anti-Rollback (ARB) index and boot kernel version analysis. |
+| **Flashing & Safety Inspection** | Direct in-app backup and flashing of `boot.img`, flashing AnyKernel3 zip packages with target slot selection (Slot A/B), and automated module pre-flash safety inspection to detect risky scripts and prevent bootloops. |
+| **Kernel Panic & Crash Analyzer** | Dedicated crash analysis tool: scans `/proc/last_kmsg`, `/sys/fs/pstore/console-ramoops*`, and dmesg to pinpoint kernel panics, OOPS call traces, memory faults, and unexpected reboots. |
 | **Allowlist Backup & Restore** | Complete backup and restoration for Superuser allowlist rules and per-app profile configurations. |
 | **Module Export as ZIP** | Export any installed module directly into a standard flashable ZIP archive. |
 | **Kernel Module (LKM) Manager** | Inspect loaded kernel modules with support for dynamic loading and unloading. |
-| **Kernel Diagnostics** | In-app inspection, searching, and sharing for `/proc/kallsyms` symbol table, live dmesg kernel logs, and `CONFIG_*` kernel compile options. |
+| **Kernel Diagnostics** | In-app inspection, searching, filtering, and sharing for `/proc/kallsyms` symbol table, live dmesg kernel logs, and `CONFIG_*` kernel compile options, with bottom bar quick-switch widget. |
 | **Toggles & Integrations** | Instant SELinux mode switching (Enforcing / Permissive), integrated SUSFS WebUI shortcut, and KSU driver update check toggle. |
 
 ---
