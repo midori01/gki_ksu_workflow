@@ -6,48 +6,10 @@ KSU_VERSION="${KSU_VERSION:-0}"
 echo "[+] Setting up manager and version..."
 echo "[+] Dynamic KSU_VERSION (based on MidoriSU): ${KSU_VERSION}"
 
-if [ -f "KernelSU/kernel/manager/apk_sign.c" ]; then
-  if grep -q 'com.midori.supermanager' KernelSU/kernel/manager/apk_sign.c; then
-    echo "[+] Manager already patched, skipping."
-  else
-    if grep -q 'u8 \*signature_index' KernelSU/kernel/manager/apk_sign.c; then
-      HAS_SIG=1
-    else
-      HAS_SIG=0
-    fi
-
-    sed -i 's/\(unsigned char buffer\[0x1[01]\] = { 0 };\)/return true;\n\t\1/g' KernelSU/kernel/manager/apk_sign.c
-    sed -i '/^bool is_manager_apk/,/^}$/d' KernelSU/kernel/manager/apk_sign.c
-
-    if [ "$HAS_SIG" = "1" ]; then
-      cat >> KernelSU/kernel/manager/apk_sign.c << 'EOF'
-bool is_manager_apk(char *path, u8 *signature_index)
-{
-    char pkg[KSU_MAX_PACKAGE_NAME];
-    if (get_pkg_from_apk_path(pkg, path) < 0) {
-        pr_err("Failed to get package name from apk path: %s\n", path);
-        return false;
-    }
-    return strcmp(pkg, "com.midori.supermanager") == 0 ||
-           strcmp(pkg, "com.midori.su.manager") == 0;
-}
-EOF
-    else
-      cat >> KernelSU/kernel/manager/apk_sign.c << 'EOF'
-bool is_manager_apk(char *path)
-{
-    char pkg[KSU_MAX_PACKAGE_NAME];
-    if (get_pkg_from_apk_path(pkg, path) < 0) {
-        pr_err("Failed to get package name from apk path: %s\n", path);
-        return false;
-    }
-    return strcmp(pkg, "com.midori.supermanager") == 0 ||
-           strcmp(pkg, "com.midori.su.manager") == 0;
-}
-EOF
-    fi
-  fi
-fi
+sed -i 's/\(unsigned char buffer\[0x1[01]\] = { 0 };\)/return true;\n\t\1/g' KernelSU/kernel/manager/apk_sign.c 2>/dev/null || true
+sed -i '1i KSU_MANAGER_PACKAGE := com.midori.supermanager' KernelSU/kernel/Kbuild 2>/dev/null || true
+sed -E -i 's|^[[:space:]]*KSU_PACKAGE_NAME[[:space:]]*[:?]*=.*|KSU_PACKAGE_NAME := com.midori.supermanager|g' KernelSU/kernel/Kbuild KernelSU/kernel/Makefile 2>/dev/null || true
+sed -i 's|#define test_extra_pkgs(tgt).*|#define test_extra_pkgs(tgt) 0|' KernelSU/kernel/manager/throne_tracker.c 2>/dev/null || true
 
 sed -i '/^ccflags-y.*KSU_KERNEL_DIR/c\ccflags-y += -I$(srctree)/$(src) -I$(srctree)/$(src)/include -I$(src) -I$(src)/include' KernelSU/kernel/Kbuild 2>/dev/null || true
 sed -i "s|^ccflags-y += -DKSU_VERSION=.*|ccflags-y += -DKSU_VERSION=${KSU_VERSION}|" KernelSU/kernel/Kbuild 2>/dev/null || true
