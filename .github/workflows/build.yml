@@ -442,22 +442,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --repo midori01/KernelSU --pattern "*.apk" --dir release_zips 2>/dev/null || true
-          apk=$(ls release_zips/*.apk 2>/dev/null | head -n 1)
+          gh release download --repo midori01/KernelSU --pattern "MidoriSU_*.apk" --dir release_zips 2>/dev/null || true
+          apk=$(ls release_zips/MidoriSU_*.apk 2>/dev/null | head -n 1)
           echo "MIDORISU_APK=$(basename "$apk" 2>/dev/null)" >> $GITHUB_ENV
           echo "KSUD_VERSION=$(echo "$apk" | grep -oP '\d+(?=-release\.apk$)' || echo "unknown")" >> $GITHUB_ENV
 
-      - name: Download VPNHide Bridge Module
+      - name: Download VPNHide Artifacts
         if: inputs.use_vpnhide == true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          bridge=""
-          gh release download --repo soranerai/vpnhide_next_backend --pattern "vpnhide-bridge.zip" --dir release_zips 2>/dev/null || true
-          if [ -f "release_zips/vpnhide-bridge.zip" ]; then
-            bridge="vpnhide-bridge.zip"
+          gh release download --repo soranerai/vpnhide_next --pattern "vpnhide-bridge.zip" --pattern "vpnhide.apk" --dir release_zips 2>/dev/null || true
+          if [ ! -f "release_zips/vpnhide-bridge.zip" ]; then
+            gh release download --repo soranerai/vpnhide_next_backend --pattern "vpnhide-bridge.zip" --dir release_zips 2>/dev/null || true
           fi
-          echo "VPNHIDE_BRIDGE_FILE=$bridge" >> $GITHUB_ENV
+          files=""
+          if [ -f "release_zips/vpnhide-bridge.zip" ]; then
+            files="vpnhide-bridge.zip"
+          fi
+          if [ -f "release_zips/vpnhide.apk" ]; then
+            files="${files:+$files, }vpnhide.apk"
+          fi
+          echo "VPNHIDE_FILES=$files" >> $GITHUB_ENV
 
       - name: Read Commit Info
         id: ksu_info
@@ -574,7 +580,7 @@ jobs:
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
             - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}
-            - **VPNHide Next**: ${{ env.VPNHIDE_BRIDGE_FILE && format('✅ `({0})`', env.VPNHIDE_BRIDGE_FILE) || (inputs.use_vpnhide && '✅' || '❌') }}
+            - **VPNHide Next**: ${{ env.VPNHIDE_FILES && format('✅ `({0})`', env.VPNHIDE_FILES) || (inputs.use_vpnhide && '✅' || '❌') }}
             - **Compiler**: `clang-${{ env.CLANG_VERSION }}`${{ env.RUST_VERSION && format('　**Rust**: `{0}`', env.RUST_VERSION) || '' }}
           files: |
             release_zips/*.zip
