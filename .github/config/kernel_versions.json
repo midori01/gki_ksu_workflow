@@ -76,13 +76,13 @@
       },
       "81": {
         "asb_date": "2026-06",
-        "default_r": "r30",
+        "default_r": "r31",
         "supported_r": [
-          "r30",
+          "r31",
           "none"
         ],
-        "commit": "4299a407e96371f275c3bcb7a87ab8b1950a034c",
-        "commit_date": "2026-09-24 01:19:57 -0700"
+        "commit": "c2e24a396b4c1e5823024ca5401c34745dcecfb1",
+        "commit_date": "2026-10-07 14:22:01 -0700"
       },
       "92": {
         "asb_date": "2026-09",
