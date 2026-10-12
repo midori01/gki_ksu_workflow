@@ -1,15 +1,15 @@
 From: github-actions <actions@github.com>
-Date: Wed, 30 Sep 2026 00:04:17 +0000
+Date: Mon, 12 Oct 2026 16:02:49 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android15-6.6-lts
 X-Kernel-Target-Branch: android15-6.6-lts
 X-Kernel-Target-Commit: 712c2cd5cdc1c35470b3142e46622c0a8decc7c4
 X-SUSFS-Source-Ref: origin/gki-android15-6.6
-X-SUSFS-Source-Commit: a0f9c59e2243f8a5db955f4ad1686d5e0ad26e1a
+X-SUSFS-Source-Commit: bd7d199ac87808001127e8a6d076832e2938cf0d
 
 ---
  drivers/input/input.c          |  10 ++
  fs/Makefile                    |   2 +
- fs/exec.c                      |  37 ++++++
+ fs/exec.c                      |  36 ++++++
  fs/namei.c                     | 237 ++++++++++++++++++++++++++++++++++++++
  fs/namespace.c                 | 255 +++++++++++++++++++++++++++++++++++++++++
  fs/notify/fdinfo.c             |  78 +++++++++++++
@@ -32,7 +32,7 @@ X-SUSFS-Source-Commit: a0f9c59e2243f8a5db955f4ad1686d5e0ad26e1a
  security/selinux/hooks.c       |  45 ++++++++
  security/selinux/selinuxfs.c   | 147 ++++++++++++++++++++++++
  security/selinux/ss/services.c |  24 ++++
- 25 files changed, 1635 insertions(+), 1 deletion(-)
+ 25 files changed, 1634 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 9bb1d3de7..a6333655c 100644
@@ -76,7 +76,7 @@ index c6963a9a4..e27ac368b 100644
  obj-$(CONFIG_PROC_FS)		+= proc_namespace.o
  obj-$(CONFIG_LEGACY_DIRECT_IO)	+= direct-io.o
 diff --git a/fs/exec.c b/fs/exec.c
-index 8dc93215b..c761662cd 100644
+index 8dc93215b..902097393 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -67,6 +67,9 @@
@@ -89,14 +89,13 @@ index 8dc93215b..c761662cd 100644
  
  #ifndef __GENKSYMS__
  #include <linux/dma-buf.h>
-@@ -1926,6 +1929,18 @@ static int bprm_execve(struct linux_binprm *bprm,
+@@ -1926,6 +1929,17 @@ static int bprm_execve(struct linux_binprm *bprm,
  	return retval;
  }
  
 +#ifdef CONFIG_KSU_SUSFS
 +extern struct static_key_true ksu_su_compat_enabled;
 +extern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;
-+extern bool __ksu_is_allow_uid_for_current(uid_t uid);
 +extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
 +			void *envp, int *flags);
 +extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv,
@@ -108,7 +107,7 @@ index 8dc93215b..c761662cd 100644
  static int do_execveat_common(int fd, struct filename *filename,
  			      struct user_arg_ptr argv,
  			      struct user_arg_ptr envp,
-@@ -1933,10 +1948,28 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1933,10 +1947,28 @@ static int do_execveat_common(int fd, struct filename *filename,
  {
  	struct linux_binprm *bprm;
  	int retval;
@@ -137,7 +136,7 @@ index 8dc93215b..c761662cd 100644
  	/*
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
-@@ -2003,6 +2036,10 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -2003,6 +2035,10 @@ static int do_execveat_common(int fd, struct filename *filename,
  	}
  
  	retval = bprm_execve(bprm, fd, filename, flags);

@@ -1,15 +1,15 @@
 From: github-actions <actions@github.com>
-Date: Sun, 11 Oct 2026 23:56:44 +0000
+Date: Mon, 12 Oct 2026 16:01:48 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android14-6.1-lts
 X-Kernel-Target-Branch: android14-6.1-lts
 X-Kernel-Target-Commit: 4056c236e4c84d5fdc5c80409a8fa37ef82f53b9
 X-SUSFS-Source-Ref: origin/gki-android14-6.1
-X-SUSFS-Source-Commit: 17dc6b683b26e036242bfcfe86b33c5982590237
+X-SUSFS-Source-Commit: 5192aa2d33b381b58c1051532f9e1dfa5de6e8d3
 
 ---
  drivers/input/input.c        |  10 ++
  fs/Makefile                  |   2 +
- fs/exec.c                    |  37 +++++++
+ fs/exec.c                    |  36 ++++++
  fs/namei.c                   | 238 ++++++++++++++++++++++++++++++++++++++++
  fs/namespace.c               | 255 +++++++++++++++++++++++++++++++++++++++++++
  fs/notify/fdinfo.c           |  78 +++++++++++++
@@ -31,7 +31,7 @@ X-SUSFS-Source-Commit: 17dc6b683b26e036242bfcfe86b33c5982590237
  security/selinux/avc.c       |  21 +++-
  security/selinux/hooks.c     |  18 +++
  security/selinux/selinuxfs.c |  90 +++++++++++++++
- 24 files changed, 1507 insertions(+), 2 deletions(-)
+ 24 files changed, 1506 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 78be582b5..5b548b1cf 100644
@@ -75,7 +75,7 @@ index 102e4cd2b..a1929dbc8 100644
  obj-y +=	buffer.o direct-io.o mpage.o
  else
 diff --git a/fs/exec.c b/fs/exec.c
-index 6999d609d..23885399d 100644
+index 6999d609d..89bd75bd9 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -64,6 +64,9 @@
@@ -88,14 +88,13 @@ index 6999d609d..23885399d 100644
  
  #ifndef __GENKSYMS__
  #include <linux/dma-buf.h>
-@@ -1904,6 +1907,18 @@ static int bprm_execve(struct linux_binprm *bprm,
+@@ -1904,6 +1907,17 @@ static int bprm_execve(struct linux_binprm *bprm,
  	return retval;
  }
  
 +#ifdef CONFIG_KSU_SUSFS
 +extern struct static_key_true ksu_su_compat_enabled;
 +extern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;
-+extern bool __ksu_is_allow_uid_for_current(uid_t uid);
 +extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
 +			void *envp, int *flags);
 +extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv,
@@ -107,7 +106,7 @@ index 6999d609d..23885399d 100644
  static int do_execveat_common(int fd, struct filename *filename,
  			      struct user_arg_ptr argv,
  			      struct user_arg_ptr envp,
-@@ -1911,10 +1926,28 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1911,10 +1925,28 @@ static int do_execveat_common(int fd, struct filename *filename,
  {
  	struct linux_binprm *bprm;
  	int retval;
@@ -136,7 +135,7 @@ index 6999d609d..23885399d 100644
  	/*
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
-@@ -1981,6 +2014,10 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1981,6 +2013,10 @@ static int do_execveat_common(int fd, struct filename *filename,
  	}
  
  	retval = bprm_execve(bprm, fd, filename, flags);
