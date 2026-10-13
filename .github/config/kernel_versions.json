@@ -41,7 +41,7 @@
   },
   "6.12": {
     "android_version": "android16",
-    "default_sub_level": "94",
+    "default_sub_level": "95",
     "use_lts": true,
     "revisions": {
       "38": {
@@ -94,14 +94,14 @@
         "commit": "77c2d2eef65fe1439c16c078a58210bb742b56f0",
         "commit_date": "2026-10-07 12:06:39 -0700"
       },
-      "94": {
+      "95": {
         "asb_date": "lts",
         "default_r": "r00",
         "supported_r": [
           "r00"
         ],
-        "commit": "ca3f1d12d1f3622fc11f5b527a63a93bb53278ab",
-        "commit_date": "2026-10-12 10:27:55 +0000"
+        "commit": "040e2f3fdb1cc136d7f1005d136bf5bcc2453f38",
+        "commit_date": "2026-10-13 14:07:46 +0000"
       }
     },
     "default_clang": "r536225",
