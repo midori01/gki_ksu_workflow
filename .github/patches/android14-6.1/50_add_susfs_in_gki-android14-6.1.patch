@@ -1,10 +1,10 @@
 From: github-actions <actions@github.com>
-Date: Mon, 12 Oct 2026 16:01:48 +0000
+Date: Wed, 14 Oct 2026 21:28:33 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android14-6.1-lts
 X-Kernel-Target-Branch: android14-6.1-lts
-X-Kernel-Target-Commit: 4056c236e4c84d5fdc5c80409a8fa37ef82f53b9
+X-Kernel-Target-Commit: a61fb910b305f23f7b924e904e5c125bb3644f6a
 X-SUSFS-Source-Ref: origin/gki-android14-6.1
-X-SUSFS-Source-Commit: 5192aa2d33b381b58c1051532f9e1dfa5de6e8d3
+X-SUSFS-Source-Commit: 5369359dbd10f6dd8cbdd59d1df7b788b29b168c
 
 ---
  drivers/input/input.c        |  10 ++
@@ -30,8 +30,8 @@ X-SUSFS-Source-Commit: 5192aa2d33b381b58c1051532f9e1dfa5de6e8d3
  mm/memory.c                  |   8 ++
  security/selinux/avc.c       |  21 +++-
  security/selinux/hooks.c     |  18 +++
- security/selinux/selinuxfs.c |  90 +++++++++++++++
- 24 files changed, 1506 insertions(+), 2 deletions(-)
+ security/selinux/selinuxfs.c |  85 +++++++++++++++
+ 24 files changed, 1501 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 78be582b5..5b548b1cf 100644
@@ -2456,7 +2456,7 @@ index ad079e552..553a2183c 100644
  						&sid, GFP_KERNEL);
  		if (error == -EINVAL && !strcmp(name, "fscreate")) {
 diff --git a/security/selinux/selinuxfs.c b/security/selinux/selinuxfs.c
-index 755325a94..e50a041ee 100644
+index 755325a94..3e8d9d112 100644
 --- a/security/selinux/selinuxfs.c
 +++ b/security/selinux/selinuxfs.c
 @@ -43,6 +43,15 @@
@@ -2475,23 +2475,14 @@ index 755325a94..e50a041ee 100644
  enum sel_inos {
  	SEL_ROOT_INO = 2,
  	SEL_LOAD,	/* load policy */
-@@ -226,6 +235,30 @@ static int sel_open_handle_status(struct inode *inode, struct file *filp)
+@@ -226,12 +235,31 @@ static int sel_open_handle_status(struct inode *inode, struct file *filp)
  {
  	struct selinux_fs_info *fsi = file_inode(filp)->i_sb->s_fs_info;
  	struct page    *status = selinux_kernel_status_page(fsi->state);
 +#ifdef CONFIG_KSU_SUSFS
 +	void *data;
-+	bool should_check_current = (likely(current_uid().val >= 10000 && ksu_selinux_hide_running));
 +
-+	if (static_branch_unlikely(&fake_status_initialize_key)) {
-+		if (!fake_status) {
-+			initialize_fake_status();
-+		} else {
-+			goto orig_flow;
-+		}
-+	}
-+
-+	if (should_check_current) {
++	if (likely(current_uid().val >= 10000 && ksu_selinux_hide_running)) {
 +		mutex_lock(&selinux_state.status_lock);
 +		data = fake_status;
 +		mutex_unlock(&selinux_state.status_lock);
@@ -2500,13 +2491,23 @@ index 755325a94..e50a041ee 100644
 +			return 0;
 +		}
 +	}
-+
-+orig_flow:
 +#endif // #ifdef CONFIG_KSU_SUSFS
  
  	if (!status)
  		return -ENOMEM;
-@@ -683,6 +716,9 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
+ 
+ 	filp->private_data = status;
+ 
++#ifdef CONFIG_KSU_SUSFS
++	if (static_branch_unlikely(&fake_status_initialize_key)) {
++		if (!fake_status)
++			initialize_fake_status();
++	}
++#endif // #ifdef CONFIG_KSU_SUSFS
+ 	return 0;
+ }
+ 
+@@ -683,6 +711,9 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
  	char *canon = NULL;
  	u32 sid, len;
  	ssize_t length;
@@ -2516,7 +2517,7 @@ index 755325a94..e50a041ee 100644
  
  	length = avc_has_perm(&selinux_state,
  			      current_sid(), SECINITSID_SECURITY,
-@@ -690,14 +726,36 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
+@@ -690,14 +721,36 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
  	if (length)
  		goto out;
  
@@ -2553,7 +2554,7 @@ index 755325a94..e50a041ee 100644
  	length = -ERANGE;
  	if (len > SIMPLE_TRANSACTION_LIMIT) {
  		pr_err("SELinux: %s:  context size (%u) exceeds "
-@@ -919,6 +977,9 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
+@@ -919,6 +972,9 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
  	u16 tclass;
  	struct av_decision avd;
  	ssize_t length;
@@ -2563,7 +2564,7 @@ index 755325a94..e50a041ee 100644
  
  	length = avc_has_perm(&selinux_state,
  			      current_sid(), SECINITSID_SECURITY,
-@@ -940,16 +1001,45 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
+@@ -940,16 +996,45 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
  	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
  		goto out;
  
