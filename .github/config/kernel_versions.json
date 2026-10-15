@@ -10,8 +10,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "a61fb910b305f23f7b924e904e5c125bb3644f6a",
-        "commit_date": "2026-10-14 09:39:02 +0000"
+        "commit": "5abe09f02b51f5609c72380b8d0024c79c077a75",
+        "commit_date": "2026-10-15 07:50:51 +0000"
       }
     },
     "default_clang": "r487747c",
@@ -86,13 +86,13 @@
       },
       "92": {
         "asb_date": "2026-09",
-        "default_r": "r4",
+        "default_r": "r5",
         "supported_r": [
-          "r4",
+          "r5",
           "none"
         ],
-        "commit": "77c2d2eef65fe1439c16c078a58210bb742b56f0",
-        "commit_date": "2026-10-07 12:06:39 -0700"
+        "commit": "10a074dd8ffbe48b5240ba3233974fd81f41f8d1",
+        "commit_date": "2026-10-14 14:25:47 +0000"
       },
       "96": {
         "asb_date": "lts",
