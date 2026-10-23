@@ -26,13 +26,12 @@
     "revisions": {
       "66": {
         "asb_date": "2025-02",
-        "default_r": "r20",
+        "default_r": "r00",
         "supported_r": [
-          "r20",
-          "none"
+          "r00",
         ],
-        "commit": "69da9b9a18f51db701705d048c12a70217f120c0",
-        "commit_date": "2026-01-07 15:00:08 +0000"
+        "commit": "9de961d64563bf935713301d350a242df59ae980",
+        "commit_date": "2025-01-15 07:25:53 +0000"
       }
     },
     "default_clang": "r510928",
