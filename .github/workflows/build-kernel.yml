@@ -591,7 +591,9 @@ jobs:
           export KBUILD_BUILD_HOST="${{ inputs.build_host }}"
           export KBUILD_BUILD_USER="${{ inputs.build_user }}"
           export RKX_VERSION="${RKX_VERSION}"
+          export KBUILD_ABS_SRCTREE=1
           make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
+          make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error headers
           make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
           [ "${{ inputs.use_ccache }}" = "true" ] && ccache -s || true
 
