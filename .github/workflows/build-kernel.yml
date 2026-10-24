@@ -304,22 +304,25 @@ jobs:
           PATCH_DIR: ${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}
           DEINLINED_SCRIPT: ${{ github.workspace }}/.github/scripts/susfs_deinlined.sh
         run: |
+          PATCH_VER="$KMI_VERSION"
+          if [ -f "$PATCH_DIR/50_add_susfs_in_gki-$KMI_VERSION.${{ inputs.sub_level }}.patch" ]; then
+            PATCH_VER="$KMI_VERSION.${{ inputs.sub_level }}"
+          elif [ "${{ inputs.kernel_version }}" = "6.12" ]; then
+            for p in $(ls -rv "$PATCH_DIR"/50_add_susfs_in_gki-${KMI_VERSION}.*.patch 2>/dev/null); do
+              sub="${p%.patch}"; sub="${sub##*.}"
+              [ "$sub" -le "${{ inputs.sub_level }}" ] && PATCH_VER="$KMI_VERSION.$sub" && break
+            done
+          fi
+          if [ "${{ inputs.kernel_version }}" = "6.6" ] && [ "$PATCH_VER" != "$KMI_VERSION" ] && [ -z "$SUSFS_COMMIT" ]; then
+            SUSFS_COMMIT=$(sed -n 's/^X-SUSFS-Source-Commit: //p' "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch" | head -n 1)
+          fi
+          echo "[+] SUSFS patch: 50_add_susfs_in_gki-${PATCH_VER}.patch, SUSFS ref: ${SUSFS_COMMIT:-gki-$KMI_VERSION}"
           SUSFS_REPO="https://gitlab.com/simonpunk/susfs4ksu"
           git ls-remote "$SUSFS_REPO" >/dev/null 2>&1 || SUSFS_REPO="https://github.com/midori01/susfs4ksu"
           [ -n "$SUSFS_COMMIT" ] && git clone "$SUSFS_REPO" "$SUSFS_DIR" || git clone --depth 1 --no-single-branch "$SUSFS_REPO" "$SUSFS_DIR"
           git -C "$SUSFS_DIR" checkout "${SUSFS_COMMIT:-gki-$KMI_VERSION}"
           cp "$SUSFS_DIR"/kernel_patches/fs/* fs/
           cp "$SUSFS_DIR"/kernel_patches/include/linux/* include/linux/
-          PATCH_VER="$KMI_VERSION"
-          if [ "${{ inputs.kernel_version }}" = "6.12" ]; then
-            PATCH_VER="$KMI_VERSION.${{ inputs.sub_level }}"
-            if [ ! -f "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch" ]; then
-              for p in $(ls -rv "$PATCH_DIR"/50_add_susfs_in_gki-${KMI_VERSION}.*.patch 2>/dev/null); do
-                sub="${p%.patch}"; sub="${sub##*.}"
-                [ "$sub" -le "${{ inputs.sub_level }}" ] && PATCH_VER="$KMI_VERSION.$sub" && break
-              done
-            fi
-          fi
           bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch" && patch -p1 < deinlined.patch
           case "${{ inputs.variant }}" in
             MidoriSU-KX)
