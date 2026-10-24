@@ -1,12 +1,13 @@
 From: github-actions <actions@github.com>
-Date: Mon, 19 Oct 2026 20:08:31 +0000
+Date: Sat, 24 Oct 2026 13:51:42 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2026-09
 X-Kernel-Target-Branch: android16-6.12-2026-09
-X-Kernel-Target-Commit: 9cf8680cb86e9788c8a2391ce64d143cc005f223
+X-Kernel-Target-Commit: 2dcfe8477d40e803e9803f2d79ef2783892cff90
 X-SUSFS-Source-Ref: origin/gki-android16-6.12
-X-SUSFS-Source-Commit: 9c9f19d8395693327c78df36569b44e94c187b8a
+X-SUSFS-Source-Commit: 3ff9fd3fac5bb01b71b2cfe96c612d469710fb74
 
 ---
+ block/ioprio.c               |  22 +++-
  drivers/input/input.c        |  10 ++
  fs/Makefile                  |   2 +
  fs/exec.c                    |  68 ++++++++++
@@ -26,13 +27,62 @@ X-SUSFS-Source-Commit: 9c9f19d8395693327c78df36569b44e94c187b8a
  fs/super.c                   |  24 ++++
  kernel/kallsyms.c            |  31 +++++
  kernel/reboot.c              |  12 ++
- kernel/sys.c                 |  15 +++
+ kernel/sys.c                 |  28 ++++
  mm/memory.c                  |  13 ++
  security/selinux/avc.c       |  21 ++-
  security/selinux/hooks.c     |  20 ++-
- security/selinux/selinuxfs.c |  59 +++++++++
- 24 files changed, 1569 insertions(+), 3 deletions(-)
+ security/selinux/selinuxfs.c |  56 ++++++++
+ 25 files changed, 1599 insertions(+), 5 deletions(-)
 
+diff --git a/block/ioprio.c b/block/ioprio.c
+index 73301a261..10ebc4a9b 100644
+--- a/block/ioprio.c
++++ b/block/ioprio.c
+@@ -66,6 +66,10 @@ int ioprio_check_cap(int ioprio)
+ 	return 0;
+ }
+ 
++#ifdef CONFIG_KSU_SUSFS
++extern bool susfs_is_priority_uid_filtered(uid_t uid);
++#endif // #ifdef CONFIG_KSU_SUSFS
++
+ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
+ {
+ 	struct task_struct *p, *g;
+@@ -113,8 +117,15 @@ SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
+ 			if (!who)
+ 				user = current_user();
+ 			else
++#ifdef CONFIG_KSU_SUSFS
++			{
++				if (current_uid().val >= 10000 && susfs_is_priority_uid_filtered(uid.val))
++					break;
+ 				user = find_user(uid);
+-
++			}
++#else
++				user = find_user(uid);
++#endif // #ifdef CONFIG_KSU_SUSFS
+ 			if (!user)
+ 				break;
+ 
+@@ -223,8 +234,15 @@ SYSCALL_DEFINE2(ioprio_get, int, which, int, who)
+ 			if (!who)
+ 				user = current_user();
+ 			else
++#ifdef CONFIG_KSU_SUSFS
++			{
++				if (current_uid().val >= 10000 && susfs_is_priority_uid_filtered(uid.val))
++					break;
+ 				user = find_user(uid);
+-
++			}
++#else
++				user = find_user(uid);
++#endif // #ifdef CONFIG_KSU_SUSFS
+ 			if (!user)
+ 				break;
+ 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index 372c9df90..66d671b76 100644
 --- a/drivers/input/input.c
@@ -2411,10 +2461,43 @@ index 45681d03d..a81ca58e3 100644
  	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
  		return -EPERM;
 diff --git a/kernel/sys.c b/kernel/sys.c
-index c9da55d57..d90b83740 100644
+index c9da55d57..7bf8fb36c 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
-@@ -678,6 +678,9 @@ SYSCALL_DEFINE1(setuid, uid_t, uid)
+@@ -226,6 +226,10 @@ static int set_one_prio(struct task_struct *p, int niceval, int error)
+ 	return error;
+ }
+ 
++#ifdef CONFIG_KSU_SUSFS
++extern bool susfs_is_priority_uid_filtered(uid_t uid);
++#endif // #ifdef CONFIG_KSU_SUSFS
++
+ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
+ {
+ 	struct task_struct *g, *p;
+@@ -272,6 +276,10 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
+ 		if (!who)
+ 			uid = cred->uid;
+ 		else if (!uid_eq(uid, cred->uid)) {
++#ifdef CONFIG_KSU_SUSFS
++			if (cred->uid.val >= 10000 && susfs_is_priority_uid_filtered(uid.val))
++				goto out_unlock;
++#endif // #ifdef CONFIG_KSU_SUSFS
+ 			user = find_user(uid);
+ 			if (!user)
+ 				goto out_unlock;	/* No processes for this user */
+@@ -340,6 +348,10 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
+ 		if (!who)
+ 			uid = cred->uid;
+ 		else if (!uid_eq(uid, cred->uid)) {
++#ifdef CONFIG_KSU_SUSFS
++			if (cred->uid.val >= 10000 && susfs_is_priority_uid_filtered(uid.val))
++				goto out_unlock;
++#endif // #ifdef CONFIG_KSU_SUSFS
+ 			user = find_user(uid);
+ 			if (!user)
+ 				goto out_unlock;	/* No processes for this user */
+@@ -678,6 +690,9 @@ SYSCALL_DEFINE1(setuid, uid_t, uid)
  	return __sys_setuid(uid);
  }
  
@@ -2424,7 +2507,7 @@ index c9da55d57..d90b83740 100644
  
  /*
   * This function implements a generic ability to update ruid, euid,
-@@ -692,6 +695,10 @@ long __sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
+@@ -692,6 +707,10 @@ long __sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
  	kuid_t kruid, keuid, ksuid;
  	bool ruid_new, euid_new, suid_new;
  
@@ -2435,7 +2518,7 @@ index c9da55d57..d90b83740 100644
  	kruid = make_kuid(ns, ruid);
  	keuid = make_kuid(ns, euid);
  	ksuid = make_kuid(ns, suid);
-@@ -1326,12 +1333,20 @@ static int override_release(char __user *release, size_t len)
+@@ -1326,12 +1345,21 @@ static int override_release(char __user *release, size_t len)
  	return ret;
  }
  
@@ -2443,6 +2526,7 @@ index c9da55d57..d90b83740 100644
 +extern struct static_key_false susfs_is_uname_spoof_buffer_set;
 +extern void susfs_spoof_uname(struct new_utsname* tmp);
 +#endif
++
  SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
  {
  	struct new_utsname tmp;
@@ -2579,7 +2663,7 @@ index 2a49b3647..eef0cd181 100644
  	LSM_HOOK_INIT(secctx_to_secid, selinux_secctx_to_secid),
  	LSM_HOOK_INIT(release_secctx, selinux_release_secctx),
 diff --git a/security/selinux/selinuxfs.c b/security/selinux/selinuxfs.c
-index fe41c8fb0..7c66ec6f9 100644
+index fe41c8fb0..70bbd3207 100644
 --- a/security/selinux/selinuxfs.c
 +++ b/security/selinux/selinuxfs.c
 @@ -44,6 +44,16 @@
@@ -2599,24 +2683,20 @@ index fe41c8fb0..7c66ec6f9 100644
  enum sel_inos {
  	SEL_ROOT_INO = 2,
  	SEL_LOAD,	/* load policy */
-@@ -219,12 +229,32 @@ static const struct file_operations sel_handle_unknown_ops = {
- static int sel_open_handle_status(struct inode *inode, struct file *filp)
+@@ -220,11 +230,28 @@ static int sel_open_handle_status(struct inode *inode, struct file *filp)
  {
  	struct page    *status = selinux_kernel_status_page();
+ 
 +#ifdef CONFIG_KSU_SUSFS
-+	void *data;
-+
 +	if (likely(current_uid().val >= 10000 && ksu_selinux_hide_running)) {
-+		mutex_lock(&selinux_state.status_lock);
-+		data = fake_status;
-+		mutex_unlock(&selinux_state.status_lock);
++		void *data = fake_status;
 +		if (data) {
 +			filp->private_data = data;
 +			return 0;
 +		}
 +	}
 +#endif // #ifdef CONFIG_KSU_SUSFS
- 
++
  	if (!status)
  		return -ENOMEM;
  
@@ -2632,7 +2712,7 @@ index fe41c8fb0..7c66ec6f9 100644
  	return 0;
  }
  
-@@ -641,6 +671,14 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
+@@ -641,6 +668,14 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
  	return length;
  }
  
@@ -2647,7 +2727,7 @@ index fe41c8fb0..7c66ec6f9 100644
  static ssize_t sel_read_checkreqprot(struct file *filp, char __user *buf,
  				     size_t count, loff_t *ppos)
  {
-@@ -782,18 +820,29 @@ static const struct file_operations sel_transition_ops = {
+@@ -782,18 +817,29 @@ static const struct file_operations sel_transition_ops = {
   * Remaining nodes use transaction based IO methods like nfsd/nfsctl.c
   */
  static ssize_t sel_write_access(struct file *file, char *buf, size_t size);
@@ -2677,7 +2757,7 @@ index fe41c8fb0..7c66ec6f9 100644
  };
  
  static ssize_t selinux_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)
-@@ -878,6 +927,16 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
+@@ -878,6 +924,16 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
  	return length;
  }
  
