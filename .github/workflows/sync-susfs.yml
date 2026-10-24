@@ -68,7 +68,7 @@ jobs:
 
           git config core.sparseCheckout true
           mkdir -p .git/info
-          printf "%s\n" "Makefile" "fs/" "include/" "kernel/" "mm/" "security/" "drivers/input/" > .git/info/sparse-checkout
+          printf "%s\n" "Makefile" "block/" "fs/" "include/" "kernel/" "mm/" "security/" "drivers/input/" > .git/info/sparse-checkout
 
           KV="${{ matrix.kernel_version }}"
           if [ "$KV" = "6.1" ]; then
