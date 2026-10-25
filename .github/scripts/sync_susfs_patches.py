@@ -5,14 +5,15 @@
 # Description: Automated GitHub Actions sync tool for SUSFS inline-hook patches
 #              with zero-offset verification and substantive code diff detection.
 # Location:    .github/scripts/sync_susfs_patches.py
-# Author:      midori01 <lv@lvlv.lv>, Gemini 3.8 Flash, Claude Opus 5.5
-# Version:     3.2.0
-# Date:        2026-10-21
+# Author:      midori01 <lv@lvlv.lv>, Gemini 4 Argon, Claude Opus 5.5
+# Version:     3.3.0
+# Date:        2026-10-26
 # ==============================================================================
 
 import argparse
 import email.utils
 import hashlib
+import json
 import os
 import re
 import subprocess
@@ -146,10 +147,27 @@ def reset_tree(tree, branch):
     run_git(tree, ["reset", "--hard", "HEAD"], check=True)
     run_git(tree, ["clean", "-fd"], check=True)
 
+def fetch_missing_ref(tree, src_ref, dst_ref):
+    """Fetches a single upstream ref into the tree if it is not present locally yet."""
+    if run_git(tree, ["rev-parse", "--verify", "--quiet", f"{dst_ref}^{{commit}}"], check=False).returncode == 0:
+        return
+    log(f"Ref '{dst_ref}' not present in kernel tree, fetching it from origin...", level="STEP")
+    cmd = ["fetch", "--no-tags"]
+    if run_git(tree, ["rev-parse", "--is-shallow-repository"], check=False).stdout.strip() == "true":
+        cmd.append("--depth=1")
+    res = run_git(tree, cmd + ["origin", f"+{src_ref}:{dst_ref}"], check=False)
+    if res.returncode != 0:
+        err = res.stderr.strip() or res.stdout.strip()
+        raise RuntimeError(f"Network error: Failed to fetch '{src_ref}': {err}")
+
 def prepare_branch(tree, branch, pull_upstream=False):
     run_git(tree, ["reset", "--hard", "HEAD"], check=False)
     run_git(tree, ["clean", "-fd"], check=False)
-    if pull_upstream:
+    if branch.startswith("refs/tags/"):
+        # Release tags are immutable, so they are checked out detached instead of tracked as branches
+        fetch_missing_ref(tree, branch, branch)
+        run_git(tree, ["checkout", "-q", "--detach", branch], check=True)
+    elif pull_upstream:
         log(f"Fetching latest upstream for branch '{branch}' from origin...", level="STEP")
         res = run_git(tree, ["fetch", "origin", branch], check=False)
         if res.returncode == 0:
@@ -164,6 +182,7 @@ def prepare_branch(tree, branch, pull_upstream=False):
         if chk.returncode == 0:
             run_git(tree, ["checkout", "-q", branch], check=True)
         else:
+            fetch_missing_ref(tree, f"refs/heads/{branch}", f"refs/remotes/origin/{branch}")
             run_git(tree, ["checkout", "-q", "-b", branch, f"origin/{branch}"], check=True)
 
     run_git(tree, ["reset", "--hard", "HEAD"], check=True)
@@ -266,6 +285,54 @@ def discover_targets(tree, kmi, kv, patches_dir, static_targets=None):
     sorted_discovered = dict(sorted(discovered.items(), key=lambda item: int(item[0]) if item[0].isdigit() else 9999))
     return sorted_discovered
 
+def config_targets(tree, kmi, kv, config_file, covered):
+    """
+    Adds a target for every non-LTS revision in kernel_versions.json whose SUBLEVEL is not
+    already covered, so pinned ASB tags/branches (e.g. 6.6.66) get their own synced patch.
+    """
+    if not config_file or not os.path.isfile(config_file):
+        return {}
+    with open(config_file, "r", encoding="utf-8") as fp:
+        kcfg = json.load(fp).get(kv, {})
+    android_ver = kcfg.get("android_version", kmi.split("-")[0])
+
+    extra = {}
+    for sublevel, rev in kcfg.get("revisions", {}).items():
+        asb_date = rev.get("asb_date", "")
+        if asb_date == "lts" or sublevel in covered:
+            continue
+        r_ver = rev.get("default_r", "none")
+        if r_ver != "none":
+            name = f"{android_ver}-{kv}-{asb_date}_{r_ver}"
+            branch = f"refs/tags/{name}"
+            fetch_missing_ref(tree, branch, branch)
+            ref = branch
+        else:
+            name = f"{android_ver}-{kv}-{asb_date}"
+            branch = name
+            fetch_missing_ref(tree, f"refs/heads/{name}", f"refs/remotes/origin/{name}")
+            ref = f"refs/remotes/origin/{name}"
+
+        mf = run_git(tree, ["show", f"{ref}:Makefile"], check=False).stdout
+        m_sub = re.search(r"^SUBLEVEL\s*=\s*(\d+)", mf, re.M)
+        if m_sub and m_sub.group(1) != sublevel:
+            log(f"Config revision {kv}.{sublevel} points at '{name}' whose Makefile SUBLEVEL is {m_sub.group(1)}; keeping config key.", level="WARN")
+
+        extra[sublevel] = {
+            "branch": branch,
+            "filename": f"50_add_susfs_in_gki-{kmi}.{sublevel}.patch",
+            "subject": f"[PATCH] SUSFS inline hooks for gki-{name}",
+            "desc": f"{asb_date}{'_' + r_ver if r_ver != 'none' else ''} from kernel_versions.json",
+            "is_deprecated": False,
+            "is_lts": False,
+        }
+    return extra
+
+def collect_targets(tree, kmi, kv, patches_dir, static_targets, config_file):
+    targets = discover_targets(tree, kmi, kv, patches_dir, static_targets=static_targets)
+    targets.update(config_targets(tree, kmi, kv, config_file, covered={k for k in targets if k.isdigit()}))
+    return dict(sorted(targets.items(), key=lambda item: int(item[0]) if item[0].isdigit() else 9999))
+
 def check_patch_cleanliness(tree, branch, patch_content):
     reset_tree(tree, branch)
     warns = []
@@ -305,7 +372,8 @@ def check_patch_cleanliness(tree, branch, patch_content):
     return len(warns) == 0, warns
 
 def extract_susfs_preprocessor_blocks(text):
-    guard_pattern = susfs_macro_guard("CONFIG_KSU_SUSFS")
+    # Any SUSFS-family guard, including compound ones like '#if defined(A) || defined(B)'
+    guard_pattern = r"#\s*(?:ifdef\s+CONFIG_KSU_SUSFS\w*\b|if\b[^\n]*\bCONFIG_KSU_SUSFS\w*)"
     blocks = []
     lines = text.splitlines(keepends=True)
     cleaned_lines = []
@@ -334,7 +402,7 @@ def extract_susfs_preprocessor_blocks(text):
             i += 1
     return blocks, "".join(cleaned_lines)
 
-def resolve_header_conflict(block):
+def resolve_header_conflict(block, added=None):
     m = re.match(r"<<<<<<< ours\n([\s\S]*?)(?:\|\|\|\|\|\|\| [^\n]*\n[\s\S]*?)?=======\n([\s\S]*?)>>>>>>> theirs\n?", block)
     if not m:
         return block
@@ -354,10 +422,17 @@ def resolve_header_conflict(block):
     if non_header_lines:
         return block
 
+    # Theirs-only includes the official patch does not add are context from its newer base tree
+    # (e.g. linux/dma-buf.h, absent on older 6.6 ASB tags) and must not leak into the target.
+    ours_lines = set(ours.splitlines())
     includes = []
     for line in cleaned_combined.splitlines(keepends=True):
-        if line.strip().startswith("#include") and line not in includes:
-            includes.append(line)
+        if not line.strip().startswith("#include") or line in includes:
+            continue
+        bare = line.rstrip("\n")
+        if added is not None and bare not in ours_lines and bare not in added:
+            continue
+        includes.append(line)
 
     unique_susfs = []
     for b in susfs_blocks:
@@ -436,7 +511,21 @@ def resolve_code_conflict(block, fn):
 
     return block
 
-def auto_resolve_known_conflicts(tree):
+def added_lines_by_file(patch_text):
+    """Maps each file in a unified diff to the set of lines it adds."""
+    added = {}
+    current = None
+    for line in patch_text.splitlines():
+        if line.startswith("+++ "):
+            path = line[4:].strip()
+            current = added.setdefault(path[2:] if path.startswith("b/") else path, set())
+        elif line.startswith("diff --git "):
+            current = None
+        elif current is not None and line.startswith("+"):
+            current.add(line[1:])
+    return added
+
+def auto_resolve_known_conflicts(tree, added_by_file=None):
     diff_u = run_git(tree, ["diff", "--name-only", "--diff-filter=U"], check=False).stdout.split()
     if not diff_u:
         return
@@ -448,7 +537,7 @@ def auto_resolve_known_conflicts(tree):
 
         blocks = re.findall(r"<<<<<<< ours[\s\S]*?>>>>>>> theirs\n?", content)
         for b in blocks:
-            resolved = resolve_header_conflict(b)
+            resolved = resolve_header_conflict(b, None if added_by_file is None else added_by_file.get(fn, set()))
             if resolved != b:
                 content = content.replace(b, resolved)
 
@@ -536,7 +625,9 @@ def generate_single_patch(tree, branch, subject, base_patch_file, author="github
                 err_msg = apply_res.stderr.strip() or apply_res.stdout.strip()
                 raise RuntimeError(f"git apply --3way failed fatally on '{branch}' without producing any changes or conflicts: {err_msg}")
 
-    auto_resolve_known_conflicts(tree)
+    with open(base_patch_file, "r", encoding="utf-8", errors="replace") as fp:
+        added_by_file = added_lines_by_file(fp.read())
+    auto_resolve_known_conflicts(tree, added_by_file)
 
     run_git(tree, ["add", "-A"], check=True)
     remaining_u = run_git(tree, ["diff", "--name-only", "--diff-filter=U"], check=False).stdout.split()
@@ -696,6 +787,11 @@ def main():
         help="Path to kernel git repository (auto-detected if omitted)",
     )
     parser.add_argument(
+        "--config",
+        default=None,
+        help="Path to kernel_versions.json; its non-LTS revisions get their own patches (default: <patches-dir>/../config)",
+    )
+    parser.add_argument(
         "--sublevels",
         default="all",
         help="Sublevels for 6.12 ('all', 'active', or comma-separated list like '38,69,81,93')",
@@ -725,6 +821,7 @@ def main():
     tree = find_kernel_tree(args.tree)
     susfs_repo = find_susfs_repo(args.susfs_repo)
     patches_base_dir = find_patches_dir(args.patches_dir)
+    config_file = args.config or os.path.join(os.path.dirname(patches_base_dir), "config", "kernel_versions.json")
 
     dirty_check = run_git(tree, ["status", "--porcelain=v1", "--untracked-files=all"], check=False).stdout.strip()
     if dirty_check:
@@ -736,6 +833,8 @@ def main():
     log(f"Patches dir:  {patches_base_dir}")
     if susfs_repo:
         log(f"SUSFS repo:   {susfs_repo}")
+    if os.path.isfile(config_file):
+        log(f"Config file:  {config_file}")
 
     selected_kvs = ["6.1", "6.6", "6.12"] if args.kernel == "all" else [args.kernel]
 
@@ -764,7 +863,7 @@ def main():
                 kcfg = KERNEL_CONFIGS[kv]
                 kmi = kcfg["kmi"]
                 pdir = os.path.join(patches_base_dir, kcfg["patch_rel_dir"])
-                targets = discover_targets(tree, kmi, kv, patches_base_dir, static_targets=kcfg.get("targets", {}))
+                targets = collect_targets(tree, kmi, kv, patches_base_dir, kcfg.get("targets", {}), config_file)
                 if kv == "6.12" and args.sublevels == "active":
                     sub_keys = [k for k, t in targets.items() if not t.get("is_deprecated", False)]
                 elif kv == "6.12" and args.sublevels != "all":
@@ -820,7 +919,7 @@ def main():
                     custom_digest = f"sha256:{hashlib.sha256(bp_fp.read()).hexdigest()}"
                 susfs_prov = (os.path.basename(base_patch_file), custom_digest)
 
-            targets = discover_targets(tree, kmi, kv, patches_base_dir, static_targets=kcfg.get("targets", {}))
+            targets = collect_targets(tree, kmi, kv, patches_base_dir, kcfg.get("targets", {}), config_file)
             if kv == "6.12" and args.sublevels == "active":
                 sub_keys = [k for k, t in targets.items() if not t.get("is_deprecated", False)]
             elif kv == "6.12" and args.sublevels != "all":

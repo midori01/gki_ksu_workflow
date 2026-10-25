@@ -311,15 +311,15 @@ jobs:
           cp "$SUSFS_DIR"/kernel_patches/fs/* fs/
           cp "$SUSFS_DIR"/kernel_patches/include/linux/* include/linux/
           PATCH_VER="$KMI_VERSION"
-          if [ "${{ inputs.kernel_version }}" = "6.12" ]; then
+          if [ -f "$PATCH_DIR/50_add_susfs_in_gki-$KMI_VERSION.${{ inputs.sub_level }}.patch" ]; then
             PATCH_VER="$KMI_VERSION.${{ inputs.sub_level }}"
-            if [ ! -f "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch" ]; then
-              for p in $(ls -rv "$PATCH_DIR"/50_add_susfs_in_gki-${KMI_VERSION}.*.patch 2>/dev/null); do
-                sub="${p%.patch}"; sub="${sub##*.}"
-                [ "$sub" -le "${{ inputs.sub_level }}" ] && PATCH_VER="$KMI_VERSION.$sub" && break
-              done
-            fi
+          elif [ "${{ inputs.kernel_version }}" = "6.12" ]; then
+            for p in $(ls -rv "$PATCH_DIR"/50_add_susfs_in_gki-${KMI_VERSION}.*.patch 2>/dev/null); do
+              sub="${p%.patch}"; sub="${sub##*.}"
+              [ "$sub" -le "${{ inputs.sub_level }}" ] && PATCH_VER="$KMI_VERSION.$sub" && break
+            done
           fi
+          echo "[+] SUSFS patch: 50_add_susfs_in_gki-${PATCH_VER}.patch"
           bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch" && patch -p1 < deinlined.patch
           case "${{ inputs.variant }}" in
             MidoriSU-KX)
