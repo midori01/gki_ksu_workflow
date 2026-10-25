@@ -413,6 +413,11 @@ jobs:
         run: |
           patch -p1 < "${{ github.workspace }}/.github/patches/unicode_bypass_fix_6.1+.patch"
 
+      - name: Apply libbpf glibc 2.43 Fix
+        working-directory: kernel_workspace/common
+        run: |
+          sed -i -E 's/^([[:space:]]*)char \*res;$/\1const char *res;/; s/^([[:space:]]*)char \*next_path;$/\1const char *next_path;/' tools/lib/bpf/libbpf.c
+
       - name: Apply ADIOS I/O Scheduler (6.6/6.12 only)
         if: inputs.use_adios && inputs.kernel_version != '6.1'
         working-directory: kernel_workspace/common
