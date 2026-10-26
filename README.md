@@ -82,6 +82,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | Feature | Description |
 | :--- | :--- |
 | **Modern Bento Dashboard** | Bento-style responsive dashboard with spring press bounce feedback; dynamically displays KSU driver name (native driver & dynamic LKM detection), Roman numeral UAPI version, hook type, SUSFS version, Droidspaces version, Re:Kernel(-X) version, kernel build timestamp, and OEM unlock status. |
+| **Built-in SUSFS Management** | Native SUSFS control panel in Kernel Tools that replaces the susfs4ksu module: SUS Path, SUS Kstat, SUS Map, and Open Redirect rules; kernel version (`uname`) and boot parameter (`/proc/cmdline` / `bootconfig`) spoofing; AVC log spoofing, SUS mount hiding, and a priority UID filter that hides selected apps from `getpriority` / `ioprio` probes. Rules are applied by `ksud` at boot (including a late-loaded SUSFS LKM), with a per-boot report, configuration backup and restore, and one-tap import from an existing susfs4ksu module. Works with both built-in SUSFS and susfs4ksu-lkm. |
 | **Dual Themes & Personalization** | Seamlessly supports both Material 3 Expressive and Miuix UI themes with live preview cards; includes a floating pill bottom navigation bar, re-tapping active tab to scroll to top, module update badges, and a built-in switcher to toggle between **MidoriSU**, **KowSU**, and **Official KernelSU** app names, icons, and splash themes. |
 | **OTA Payload & ARB Analyzer** | Instant extraction of `boot.img` from local or online OTA zip / `payload.bin` archives via HTTP Range Requests without downloading entire multi-gigabyte packages; includes built-in Anti-Rollback (ARB) index and boot kernel version analysis. |
 | **Flashing & Safety Inspection** | Direct in-app backup and flashing of `boot.img`, flashing AnyKernel3 zip packages with target slot selection (Slot A/B), and automated module pre-flash safety inspection to detect risky scripts and prevent bootloops. |
@@ -90,7 +91,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | **Module Export as ZIP** | Export any installed module directly into a standard flashable ZIP archive. |
 | **Kernel Module (LKM) Manager** | Inspect loaded kernel modules with support for dynamic loading and unloading. |
 | **Kernel Diagnostics** | In-app inspection, searching, filtering, and sharing for `/proc/kallsyms` symbol table, live dmesg kernel logs, and `CONFIG_*` kernel compile options, with bottom bar quick-switch widget. |
-| **Toggles & Integrations** | Instant SELinux mode switching (Enforcing / Permissive), integrated SUSFS WebUI shortcut, and KSU driver update check toggle. |
+| **Toggles & Integrations** | Instant SELinux mode switching (Enforcing / Permissive) and KSU driver update check toggle. |
 
 ---
 
@@ -114,7 +115,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | :--- | :--- |
 | **Kernel Version** | Select `6.1`, `6.6`, `6.12`, or `all` to compile one or all kernel versions. Sublevel, revision, compiler, and Rust settings are auto-resolved from the centralized config. |
 | **Source Mirror** | Choose between Google's official AOSP mirror or a self-hosted mirror for kernel source and toolchain downloads. |
-| **SUSFS Module** | When SUSFS is enabled, automatically fetches the latest [susfs4ksu-module](https://github.com/sidex15/susfs4ksu-module) and attaches it to the release. A single `susfs_commit` input controls SUSFS versions across variants. |
+| **SUSFS** | SUSFS kernel patches are synced from upstream automatically and generated for every supported sublevel, including pinned non-LTS revisions in `kernel_versions.json`. A single `susfs_commit` input controls SUSFS versions across variants. SUSFS is configured in MidoriSU Manager, so no separate susfs4ksu module is attached to releases. |
 | **KSU Toolkit** | Automatically fetches the latest [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) module from nightly.link and attaches it to the release. |
 | **Droidspaces** | Container support via [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) — SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, and networking. Enabled per-variant through the `use_droidspaces` toggle. |
 | **Re:Kernel(-X)** | Integrated [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) and [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) modules compiled directly into the kernel. Provides tombstone freeze recovery, network-triggered unfreeze, and binder async cleanup. Toggled via `use_rekernel` switch. |

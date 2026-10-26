@@ -82,6 +82,7 @@
 | 기능 | 설명 |
 | :--- | :--- |
 | **현대적인 Bento 대시보드** | 탄력 있는 스프링 바운스 터치 피드백을 갖춘 Bento 스타일 반응형 대시보드: KSU 드라이버 이름(네이티브 드라이버명 및 LKM 동적 감지), 로마 숫자 UAPI 버전, 후크 유형, SUSFS 버전, Droidspaces 버전, Re:Kernel(-X) 버전, 커널 빌드 시각 및 OEM 언락 상태를 한눈에 표시합니다. |
+| **내장 SUSFS 관리** | susfs4ksu 모듈을 대체하는 커널 도구 내장 SUSFS 제어판: SUS Path, SUS Kstat, SUS Map 및 Open Redirect 규칙, 커널 버전(`uname`) 및 부트 파라미터(`/proc/cmdline` / `bootconfig`) 위장, AVC 로그 위장, SUS 마운트 숨김, 선택한 앱을 `getpriority` / `ioprio` 탐지로부터 숨기는 우선순위 UID 필터를 지원합니다. 규칙은 부팅 시 `ksud`가 자동으로 적용하며(나중에 로드되는 SUSFS LKM 포함), 부팅별 적용 보고서, 설정 백업 및 복원, 기존 susfs4ksu 모듈 설정 원탭 가져오기를 제공합니다. 커널 내장 SUSFS와 susfs4ksu-lkm 모두에서 작동합니다. |
 | **듀얼 테마 및 외관 커스텀** | Material 3 Expressive 및 Miuix의 2가지 UI 스타일과 실시간 테마 미리보기를 완벽 지원하며, Material 플로팅 필 하단 내비게이션 바, 탭 재터치 시 상단 스크롤, 모듈 업데이트 배지, **MidoriSU**, **KowSU**, **공식 KernelSU** 간의 앱 이름, 아이콘 및 스플래시 화면 테마를 즉시 전환할 수 있습니다. |
 | **OTA Payload 추출 및 ARB 분석** | 로컬 또는 온라인 OTA ZIP / `payload.bin`에서 `boot.img`를 수초 만에 직접 추출합니다. HTTP Range Request를 지원하여 수십 GB 전체 패키지를 다운로드할 필요가 없으며, 안티 롤백(ARB) 인덱스 및 부트 커널 버전 분석 기능이 내장되어 있습니다. |
 | **플래싱 및 안전 사전 점검** | 앱 내에서 `boot.img`의 직접 백업 및 플래싱을 지원하며, AnyKernel3 ZIP 패키지 플래싱 및 대상 슬롯 선택(Slot A/B)을 지원합니다. 모듈 플래싱 전 자동 정적 안전 검사를 통해 위험한 스크립트를 감지하고 무한 부팅 위험을 사전에 차단합니다. |
@@ -90,7 +91,7 @@
 | **모듈 ZIP 내보내기** | 설치된 임의의 모듈을 플래시 가능한 표준 ZIP 아카이브로 직접 내보낼 수 있습니다. |
 | **커널 모듈 (LKM) 관리자** | 로드된 커널 모듈을 확인하고 동적 로드 및 언로드 작업을 지원합니다. |
 | **커널 진단 도구** | `/proc/kallsyms` 심볼 테이블, 실시간 dmesg 커널 로그, `CONFIG_*` 커널 빌드 구성의 앱 내 탐색·검색·공유를 지원하며 하단 바 퀵 스위처 위젯을 제공합니다. |
-| **빠른 전환 및 기능 연동** | SELinux 모드(Enforcing / Permissive) 즉시 전환, SUSFS WebUI 바로가기 연동 및 KSU 드라이버 업데이트 확인 토글을 지원합니다. |
+| **빠른 전환 및 기능 연동** | SELinux 모드(Enforcing / Permissive) 즉시 전환 및 KSU 드라이버 업데이트 확인 토글을 지원합니다. |
 
 ---
 
@@ -114,7 +115,7 @@
 | :--- | :--- |
 | **커널 버전** | `6.1`, `6.6`, `6.12` 중 단일 버전을 선택하거나 `all`을 통해 전체 버전을 선택할 수 있습니다. 서브 레벨, 리비전, 컴파일러, Rust 설정 등은 중앙 집중식 config에서 자동으로 적용됩니다. |
 | **소스 미러** | 커널 소스 및 툴체인 다운로드 시 Google 공식 AOSP 미러 또는 자체 호스팅 미러 중에서 선택할 수 있습니다. |
-| **SUSFS 모듈** | SUSFS 활성화 시 최신 [susfs4ksu-module](https://github.com/sidex15/susfs4ksu-module)을 자동으로 가져와 릴리스에 포함합니다. 모든 배리언트의 SUSFS 버전은 단일 `susfs_commit` 입력값을 통해 통합 관리됩니다. |
+| **SUSFS** | SUSFS 커널 패치는 업스트림에서 자동으로 동기화되며, `kernel_versions.json`에 고정한 비 LTS 리비전을 포함해 지원되는 모든 서브 레벨용으로 생성됩니다. 모든 배리언트의 SUSFS 버전은 단일 `susfs_commit` 입력값을 통해 통합 관리됩니다. SUSFS는 MidoriSU 매니저에서 직접 설정하므로 릴리스에 별도의 susfs4ksu 모듈이 포함되지 않습니다. |
 | **KSU 툴킷** | 최신 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 모듈을 nightly.link에서 자동으로 가져와 릴리스에 포함합니다. |
 | **Droidspaces** | [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS)를 활용한 컨테이너 지원 기능으로 SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, 네트워킹 기능을 제공합니다. `use_droidspaces` 옵션을 통해 배리언트마다 활성화할 수 있습니다. |
 | **Re:Kernel(-X)** | [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 및 [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) 모듈을 커널에 직접 내장합니다. 툼스톤(tombstone) 기반 프리즈 복구, 네트워크 트리거 해제, 바인더(binder) 비동기 정리를 제공합니다. `use_rekernel` 옵션으로 제어합니다. |

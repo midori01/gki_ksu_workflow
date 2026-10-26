@@ -391,13 +391,6 @@ jobs:
           fi
           echo "TOOLKIT_FILE=$toolkit" >> $GITHUB_ENV
 
-      - name: Download SUSFS Module
-        if: inputs.enable_susfs == true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download --repo sidex15/susfs4ksu-module --pattern "*.zip" --dir release_zips 2>/dev/null || true
-
       - name: Download MidoriSU Manager APK
         env:
           GH_TOKEN: ${{ github.token }}
