@@ -418,6 +418,12 @@ jobs:
         run: |
           sed -i -E 's/^([[:space:]]*)char \*res;$/\1const char *res;/; s/^([[:space:]]*)char \*next_path;$/\1const char *next_path;/' tools/lib/bpf/libbpf.c
 
+      - name: Apply PCM wait_time Audio Fix (6.1 only)
+        if: inputs.kernel_version == '6.1'
+        working-directory: kernel_workspace/common
+        run: |
+          python3 "${{ github.workspace }}/.github/scripts/fix_pcm_wait_time.py"
+
       - name: Apply ADIOS I/O Scheduler (6.6/6.12 only)
         if: inputs.use_adios && inputs.kernel_version != '6.1'
         working-directory: kernel_workspace/common
