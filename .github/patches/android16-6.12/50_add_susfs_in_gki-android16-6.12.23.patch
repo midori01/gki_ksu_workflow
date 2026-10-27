@@ -1,5 +1,5 @@
 From: github-actions <actions@github.com>
-Date: Sat, 24 Oct 2026 13:51:03 +0000
+Date: Tue, 27 Oct 2026 00:06:28 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2025-06
 X-Kernel-Target-Branch: deprecated/android16-6.12-2025-06
 X-Kernel-Target-Commit: 13ff069897df965d9039dca208b2f39dacf81957
@@ -10,7 +10,7 @@ X-SUSFS-Source-Commit: 3ff9fd3fac5bb01b71b2cfe96c612d469710fb74
  block/ioprio.c               |  22 +++-
  drivers/input/input.c        |  10 ++
  fs/Makefile                  |   2 +
- fs/exec.c                    |  69 ++++++++++
+ fs/exec.c                    |  68 ++++++++++
  fs/namei.c                   | 237 ++++++++++++++++++++++++++++++++++
  fs/namespace.c               | 297 +++++++++++++++++++++++++++++++++++++++++++
  fs/notify/fdinfo.c           |  78 ++++++++++++
@@ -32,7 +32,7 @@ X-SUSFS-Source-Commit: 3ff9fd3fac5bb01b71b2cfe96c612d469710fb74
  security/selinux/avc.c       |  21 ++-
  security/selinux/hooks.c     |  20 ++-
  security/selinux/selinuxfs.c |  56 ++++++++
- 25 files changed, 1599 insertions(+), 5 deletions(-)
+ 25 files changed, 1598 insertions(+), 5 deletions(-)
 
 diff --git a/block/ioprio.c b/block/ioprio.c
 index 73301a261..10ebc4a9b 100644
@@ -125,21 +125,20 @@ index 9f5d06f4a..eeea6b70b 100644
  obj-$(CONFIG_PROC_FS)		+= proc_namespace.o
  obj-$(CONFIG_LEGACY_DIRECT_IO)	+= direct-io.o
 diff --git a/fs/exec.c b/fs/exec.c
-index ee89e0f3a..6c93b6ffc 100644
+index ee89e0f3a..673f85bcd 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -69,6 +69,10 @@
+@@ -69,6 +69,9 @@
  #include <linux/user_events.h>
  #include <linux/rseq.h>
  #include <linux/ksm.h>
-+#include <linux/dma-buf.h>
 +#ifdef CONFIG_KSU_SUSFS
 +#include <linux/susfs_def.h>
 +#endif
  
  #include <linux/uaccess.h>
  #include <asm/mmu_context.h>
-@@ -1910,6 +1914,23 @@ static int bprm_execve(struct linux_binprm *bprm)
+@@ -1910,6 +1913,23 @@ static int bprm_execve(struct linux_binprm *bprm)
  	return retval;
  }
  
@@ -163,7 +162,7 @@ index ee89e0f3a..6c93b6ffc 100644
  static int do_execveat_common(int fd, struct filename *filename,
  			      struct user_arg_ptr argv,
  			      struct user_arg_ptr envp,
-@@ -1917,10 +1938,42 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1917,10 +1937,42 @@ static int do_execveat_common(int fd, struct filename *filename,
  {
  	struct linux_binprm *bprm;
  	int retval;
@@ -206,7 +205,7 @@ index ee89e0f3a..6c93b6ffc 100644
  	/*
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
-@@ -1987,6 +2040,22 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1987,6 +2039,22 @@ static int do_execveat_common(int fd, struct filename *filename,
  	}
  
  	retval = bprm_execve(bprm);
