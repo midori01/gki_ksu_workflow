@@ -10,8 +10,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "305bb5ddbef4fda76635103cf3a7c4045a9a661d",
-        "commit_date": "2026-10-24 11:59:26 +0000"
+        "commit": "36bdc114ed4996b68e581f8315ee103f6584b0b4",
+        "commit_date": "2026-10-26 09:37:01 -0700"
       }
     },
     "default_clang": "r487747c",
@@ -30,8 +30,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "712c2cd5cdc1c35470b3142e46622c0a8decc7c4",
-        "commit_date": "2026-09-29 13:02:52 +0000"
+        "commit": "84fbf591d78856ff8af1453729f3ccc26b2b3ed9",
+        "commit_date": "2026-10-25 11:36:03 +0000"
       }
     },
     "default_clang": "r510928",
@@ -100,8 +100,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "fcb9218da2c4b87277d03de142688fa88022bcae",
-        "commit_date": "2026-10-24 10:52:12 +0000"
+        "commit": "6a20dc8fcce2134e0cea75a0462896f896d11ebc",
+        "commit_date": "2026-10-26 10:27:25 +0000"
       }
     },
     "default_clang": "r536225",
