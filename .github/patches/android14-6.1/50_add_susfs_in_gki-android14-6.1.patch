@@ -1,10 +1,10 @@
 From: github-actions <actions@github.com>
-Date: Sat, 24 Oct 2026 13:48:24 +0000
+Date: Tue, 27 Oct 2026 20:12:32 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android14-6.1-lts
 X-Kernel-Target-Branch: android14-6.1-lts
-X-Kernel-Target-Commit: 2fe4402210ed17f6c503e705dfdef45e277cfe04
+X-Kernel-Target-Commit: ec9578968be7fcaf5a16beb0d28be67589778fff
 X-SUSFS-Source-Ref: origin/gki-android14-6.1
-X-SUSFS-Source-Commit: 27e0a0e42745991ba09d6f96a97bf4b83f41a012
+X-SUSFS-Source-Commit: 8b25990241174fe88d2131a9929e36b5e5ffb1d0
 
 ---
  block/ioprio.c               |  22 +++-
@@ -2528,7 +2528,7 @@ index d93af9249..0e31fe21e 100644
  	audit_log_format(ab, " tclass=%s", tclass);
  
 diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
-index ad079e552..a503cf07d 100644
+index 5789becd5..c38825f95 100644
 --- a/security/selinux/hooks.c
 +++ b/security/selinux/hooks.c
 @@ -105,6 +105,10 @@
@@ -2542,7 +2542,7 @@ index ad079e552..a503cf07d 100644
  
  /* SECMARK reference count */
  static atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
-@@ -6590,6 +6594,17 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
+@@ -6607,6 +6611,17 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
  	return error;
  }
  
@@ -2560,7 +2560,7 @@ index ad079e552..a503cf07d 100644
  static int selinux_ismaclabel(const char *name)
  {
  	return (strcmp(name, XATTR_SELINUX_SUFFIX) == 0);
-@@ -7225,8 +7240,11 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
+@@ -7242,8 +7257,11 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
  	LSM_HOOK_INIT(d_instantiate, selinux_d_instantiate),
  
  	LSM_HOOK_INIT(getprocattr, selinux_getprocattr),
