@@ -1,8 +1,8 @@
 From: github-actions <actions@github.com>
-Date: Tue, 27 Oct 2026 20:12:32 +0000
+Date: Thu, 29 Oct 2026 00:21:44 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android14-6.1-lts
 X-Kernel-Target-Branch: android14-6.1-lts
-X-Kernel-Target-Commit: ec9578968be7fcaf5a16beb0d28be67589778fff
+X-Kernel-Target-Commit: bd05b1355a7179e0f54ac58eccc07508fe8c88d6
 X-SUSFS-Source-Ref: origin/gki-android14-6.1
 X-SUSFS-Source-Commit: 8b25990241174fe88d2131a9929e36b5e5ffb1d0
 
@@ -1188,7 +1188,7 @@ index 82d10b7a5..74d26534d 100644
  		goto out;
  
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 44904de62..cc03392c4 100644
+index 30b45fbfb..d5177ade6 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
 @@ -100,6 +100,10 @@
@@ -1202,7 +1202,7 @@ index 44904de62..cc03392c4 100644
  #include <trace/events/oom.h>
  #include <trace/hooks/sched.h>
  #include "internal.h"
-@@ -1835,6 +1839,10 @@ static const char *proc_pid_get_link(struct dentry *dentry,
+@@ -1829,6 +1833,10 @@ static const char *proc_pid_get_link(struct dentry *dentry,
  	return ERR_PTR(error);
  }
  
@@ -1213,7 +1213,7 @@ index 44904de62..cc03392c4 100644
  static int do_proc_readlink(const struct path *path, char __user *buffer, int buflen)
  {
  	char *tmp = kmalloc(PATH_MAX, GFP_KERNEL);
-@@ -1844,6 +1852,18 @@ static int do_proc_readlink(const struct path *path, char __user *buffer, int bu
+@@ -1838,6 +1846,18 @@ static int do_proc_readlink(const struct path *path, char __user *buffer, int bu
  	if (!tmp)
  		return -ENOMEM;
  
@@ -1232,7 +1232,7 @@ index 44904de62..cc03392c4 100644
  	pathname = d_path(path, tmp, PATH_MAX);
  	len = PTR_ERR(pathname);
  	if (IS_ERR(pathname))
-@@ -2466,6 +2486,10 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
+@@ -2446,6 +2466,10 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
  	for_each_vma(vmi, vma) {
  		if (!vma->vm_file)
  			continue;
@@ -1270,7 +1270,7 @@ index 2e244ada1..ca76c06d0 100644
  		seq_puts(m, saved_boot_config);
  	return 0;
 diff --git a/fs/proc/fd.c b/fs/proc/fd.c
-index 913bef0d2..f9a192b37 100644
+index 9e2cc705c..bbf9c1ed2 100644
 --- a/fs/proc/fd.c
 +++ b/fs/proc/fd.c
 @@ -13,11 +13,22 @@
