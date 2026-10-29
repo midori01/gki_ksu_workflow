@@ -116,10 +116,10 @@
 | **커널 버전** | `6.1`, `6.6`, `6.12` 중 단일 버전을 선택하거나 `all`을 통해 전체 버전을 선택할 수 있습니다. 서브 레벨, 리비전, 컴파일러, Rust 설정 등은 중앙 집중식 config에서 자동으로 적용됩니다. |
 | **소스 미러** | 커널 소스 및 툴체인 다운로드 시 Google 공식 AOSP 미러 또는 자체 호스팅 미러 중에서 선택할 수 있습니다. |
 | **SUSFS** | SUSFS 커널 패치는 업스트림에서 자동으로 동기화되며, `kernel_versions.json`에 고정한 비 LTS 리비전을 포함해 지원되는 모든 서브 레벨용으로 생성됩니다. 모든 배리언트의 SUSFS 버전은 단일 `susfs_commit` 입력값을 통해 통합 관리됩니다. SUSFS는 MidoriSU 매니저에서 직접 설정하므로 릴리스에 별도의 susfs4ksu 모듈이 포함되지 않습니다. |
-| **KSU 툴킷** | 최신 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 모듈을 nightly.link에서 자동으로 가져와 릴리스에 포함합니다. |
+| **KSU 툴킷** | 최신 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 모듈을 nightly.link에서 자동으로 찾아 릴리스 노트에 다운로드 링크를 추가합니다. |
 | **Droidspaces** | [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS)를 활용한 컨테이너 지원 기능으로 SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, 네트워킹 기능을 제공합니다. `use_droidspaces` 옵션을 통해 배리언트마다 활성화할 수 있습니다. |
 | **Re:Kernel(-X)** | [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 및 [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) 모듈을 커널에 직접 내장합니다. 툼스톤(tombstone) 기반 프리즈 복구, 네트워크 트리거 해제, 바인더(binder) 비동기 정리를 제공합니다. `use_rekernel` 옵션으로 제어합니다. |
-| **VPNHide Next** | In-tree kpatch(`CONFIG_VPNHIDE=y`)를 통해 [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend)를 통합하여 동적 LKM에 의존하지 않고 커널 수준에서 VPN 네트워크 인터페이스, 라우팅 규칙 및 소켓 디스크립터를 은닉합니다. 함께 사용되는 `vpnhide-bridge.zip` 모듈 및 매니저 APK(`vpnhide.apk`)를 자동으로 가져와 릴리스에 포함합니다. `use_vpnhide` 옵션으로 제어합니다. |
+| **VPNHide Next** | In-tree kpatch(`CONFIG_VPNHIDE=y`)를 통해 [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend)를 통합하여 동적 LKM에 의존하지 않고 커널 수준에서 VPN 네트워크 인터페이스, 라우팅 규칙 및 소켓 디스크립터를 은닉합니다. 함께 사용되는 `vpnhide-bridge.zip` 모듈 및 매니저 APK(`vpnhide.apk`)의 업스트림 다운로드 링크를 릴리스 노트에 추가합니다. `use_vpnhide` 옵션으로 제어합니다. |
 | **유니코드 바이패스 수정** | 항상 활성화됩니다. 비표준 유니코드 인코딩을 이용한 파일시스템 우회 공격을 방지하기 위해 커널의 유니코드 정규화 로직을 패치합니다. |
 | **ADIOS I/O 스케줄러** | [ADIOS](https://github.com/firelzrd/adios)를 커널 내장 기본 멀티큐 I/O 스케줄러로 통합합니다. `use_adios` 옵션으로 활성화합니다. |
 | **LZ4/ZSTD ZRAM 백엔드** | 선택적으로 커널의 LZ4 및 ZSTD 구현을 공식 LZ4 1.10.0 및 Zstandard 1.5.7 릴리스로 업데이트하고 kernel 6.12 (6.12.23에서만 테스트됨) 의 ZRAM 백엔드를 활성화합니다. `use_lz4_zstd` 옵션으로 제어하며, 6.1 및 6.6 빌드는 변경되지 않습니다. |

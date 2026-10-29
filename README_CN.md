@@ -116,10 +116,10 @@
 | **内核版本** | 选择 `6.1`、`6.6`、`6.12` 或 `all` 来编译一个或全部内核版本。子版本、修订号、编译器和 Rust 设置从集中配置中自动解析。 |
 | **源码镜像** | 在 Google 官方 AOSP 镜像或自托管镜像之间选择，用于内核源码和工具链下载。 |
 | **SUSFS** | SUSFS 内核补丁自动从上游同步，并为所有支持的子版本生成，包括 `kernel_versions.json` 中固定的非 LTS 修订版本。单个 `susfs_commit` 输入控制所有变体的 SUSFS 版本。SUSFS 直接在 MidoriSU 管理器中配置，发布中不再附带单独的 susfs4ksu 模块。 |
-| **KSU 工具箱** | 自动从 nightly.link 获取最新的 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 模块并将其附加到发布中。 |
+| **KSU 工具箱** | 自动从 nightly.link 获取最新的 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 模块，并在发布说明中附上下载链接。 |
 | **Droidspaces** | 通过 [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) 提供容器支持 — SYSVIPC、IPC_NS、PID_NS、DEVTMPFS、NTSync 和网络。通过 `use_droidspaces` 开关按变体启用。 |
 | **Re:Kernel(-X)** | 集成的 [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 和 [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) 模块直接编译进内核。提供 tombstone 冻结恢复、网络触发解冻和 binder 异步清理。通过 `use_rekernel` 开关控制。 |
-| **VPNHide Next** | 通过 In-tree kpatch (`CONFIG_VPNHIDE=y`) 集成 [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend)，在内核层隐藏 VPN 网络接口、路由规则和套接字描述符，无需依赖动态 LKM。自动将配套的 `vpnhide-bridge.zip` 模块与管理器 APK (`vpnhide.apk`) 附加到发布中。通过 `use_vpnhide` 开关控制。 |
+| **VPNHide Next** | 通过 In-tree kpatch (`CONFIG_VPNHIDE=y`) 集成 [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend)，在内核层隐藏 VPN 网络接口、路由规则和套接字描述符，无需依赖动态 LKM。在发布说明中附上配套的 `vpnhide-bridge.zip` 模块与管理器 APK (`vpnhide.apk`) 的上游下载链接。通过 `use_vpnhide` 开关控制。 |
 | **Unicode 绕过修复** | 始终启用。修补内核 Unicode 规范化，以防止通过非标准 Unicode 编码进行文件系统绕过攻击。 |
 | **ADIOS I/O 调度器** | 可选集成 [ADIOS](https://github.com/firelzrd/adios)，并作为内核的内置默认多队列 I/O 调度器。通过 `use_adios` 开关启用。 |
 | **LZ4/ZSTD ZRAM 后端** | 可选将内核中的 LZ4 和 ZSTD 实现更新为官方 LZ4 1.10.0 与 Zstandard 1.5.7 版本，并为 kernel 6.12 (仅在6.12.23测试通过) 启用 ZRAM 后端。通过 `use_lz4_zstd` 开关控制；6.1 和 6.6 构建保持不变。 |

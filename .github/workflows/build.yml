@@ -381,50 +381,57 @@ jobs:
           path: release_zips
           merge-multiple: true
 
-      - name: Download KSU Toolkit Module
+      # Companion modules and apps are linked from the release body instead of
+      # being re-uploaded as assets, so each link points at its upstream download.
+      - name: Resolve KSU Toolkit Module Link
         run: |
-          toolkit=""
-          url=$(curl -sL "https://nightly.link/backslashxx/ksu_toolkit/workflows/module/master?preview" | grep -oP 'https://nightly\.link/backslashxx/ksu_toolkit/workflows/module/master/ksu_toolkit-\d+\.zip' | head -n 1)
+          link=""
+          url=$(curl -sL "https://nightly.link/backslashxx/ksu_toolkit/workflows/module/master?preview" | grep -oP 'https://nightly\.link/backslashxx/ksu_toolkit/workflows/module/master/ksu_toolkit-\d+\.zip' | head -n 1 || true)
           if [ -n "$url" ]; then
-            toolkit=$(basename "$url")
-            curl --fail -L -o "${{ github.workspace }}/release_zips/${toolkit}" "$url" || toolkit=""
+            link="[\`$(basename "$url")\`]($url)"
           fi
-          echo "TOOLKIT_FILE=$toolkit" >> $GITHUB_ENV
+          echo "TOOLKIT_LINK=$link" >> $GITHUB_ENV
 
-      - name: Download MidoriSU Manager APK
+      - name: Resolve MidoriSU Manager APK Link
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --repo midori01/KernelSU --pattern "MidoriSU_*.apk" --dir release_zips 2>/dev/null || true
-          apk=$(ls release_zips/MidoriSU_*.apk 2>/dev/null | head -n 1)
-          echo "MIDORISU_APK=$(basename "$apk" 2>/dev/null)" >> $GITHUB_ENV
+          asset=$(gh release view --repo midori01/KernelSU --json assets --jq '[.assets[] | select(.name | test("^MidoriSU_.*\\.apk$"))] | sort_by(.name) | .[0] // empty | "\(.name) \(.url)"' 2>/dev/null || true)
+          apk="${asset%% *}"
+          url="${asset#* }"
+          echo "MIDORISU_APK_LINK=${apk:+[\`$apk\`]($url)}" >> $GITHUB_ENV
           echo "KSUD_VERSION=$(echo "$apk" | grep -oP '\d+(?=-release\.apk$)' || echo "unknown")" >> $GITHUB_ENV
 
-      - name: Download VPNHide Artifacts
+      - name: Resolve VPNHide Links
         if: inputs.use_vpnhide == true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download --repo soranerai/vpnhide_next --pattern "vpnhide-bridge.zip" --pattern "vpnhide.apk" --dir release_zips 2>/dev/null || true
-          if [ ! -f "release_zips/vpnhide-bridge.zip" ]; then
-            gh release download --repo soranerai/vpnhide_next_backend --pattern "vpnhide-bridge.zip" --dir release_zips 2>/dev/null || true
+          asset_url() {
+            gh release view --repo "$1" --json assets --jq ".assets[] | select(.name == \"$2\") | .url" 2>/dev/null | head -n 1 || true
+          }
+          bridge=$(asset_url soranerai/vpnhide_next vpnhide-bridge.zip)
+          if [ -z "$bridge" ]; then
+            bridge=$(asset_url soranerai/vpnhide_next_backend vpnhide-bridge.zip)
           fi
-          files=""
-          if [ -f "release_zips/vpnhide-bridge.zip" ]; then
-            files="vpnhide-bridge.zip"
+          apk=$(asset_url soranerai/vpnhide_next vpnhide.apk)
+          links=""
+          if [ -n "$bridge" ]; then
+            links="[\`vpnhide-bridge.zip\`]($bridge)"
           fi
-          if [ -f "release_zips/vpnhide.apk" ]; then
-            files="${files:+$files, }vpnhide.apk"
+          if [ -n "$apk" ]; then
+            links="${links:+$links, }[\`vpnhide.apk\`]($apk)"
           fi
-          echo "VPNHIDE_FILES=$files" >> $GITHUB_ENV
+          echo "VPNHIDE_LINKS=$links" >> $GITHUB_ENV
 
-      - name: Download NoMount Module
+      - name: Resolve NoMount Module Link
         if: inputs.use_nomount == true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag=$(cat commit_info/nomount_tag 2>/dev/null || true)
-          gh release download ${tag:+"$tag"} --repo maxsteeel/nomount --pattern "NoMount-*.zip" --dir release_zips 2>/dev/null || true
+          links=$(gh release view ${tag:+"$tag"} --repo maxsteeel/nomount --json assets --jq '[.assets[] | select(.name | test("^NoMount-.*\\.zip$")) | "[`\(.name)`](\(.url))"] | join(", ")' 2>/dev/null || true)
+          echo "NOMOUNT_LINKS=$links" >> $GITHUB_ENV
 
       - name: Read Commit Info
         id: ksu_info
@@ -540,7 +547,7 @@ jobs:
             ${{ steps.ksu_info.outputs.vpnhide_line }}
             ${{ steps.ksu_info.outputs.nomount_line }}
             - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version || env.KSUD_VERSION }}`　**KSU Daemon (ksud)**: `${{ env.KSUD_VERSION }}`
-            - **Manager**: `${{ env.MIDORISU_APK }}`
+            - **Manager**: ${{ env.MIDORISU_APK_LINK || '❌' }}
             > **Spoofed Kernel Build Info**
             ${{ env.RELEASE_UNAME }}
             > - **Time**: `${{ needs.setup.outputs.build_timestamp }}`
@@ -549,12 +556,12 @@ jobs:
             - **ADIOS I/O Scheduler**: ${{ inputs.use_adios && matrix.kv != '6.1' && '✅' || '❌' }}　**LZ4/ZSTD ZRAM**: ${{ inputs.use_lz4_zstd && matrix.kv == '6.12' && '✅' || '❌' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
-            - **KSU Toolkit**: ${{ env.TOOLKIT_FILE && format('✅ `({0})`', env.TOOLKIT_FILE) || '❌' }}
-            - **VPNHide Next**: ${{ env.VPNHIDE_FILES && format('✅ `({0})`', env.VPNHIDE_FILES) || (inputs.use_vpnhide && '✅' || '❌') }}
+            - **KSU Toolkit**: ${{ env.TOOLKIT_LINK && format('✅ ({0})', env.TOOLKIT_LINK) || '❌' }}
+            - **VPNHide Next**: ${{ env.VPNHIDE_LINKS && format('✅ ({0})', env.VPNHIDE_LINKS) || (inputs.use_vpnhide && '✅' || '❌') }}
+            - **NoMount**: ${{ env.NOMOUNT_LINKS && format('✅ ({0})', env.NOMOUNT_LINKS) || (inputs.use_nomount && '✅' || '❌') }}
             - **Compiler**: `clang-${{ env.CLANG_VERSION }}`${{ env.RUST_VERSION && format('　**Rust**: `{0}`', env.RUST_VERSION) || '' }}
           files: |
             release_zips/*.zip
-            release_zips/*.apk
           prerelease: ${{ inputs.release_type == 'pre-release' }}
 
   cleanup:
