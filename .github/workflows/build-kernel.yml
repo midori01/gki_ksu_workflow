@@ -410,22 +410,24 @@ jobs:
           VPNHIDE_TAG=$(git -C "$VPNHIDE_DIR" describe --tags $(git -C "$VPNHIDE_DIR" rev-list --tags -n 1)) && git -C "$VPNHIDE_DIR" checkout "tags/$VPNHIDE_TAG"
           bash "$VPNHIDE_DIR/kpatch/scripts/apply.sh" . "${{ steps.cfg.outputs.kmi_version }}"
 
-      - name: Apply CVE-2026-43499 Fix
+      - name: Apply CVE Fixes
         working-directory: kernel_workspace/common
         run: |
-          if bash "${{ github.workspace }}/.github/scripts/check_cve.sh" > /dev/null 2>&1; then
-            echo "CVE-2026-43499 fix already present."
-            echo "CVE_FIXED=true" >> $GITHUB_ENV
-          else
-            patch -p1 --forward < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/cve-2026-43499-fix.patch" || true
-            if bash "${{ github.workspace }}/.github/scripts/check_cve.sh" > /dev/null 2>&1; then
-              echo "CVE-2026-43499 fix applied successfully."
-              echo "CVE_FIXED=true" >> $GITHUB_ENV
+          for cve in 43499 64560; do
+            if bash "${{ github.workspace }}/.github/scripts/check_cve.sh" $cve > /dev/null 2>&1; then
+              echo "CVE-2026-$cve fix already present."
+              echo "CVE_${cve}_FIXED=true" >> $GITHUB_ENV
             else
-              echo "::warning::CVE-2026-43499 fix could not be verified after patch."
-              echo "CVE_FIXED=false" >> $GITHUB_ENV
+              patch -p1 --forward < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/cve-2026-$cve-fix.patch" || true
+              if bash "${{ github.workspace }}/.github/scripts/check_cve.sh" $cve > /dev/null 2>&1; then
+                echo "CVE-2026-$cve fix applied successfully."
+                echo "CVE_${cve}_FIXED=true" >> $GITHUB_ENV
+              else
+                echo "::warning::CVE-2026-$cve fix could not be verified after patch."
+                echo "CVE_${cve}_FIXED=false" >> $GITHUB_ENV
+              fi
             fi
-          fi
+          done
 
       - name: Apply Unicode Bypass Fix
         working-directory: kernel_workspace/common
@@ -512,7 +514,8 @@ jobs:
         run: |
           COMMIT_DIR="$(pwd)/commit_info"
           mkdir -p "$COMMIT_DIR"
-          echo "${CVE_FIXED:-false}" > "$COMMIT_DIR/cve_fixed_${{ inputs.kernel_version }}.${{ inputs.sub_level }}"
+          echo "${CVE_43499_FIXED:-false}" > "$COMMIT_DIR/cve_43499_fixed_${{ inputs.kernel_version }}.${{ inputs.sub_level }}"
+          echo "${CVE_64560_FIXED:-false}" > "$COMMIT_DIR/cve_64560_fixed_${{ inputs.kernel_version }}.${{ inputs.sub_level }}"
           cd KernelSU
           save_ksu_commit() {
             git rev-parse HEAD > "$COMMIT_DIR/${1}_ksu_commit"

@@ -508,14 +508,16 @@ jobs:
             fi
             out "susfs_date=\`$(cat commit_info/susfs_date)\`"
           fi
-          if ls commit_info/cve_fixed_* >/dev/null 2>&1; then
-            if grep -l '^false$' commit_info/cve_fixed_* >/dev/null 2>&1; then
-              out "cve_fixed=false"
-              out "cve_failed_subs=$(grep -l '^false$' commit_info/cve_fixed_* | sed 's/commit_info\/cve_fixed_//' | tr '\n' ' ' | sed 's/ $//')"
-            else
-              out "cve_fixed=true"
+          for cve in 43499 64560; do
+            if ls commit_info/cve_${cve}_fixed_* >/dev/null 2>&1; then
+              if grep -l '^false$' commit_info/cve_${cve}_fixed_* >/dev/null 2>&1; then
+                out "cve_${cve}_fixed=false"
+                out "cve_${cve}_failed_subs=$(grep -l '^false$' commit_info/cve_${cve}_fixed_* | sed "s/commit_info\/cve_${cve}_fixed_//" | tr '\n' ' ' | sed 's/ $//')"
+              else
+                out "cve_${cve}_fixed=true"
+              fi
             fi
-          fi
+          done
           if [ -f "commit_info/driver_version" ]; then
             out "driver_version=$(cat commit_info/driver_version)"
           fi
@@ -553,7 +555,8 @@ jobs:
             ${{ env.RELEASE_UNAME }}
             > - **Time**: `${{ needs.setup.outputs.build_timestamp }}`
             > - **Builder**: `${{ needs.setup.outputs.build_user }}@${{ needs.setup.outputs.build_host }}`
-            - **Unicode Bypass Fix**: ✅　**CVE-2026-43499 Fix**: ${{ steps.ksu_info.outputs.cve_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_failed_subs) }}
+            - **Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}　**Unicode Bypass Fix**: ✅
+            - **CVE-2026-43499 Fix**: ${{ steps.ksu_info.outputs.cve_43499_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_43499_failed_subs) }}　**CVE-2026-64560 Fix**: ${{ steps.ksu_info.outputs.cve_64560_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_64560_failed_subs) }}
             - **ADIOS I/O Scheduler**: ${{ inputs.use_adios && matrix.kv != '6.1' && '✅' || '❌' }}　**LZ4/ZSTD ZRAM**: ${{ inputs.use_lz4_zstd && matrix.kv == '6.12' && '✅' || '❌' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
