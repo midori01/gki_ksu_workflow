@@ -1,10 +1,10 @@
 From: github-actions <actions@github.com>
-Date: Sat, 24 Oct 2026 13:51:50 +0000
+Date: Fri, 30 Oct 2026 00:19:27 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-lts
 X-Kernel-Target-Branch: android16-6.12-lts
-X-Kernel-Target-Commit: 571d9c1bbba0039f8fa842785e434862ba744377
+X-Kernel-Target-Commit: 815f36e3050a885dedbff621d4dd16c17dc81a0b
 X-SUSFS-Source-Ref: origin/gki-android16-6.12
-X-SUSFS-Source-Commit: 3ff9fd3fac5bb01b71b2cfe96c612d469710fb74
+X-SUSFS-Source-Commit: 6b60a305d418148bd311f4fc9bddedc82d99e1fc
 
 ---
  block/ioprio.c               |  22 +++-
@@ -229,7 +229,7 @@ index 965fdc593..80d5ff9b2 100644
  	free_bprm(bprm);
  
 diff --git a/fs/namei.c b/fs/namei.c
-index bdc243fc4..665c974ad 100644
+index 3184a0649..7f4cf191e 100644
 --- a/fs/namei.c
 +++ b/fs/namei.c
 @@ -40,10 +40,21 @@
@@ -492,7 +492,7 @@ index bdc243fc4..665c974ad 100644
  
  	nd->flags |= op->intent;
  
-@@ -3887,9 +4016,32 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
+@@ -3891,9 +4020,32 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
  		const struct open_flags *op,
  		struct file *file)
  {
@@ -525,7 +525,7 @@ index bdc243fc4..665c974ad 100644
  	if (unlikely(error))
  		return error;
  	error = mnt_want_write(path.mnt);
-@@ -3903,24 +4055,61 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
+@@ -3907,24 +4059,61 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
  	mnt_drop_write(path.mnt);
  out:
  	path_put(&path);
@@ -587,7 +587,7 @@ index bdc243fc4..665c974ad 100644
  	struct file *file;
  	int error;
  
-@@ -3937,10 +4126,33 @@ static struct file *path_openat(struct nameidata *nd,
+@@ -3941,10 +4130,33 @@ static struct file *path_openat(struct nameidata *nd,
  		while (!(error = link_path_walk(s, nd)) &&
  		       (s = open_last_lookups(nd, file, op)) != NULL)
  			;
@@ -621,7 +621,7 @@ index bdc243fc4..665c974ad 100644
  	if (likely(!error)) {
  		if (likely(file->f_mode & FMODE_OPENED))
  			return file;
-@@ -5251,6 +5463,11 @@ int readlink_copy(char __user *buffer, int buflen, const char *link)
+@@ -5255,6 +5467,11 @@ int readlink_copy(char __user *buffer, int buflen, const char *link)
   *
   * Does not call security hook.
   */
@@ -633,7 +633,7 @@ index bdc243fc4..665c974ad 100644
  int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
  {
  	struct inode *inode = d_inode(dentry);
-@@ -5260,7 +5477,18 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
+@@ -5264,7 +5481,18 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
  
  	if (unlikely(!(inode->i_opflags & IOP_DEFAULT_READLINK))) {
  		if (unlikely(inode->i_op->readlink))
@@ -652,7 +652,7 @@ index bdc243fc4..665c974ad 100644
  
  		if (!d_is_symlink(dentry))
  			return -EINVAL;
-@@ -5276,6 +5504,15 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
+@@ -5280,6 +5508,15 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
  		if (IS_ERR(link))
  			return PTR_ERR(link);
  	}
@@ -2617,7 +2617,7 @@ index 29a9bf854..18456f388 100644
  	audit_log_format(ab, " tclass=%s", tclass);
  
 diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
-index 2a49b3647..eef0cd181 100644
+index feb4826d5..a83ea4d12 100644
 --- a/security/selinux/hooks.c
 +++ b/security/selinux/hooks.c
 @@ -110,6 +110,10 @@
@@ -2631,7 +2631,7 @@ index 2a49b3647..eef0cd181 100644
  
  /*
   * ANDROID: selinux_state is part of the KMI, and backporting capabilities into
-@@ -6624,6 +6628,17 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
+@@ -6642,6 +6646,17 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
  	return -EINVAL;
  }
  
@@ -2649,7 +2649,7 @@ index 2a49b3647..eef0cd181 100644
  static int selinux_ismaclabel(const char *name)
  {
  	return (strcmp(name, XATTR_SELINUX_SUFFIX) == 0);
-@@ -7254,8 +7269,11 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
+@@ -7272,8 +7287,11 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
  	LSM_HOOK_INIT(getselfattr, selinux_getselfattr),
  	LSM_HOOK_INIT(setselfattr, selinux_setselfattr),
  	LSM_HOOK_INIT(getprocattr, selinux_getprocattr),
