@@ -112,7 +112,7 @@ jobs:
       ADIOS_SUFFIX: ${{ inputs.use_adios && inputs.kernel_version != '6.1' && '-ADIOS' || '' }}
       ZRAM_SUFFIX: ${{ inputs.use_lz4_zstd && inputs.kernel_version == '6.12' && '-LZ4ZSTD' || '' }}
       NM_SUFFIX: ${{ inputs.use_nomount && '-NM' || '' }}
-      CCACHE_DIR: ${{ github.workspace }}/.ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}${{ inputs.use_adios && inputs.kernel_version != '6.1' && '-adios' || '' }}${{ inputs.use_lz4_zstd && inputs.kernel_version == '6.12' && '-lz4-zstd' || '' }}${{ inputs.use_nomount && '-nm' || '' }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_COMPILERCHECK: content
       CCACHE_SLOPPINESS: file_macro,time_macros,include_file_mtime,include_file_ctime,pch_defines,modules
 
@@ -154,14 +154,32 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             binutils python-is-python3 libssl-dev libelf-dev libdw-dev bison flex bc aria2 ccache
 
+      - name: Compute Ccache Keys
+        if: inputs.use_ccache
+        id: ccache-key
+        run: |
+          group="ccache_${{ inputs.kernel_version }}_${{ inputs.use_susfs && 'susfs' || 'nosusfs' }}.${{ inputs.use_droidspaces && 'ds' || 'nods' }}"
+          combo="${group}_${{ inputs.variant }}${{ inputs.use_adios && inputs.kernel_version != '6.1' && '.adios' || '' }}${{ inputs.use_lz4_zstd && inputs.kernel_version == '6.12' && '.lz4zstd' || '' }}${{ inputs.use_nomount && '.nm' || '' }}"
+          sub="${combo}_${{ steps.cfg.outputs.sub_level }}"
+          rev="${sub}_${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}"
+          echo "key=${rev}_${{ github.run_id }}" >> $GITHUB_OUTPUT
+          echo "rev=${rev}_" >> $GITHUB_OUTPUT
+          echo "sub=${sub}_" >> $GITHUB_OUTPUT
+          echo "combo=${combo}_" >> $GITHUB_OUTPUT
+          echo "group=${group}_" >> $GITHUB_OUTPUT
+
       - name: Restore Ccache
         if: inputs.use_ccache
         id: cache-restore
         uses: ./.github/actions/restore-cache-retry
         with:
-          path: .ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}${{ inputs.use_adios && inputs.kernel_version != '6.1' && '-adios' || '' }}${{ inputs.use_lz4_zstd && inputs.kernel_version == '6.12' && '-lz4-zstd' || '' }}${{ inputs.use_nomount && '-nm' || '' }}
-          key: ${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}${{ inputs.use_adios && inputs.kernel_version != '6.1' && '-adios' || '' }}${{ inputs.use_lz4_zstd && inputs.kernel_version == '6.12' && '-lz4-zstd' || '' }}${{ inputs.use_nomount && '-nm' || '' }}-${{ github.run_id }}
-          restore-keys: ${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}${{ inputs.use_adios && inputs.kernel_version != '6.1' && '-adios' || '' }}${{ inputs.use_lz4_zstd && inputs.kernel_version == '6.12' && '-lz4-zstd' || '' }}${{ inputs.use_nomount && '-nm' || '' }}-
+          path: .ccache
+          key: ${{ steps.ccache-key.outputs.key }}
+          restore-keys: |
+            ${{ steps.ccache-key.outputs.rev }}
+            ${{ steps.ccache-key.outputs.sub }}
+            ${{ steps.ccache-key.outputs.combo }}
+            ${{ steps.ccache-key.outputs.group }}
 
       - name: Setup Ccache Wrappers
         if: inputs.use_ccache
@@ -170,10 +188,11 @@ jobs:
           which ccache || { echo "ccache not found after waiting"; exit 1; }
           CCACHE_PATH="${{ github.workspace }}/.ccache-bin"
           mkdir -p "$CCACHE_PATH" && rm -f "$CCACHE_PATH"/*
-          for prog in clang clang++ ld.lld llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-size llvm-readelf llvm-strip; do
+          for prog in clang clang++; do
             ln -sf "$(which ccache)" "$CCACHE_PATH/$prog"
           done
           echo "$CCACHE_PATH" >> $GITHUB_PATH
+          echo "CCACHE_START=$(date +%s)" >> $GITHUB_ENV
           ccache -M 10G \
             -o hash_dir=false \
             -o compiler_check=content \
@@ -608,6 +627,21 @@ jobs:
           make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
           [ "${{ inputs.use_ccache }}" = "true" ] && ccache -s || true
 
+      - name: Trim Ccache
+        if: inputs.use_ccache
+        id: ccache-trim
+        continue-on-error: true
+        run: |
+          ccache --evict-older-than "$(( $(date +%s) - CCACHE_START + 60 ))s"
+          ccache -s | grep 'Cache size' || true
+          misses=$(ccache --print-stats | awk '$1 == "cache_miss" {print $2}')
+          matched="${{ steps.cache-restore.outputs.matched-key }}"
+          if [ "${misses:-1}" -eq 0 ] && [[ "$matched" == "${{ steps.ccache-key.outputs.rev }}"* ]]; then
+            echo "save=false" >> $GITHUB_OUTPUT
+          else
+            echo "save=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Export vmlinux for eBPF
         if: inputs.ksu_debug
         working-directory: kernel_workspace/common/out
@@ -634,11 +668,25 @@ jobs:
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
       - name: Save Ccache
-        if: inputs.use_ccache
+        if: inputs.use_ccache && steps.ccache-trim.outputs.save == 'true'
         uses: actions/cache/save@v6
         with:
-          path: .ccache-${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}${{ inputs.use_adios && inputs.kernel_version != '6.1' && '-adios' || '' }}${{ inputs.use_lz4_zstd && inputs.kernel_version == '6.12' && '-lz4-zstd' || '' }}${{ inputs.use_nomount && '-nm' || '' }}
-          key: ${{ inputs.kernel_version }}-${{ inputs.sub_level }}-${{ steps.cfg.outputs.asb_date }}${{ steps.cfg.outputs.r_suffix }}-${{ inputs.variant }}${{ inputs.use_susfs && '-susfs' || '' }}${{ inputs.use_droidspaces && '-ds' || '' }}${{ inputs.use_adios && inputs.kernel_version != '6.1' && '-adios' || '' }}${{ inputs.use_lz4_zstd && inputs.kernel_version == '6.12' && '-lz4-zstd' || '' }}${{ inputs.use_nomount && '-nm' || '' }}-${{ github.run_id }}
+          path: .ccache
+          key: ${{ steps.ccache-key.outputs.key }}
+
+      - name: Prune Stale Ccache
+        if: inputs.use_ccache && steps.ccache-trim.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          keep="${{ steps.ccache-trim.outputs.save == 'true' && steps.ccache-key.outputs.key || steps.cache-restore.outputs.matched-key }}"
+          caches=$(gh cache list -R "${{ github.repository }}" --ref "${{ github.ref }}" --key "${{ steps.ccache-key.outputs.sub }}" -L 100 --json id,key,createdAt)
+          created=$(jq -r --arg k "$keep" '.[] | select(.key == $k) | .createdAt' <<< "$caches")
+          [ -n "$created" ] || { echo "Current cache $keep not found, skipping prune"; exit 0; }
+          jq -r --arg k "$keep" --arg t "$created" '.[] | select(.key != $k and .createdAt < $t) | .id' <<< "$caches" | while read -r id; do
+            gh cache delete -R "${{ github.repository }}" "$id" || true
+          done
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v7

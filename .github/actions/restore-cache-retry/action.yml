@@ -17,6 +17,9 @@ outputs:
   cache-hit:
     description: 'Whether cache was restored successfully'
     value: ${{ steps.set-output.outputs.cache-hit }}
+  matched-key:
+    description: 'Key of the restored cache entry'
+    value: ${{ steps.restore1.outputs.cache-matched-key || steps.restore2.outputs.cache-matched-key || steps.restore3.outputs.cache-matched-key }}
 
 runs:
   using: 'composite'

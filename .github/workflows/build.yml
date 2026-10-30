@@ -137,6 +137,7 @@ on:
           - no-release
 
 permissions:
+  actions: write
   contents: write
   packages: write
 
