@@ -1,10 +1,10 @@
 From: github-actions <actions@github.com>
-Date: Sat, 31 Oct 2026 23:40:15 +0000
+Date: Sun, 01 Nov 2026 19:19:32 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android14-6.1-lts
 X-Kernel-Target-Branch: android14-6.1-lts
 X-Kernel-Target-Commit: fcab623b3d2b0107e56b44e4e791f9a1cc5ad0ff
 X-SUSFS-Source-Ref: origin/gki-android14-6.1
-X-SUSFS-Source-Commit: 59a0ce06d7574c8d31695acf9c0ad24410784f30
+X-SUSFS-Source-Commit: a0ac906915c8a8d50d474dfb3cae478ef32edc1a
 
 ---
  block/ioprio.c                 |  22 +++-
@@ -37,16 +37,16 @@ X-SUSFS-Source-Commit: 59a0ce06d7574c8d31695acf9c0ad24410784f30
  27 files changed, 2060 insertions(+), 5 deletions(-)
 
 diff --git a/block/ioprio.c b/block/ioprio.c
-index 32a456b45..ea1e2b4d0 100644
+index 32a456b45..8cae4868d 100644
 --- a/block/ioprio.c
 +++ b/block/ioprio.c
 @@ -65,6 +65,10 @@ int ioprio_check_cap(int ioprio)
  	return 0;
  }
  
-+#ifdef CONFIG_KSU_SUSFS
++#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 +extern bool susfs_is_priority_uid_filtered(uid_t uid);
-+#endif // #ifdef CONFIG_KSU_SUSFS
++#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 +
  SYSCALL_DEFINE3(ioprio_set, int, which, int, who, int, ioprio)
  {
@@ -55,7 +55,7 @@ index 32a456b45..ea1e2b4d0 100644
  			if (!who)
  				user = current_user();
  			else
-+#ifdef CONFIG_KSU_SUSFS
++#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 +			{
 +				if (current_uid().val >= 10000 && susfs_is_priority_uid_filtered(uid.val))
 +					break;
@@ -64,7 +64,7 @@ index 32a456b45..ea1e2b4d0 100644
 +			}
 +#else
 +				user = find_user(uid);
-+#endif // #ifdef CONFIG_KSU_SUSFS
++#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
  			if (!user)
  				break;
  
@@ -72,7 +72,7 @@ index 32a456b45..ea1e2b4d0 100644
  			if (!who)
  				user = current_user();
  			else
-+#ifdef CONFIG_KSU_SUSFS
++#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 +			{
 +				if (current_uid().val >= 10000 && susfs_is_priority_uid_filtered(uid.val))
 +					break;
@@ -81,7 +81,7 @@ index 32a456b45..ea1e2b4d0 100644
 +			}
 +#else
 +				user = find_user(uid);
-+#endif // #ifdef CONFIG_KSU_SUSFS
++#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
  			if (!user)
  				break;
  
@@ -2381,16 +2381,16 @@ index 344ceaf5e..c2d1a782d 100644
  	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
  		return -EPERM;
 diff --git a/kernel/sys.c b/kernel/sys.c
-index ba7926d7b..b6dd28773 100644
+index ba7926d7b..e75d41223 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
 @@ -210,6 +210,10 @@ static int set_one_prio(struct task_struct *p, int niceval, int error)
  	return error;
  }
  
-+#ifdef CONFIG_KSU_SUSFS
++#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 +extern bool susfs_is_priority_uid_filtered(uid_t uid);
-+#endif // #ifdef CONFIG_KSU_SUSFS
++#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 +
  SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
  {
@@ -2399,10 +2399,10 @@ index ba7926d7b..b6dd28773 100644
  		if (!who)
  			uid = cred->uid;
  		else if (!uid_eq(uid, cred->uid)) {
-+#ifdef CONFIG_KSU_SUSFS
++#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 +			if (cred->uid.val >= 10000 && susfs_is_priority_uid_filtered(uid.val))
 +				goto out_unlock;
-+#endif // #ifdef CONFIG_KSU_SUSFS
++#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
  			user = find_user(uid);
  			if (!user)
  				goto out_unlock;	/* No processes for this user */
@@ -2410,10 +2410,10 @@ index ba7926d7b..b6dd28773 100644
  		if (!who)
  			uid = cred->uid;
  		else if (!uid_eq(uid, cred->uid)) {
-+#ifdef CONFIG_KSU_SUSFS
++#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
 +			if (cred->uid.val >= 10000 && susfs_is_priority_uid_filtered(uid.val))
 +				goto out_unlock;
-+#endif // #ifdef CONFIG_KSU_SUSFS
++#endif // #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER
  			user = find_user(uid);
  			if (!user)
  				goto out_unlock;	/* No processes for this user */
