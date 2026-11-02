@@ -1,18 +1,19 @@
 From: midori01 <lv@lvlv.lv>
-Date: Sat, 22 Aug 2026 15:49:20 +0900
+Date: Mon, 2 Nov 2026 17:37:52 +0900
 Subject: [PATCH] ReSukiSU manual hooks for android16-6.12
 
 ---
- fs/exec.c       |  6 ++++++
- fs/open.c       |  9 +++++++++
- fs/read_write.c | 10 ++++++++++
- fs/stat.c       | 23 +++++++++++++++++++++++
- kernel/reboot.c |  9 ++++++++-
- kernel/sys.c    |  8 ++++++++
- 6 files changed, 65 insertions(+), 1 deletion(-)
+ fs/exec.c            |  6 ++++++
+ fs/open.c            |  9 +++++++++
+ fs/read_write.c      | 10 ++++++++++
+ fs/stat.c            | 23 +++++++++++++++++++++++
+ kernel/module/main.c | 16 ++++++++++++++++
+ kernel/reboot.c      |  9 ++++++++-
+ kernel/sys.c         |  8 ++++++++
+ 7 files changed, 80 insertions(+), 1 deletion(-)
 
 diff --git a/fs/exec.c b/fs/exec.c
-index 965fdc593d65..9eb6e50f1e35 100644
+index 965fdc593d65..714d0f8d0578 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -1940,6 +1940,12 @@ static int do_execveat_common(int fd, struct filename *filename,
@@ -135,6 +136,47 @@ index adb071bc92e1..4563e824600f 100644
  	error = vfs_fstatat(dfd, filename, &stat, flag);
  	if (error)
  		return error;
+diff --git a/kernel/module/main.c b/kernel/module/main.c
+index 5f042675977f..e5ef0bfbab90 100644
+--- a/kernel/module/main.c
++++ b/kernel/module/main.c
+@@ -3524,6 +3524,11 @@ static int load_module(struct load_info *info, const char __user *uargs,
+ 	return err;
+ }
+ 
++#ifdef CONFIG_KSU_MANUAL_HOOK
++extern void ksu_handle_init_module(int *result);
++extern void ksu_handle_finit_module(int *result);
++#endif
++
+ SYSCALL_DEFINE3(init_module, void __user *, umod,
+ 		unsigned long, len, const char __user *, uargs)
+ {
+@@ -3544,6 +3549,14 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
+ 		return err;
+ 	}
+ 
++#ifdef CONFIG_KSU_MANUAL_HOOK
++	{
++		int ksu_ret = load_module(&info, uargs, 0);
++
++		ksu_handle_init_module(&ksu_ret);
++		return ksu_ret;
++	}
++#endif
+ 	return load_module(&info, uargs, 0);
+ }
+ 
+@@ -3697,6 +3710,9 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
+ 	f = fdget(fd);
+ 	err = idempotent_init_module(fd_file(f), uargs, flags);
+ 	fdput(f);
++#ifdef CONFIG_KSU_MANUAL_HOOK
++	ksu_handle_finit_module(&err);
++#endif
+ 	return err;
+ }
+ 
 diff --git a/kernel/reboot.c b/kernel/reboot.c
 index 45681d03d331..b3be82fcfe91 100644
 --- a/kernel/reboot.c

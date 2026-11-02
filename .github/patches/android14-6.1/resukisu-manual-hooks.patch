@@ -1,18 +1,19 @@
 From: midori01 <lv@lvlv.lv>
-Date: Tue, 2 Jun 2026 10:27:35 +0900
+Date: Mon, 2 Nov 2026 17:42:40 +0900
 Subject: [PATCH] ReSukiSU manual hooks for android14-6.1-2026-03
 
 ---
- fs/exec.c       |  6 ++++++
- fs/open.c       |  9 +++++++++
- fs/read_write.c | 10 ++++++++++
- fs/stat.c       | 23 +++++++++++++++++++++++
- kernel/reboot.c |  9 ++++++++-
- kernel/sys.c    |  8 ++++++++
- 6 files changed, 65 insertions(+), 1 deletion(-)
+ fs/exec.c            |  6 ++++++
+ fs/open.c            |  9 +++++++++
+ fs/read_write.c      | 10 ++++++++++
+ fs/stat.c            | 23 +++++++++++++++++++++++
+ kernel/module/main.c | 21 +++++++++++++++++++++
+ kernel/reboot.c      |  9 ++++++++-
+ kernel/sys.c         |  8 ++++++++
+ 7 files changed, 85 insertions(+), 1 deletion(-)
 
 diff --git a/fs/exec.c b/fs/exec.c
-index 6999d609d69c..1ba8e7f6c609 100644
+index 6999d609d69c..b431193dd7a2 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -1912,6 +1912,12 @@ static int do_execveat_common(int fd, struct filename *filename,
@@ -135,6 +136,52 @@ index ef50573c72a2..f3d13c275378 100644
  	error = vfs_fstatat(dfd, filename, &stat, flag);
  	if (error)
  		return error;
+diff --git a/kernel/module/main.c b/kernel/module/main.c
+index 13ca819e3943..a8a22eb93607 100644
+--- a/kernel/module/main.c
++++ b/kernel/module/main.c
+@@ -2969,6 +2969,11 @@ static int load_module(struct load_info *info, const char __user *uargs,
+ 	return err;
+ }
+ 
++#ifdef CONFIG_KSU_MANUAL_HOOK
++extern void ksu_handle_init_module(int *result);
++extern void ksu_handle_finit_module(int *result);
++#endif
++
+ SYSCALL_DEFINE3(init_module, void __user *, umod,
+ 		unsigned long, len, const char __user *, uargs)
+ {
+@@ -2986,6 +2991,14 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
+ 	if (err)
+ 		return err;
+ 
++#ifdef CONFIG_KSU_MANUAL_HOOK
++	{
++		int ksu_ret = load_module(&info, uargs, 0);
++
++		ksu_handle_init_module(&ksu_ret);
++		return ksu_ret;
++	}
++#endif
+ 	return load_module(&info, uargs, 0);
+ }
+ 
+@@ -3022,6 +3035,14 @@ SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs, int, flags)
+ 		info.len = len;
+ 	}
+ 
++#ifdef CONFIG_KSU_MANUAL_HOOK
++	{
++		int ksu_ret = load_module(&info, uargs, flags);
++
++		ksu_handle_finit_module(&ksu_ret);
++		return ksu_ret;
++	}
++#endif
+ 	return load_module(&info, uargs, flags);
+ }
+ 
 diff --git a/kernel/reboot.c b/kernel/reboot.c
 index 344ceaf5ed13..3551f6603b01 100644
 --- a/kernel/reboot.c
