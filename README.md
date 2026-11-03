@@ -71,7 +71,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 >   - `manual` — manually-patched hooks via `scope-min-manual-hooks-v2.3.patch`
 
 > [!TIP]
-> **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With all 5 variants selected, this yields **5 builds per sublevel for each kernel version**. Choosing `all` from the `kernel_version` dropdown compiles all configured sublevels across 6.1, 6.6 and 6.12 in parallel for a total of **40 concurrent jobs**.
+> **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With `all` variants selected, this yields **4 builds per sublevel for each kernel version** (MidoriSU-RX is excluded from `all` and is built only when selected explicitly). Choosing `all` from the `kernel_version` dropdown compiles all configured sublevels across 6.1, 6.6 and 6.12 in parallel for a total of **32 concurrent jobs**.
 
 ---
 
@@ -89,7 +89,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | **Kernel Panic & Crash Analyzer** | Dedicated crash analysis tool: scans `/proc/last_kmsg`, `/sys/fs/pstore/console-ramoops*`, and dmesg to pinpoint kernel panics, OOPS call traces, memory faults, and unexpected reboots. |
 | **Allowlist Backup & Restore** | Complete backup and restoration for Superuser allowlist rules and per-app profile configurations. |
 | **Module Export as ZIP** | Export any installed module directly into a standard flashable ZIP archive. |
-| **Kernel Module (LKM) Manager** | Inspect loaded kernel modules with support for dynamic loading and unloading. |
+| **Kernel Module (LKM) Manager** | Inspect loaded kernel modules with support for dynamic loading and unloading, plus an on-boot module blocklist that stops selected modules before the kernel loads them. A kernel boot guard tolerates the blocked load to prevent bootloops, and blocking a module that first-stage modules depend on asks for confirmation first. |
 | **Kernel Diagnostics** | In-app inspection, searching, filtering, and sharing for `/proc/kallsyms` symbol table, live dmesg kernel logs, and `CONFIG_*` kernel compile options, with bottom bar quick-switch widget. |
 | **Toggles & Integrations** | Instant SELinux mode switching (Enforcing / Permissive) and KSU driver update check toggle. |
 

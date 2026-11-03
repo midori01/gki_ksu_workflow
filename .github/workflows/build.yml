@@ -286,7 +286,7 @@ jobs:
               [[ "$variant" =~ ^(all|MidoriSU-KX)$ ]] && add_variant MidoriSU-KX true
               [[ "$variant" =~ ^(all|MidoriSU-NX)$ ]] && add_variant MidoriSU-NX true
               [[ "$variant" =~ ^(all|MidoriSU-OX)$ ]] && add_variant MidoriSU-OX true
-              [[ "$variant" =~ ^(all|MidoriSU-RX)$ ]] && add_variant MidoriSU-RX true
+              [[ "$variant" =~ ^(MidoriSU-RX)$ ]] && add_variant MidoriSU-RX true
               [[ "$variant" =~ ^(all|MidoriSU-XX)$ ]] && add_variant MidoriSU-XX true
             done
           done < /tmp/kvs.txt
