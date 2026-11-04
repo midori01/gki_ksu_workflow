@@ -1,0 +1,82 @@
+diff --git a/kernel/hook/syscall_table_mirror.c b/kernel/hook/syscall_table_mirror.c
+index 0a1200c..01cc864 100644
+--- a/kernel/hook/syscall_table_mirror.c
++++ b/kernel/hook/syscall_table_mirror.c
+@@ -154,8 +154,77 @@ static int do_mirror_syscall_table(const char *native_sym, const char *compat_sy
+ 	return 0;
+ }
+ 
++#include <linux/unistd.h>
++#if defined(CONFIG_COMPAT) && !defined(__NR_compat_syscalls)
++#include <asm/unistd_compat_32.h>	// 6.11+, generated from syscall_32.tbl
++#define __NR_compat_syscalls __NR_compat32_syscalls
++#endif
++
++/**
++ *  another hooker that owns syscall table slots (e.g. KernelPatch) keeps using
++ *  the address it resolved: new hooks go there, and unhooking restores the slot
++ *  there and frees the trampoline. a mirror would miss all of that and keep
++ *  calling stale pointers, so leave the kernel's tables in charge.
++ */
++static bool syscall_table_has_foreign_slot(const char *name, void *sct, int nr_slots)
++{
++	extern char _stext[], _etext[];
++	uintptr_t *table = (uintptr_t *)sct;
++	int nr;
++
++	for (nr = 0; nr < nr_slots; nr++) {
++		if (table[nr] > (uintptr_t)_stext && table[nr] < (uintptr_t)_etext)
++			continue;
++
++		pr_info("%s: %s #%d at 0x%lx NOT pointing to kernel text!\n", __func__, name, nr, table[nr]);
++		return true;
++	}
++
++	return false;
++}
++
++// both tables get copied by do_mirror_syscall_table, so both need to be clean
++static bool syscall_tables_have_foreign_slot(void)
++{
++	if (syscall_table_has_foreign_slot("sys_call_table", native_sct, __NR_syscalls))
++		return true;
++
++#if defined(CONFIG_COMPAT)
++	if (syscall_table_has_foreign_slot("compat_sys_call_table", compat_sct, __NR_compat_syscalls))
++		return true;
++#endif
++
++	return false;
++}
++
++/**
++ *  KernelPatch 0.13.9+ can dispatch syscalls from a single inline hook and leave
++ *  the table alone, but its modules can still hook through fp_hook_syscalln,
++ *  which writes to sys_call_table and reports success. a mirror would lose those.
++ *  look for its branch_absolute at the entry: [bti jc;] ldr x17, #8; br x17
++ */
++static bool syscall_entry_has_inline_hook(const char *sym)
++{
++	uintptr_t addr = kallsyms_lookup_name(sym);
++	uint32_t insn[2] = { 0 };
++
++	if (!addr || copy_from_kernel_nofault((void *)insn, (void *)addr, sizeof(insn)))
++		return false;
++
++	if (insn[0] != 0x58000051 && insn[1] != 0x58000051)
++		return false;
++
++	pr_info("%s: %s has an inline hook at entry!\n", __func__, sym);
++	return true;
++}
++
+ static void try_mirror_syscall_table(void)
+ {
++	if (syscall_tables_have_foreign_slot() || syscall_entry_has_inline_hook("invoke_syscall") || syscall_entry_has_inline_hook("el0_svc_common")) {
++		pr_info("%s: syscall table has another hooker, not mirroring\n", __func__);
++		return;
++	}
++
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
+ 	int ret = do_mirror_syscall_table("do_el0_svc", "do_el0_svc_compat", 64 * 4);
+ 	if (!ret)
