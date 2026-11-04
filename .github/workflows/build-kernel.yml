@@ -62,6 +62,10 @@ on:
         required: false
         type: string
         default: 'branch link hijacking'
+      midorisu_xx_kpatch_compat:
+        required: false
+        type: boolean
+        default: false
       ksu_debug:
         required: false
         type: boolean
@@ -358,20 +362,22 @@ jobs:
               ;;
           esac
 
-      - name: Skip MidoriSU-XX Syscall Table Mirror With Another Hooker
-        if: inputs.variant == 'MidoriSU-XX' && inputs.midorisu_xx_hook_mode == 'branch link hijacking'
+      - name: Apply KPatch Compatibility Fixes (XX Branch Link only)
+        if: inputs.variant == 'MidoriSU-XX' && inputs.midorisu_xx_hook_mode == 'branch link hijacking' && inputs.midorisu_xx_kpatch_compat
         working-directory: kernel_workspace/common
         run: |
-          FIX="${{ github.workspace }}/.github/patches/kernelsu-xx-mirror-skip-foreign.patch"
-          if patch -p1 -d KernelSU --forward --dry-run < "$FIX" > /dev/null 2>&1; then
-            patch -p1 -d KernelSU --forward < "$FIX"
-          elif patch -p1 -d KernelSU --reverse --dry-run < "$FIX" > /dev/null 2>&1; then
-            echo "Syscall table mirror check already present in MidoriSU-XX, skipping."
-          else
-            echo "::error::Syscall table mirror check no longer applies to MidoriSU-XX; without it KernelPatch hooks can be lost or crash execve. Update .github/patches/kernelsu-xx-mirror-skip-foreign.patch."
-            patch -p1 -d KernelSU --forward --dry-run < "$FIX" || true
-            exit 1
-          fi
+          for name in kernelsu-xx-bl-execve-fallback kernelsu-xx-mirror-skip-foreign; do
+            FIX="${{ github.workspace }}/.github/patches/$name.patch"
+            if patch -p1 -d KernelSU --forward --dry-run < "$FIX" > /dev/null 2>&1; then
+              patch -p1 -d KernelSU --forward < "$FIX"
+            elif patch -p1 -d KernelSU --reverse --dry-run < "$FIX" > /dev/null 2>&1; then
+              echo "$name already present in MidoriSU-XX, skipping."
+            else
+              echo "::error::$name no longer applies to MidoriSU-XX; without it KernelPatch can break preinit, lose syscall hooks or crash execve. Update .github/patches/$name.patch."
+              patch -p1 -d KernelSU --forward --dry-run < "$FIX" || true
+              exit 1
+            fi
+          done
 
       - name: Setup Manual Hooks (RX/XX only)
         if: >-
