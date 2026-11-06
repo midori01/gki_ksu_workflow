@@ -50,6 +50,10 @@ inputs:
     description: 'Set to "true" to inject NoMount configs'
     required: false
     default: 'false'
+  use_fgetpriority:
+    description: 'Set to "true" to inject fgetpriority configs'
+    required: false
+    default: 'false'
   use_adios:
     description: 'Set to "true" to inject ADIOS'
     required: false
@@ -207,6 +211,12 @@ runs:
         if [ "${{ inputs.use_nomount }}" = "true" ]; then
           cat >> $DEFCONFIG <<-'EOF'
         CONFIG_NOMOUNT=y
+        EOF
+        fi
+
+        if [ "${{ inputs.use_fgetpriority }}" = "true" ]; then
+          cat >> $DEFCONFIG <<-'EOF'
+        CONFIG_FGETPRIORITY=y
         EOF
         fi
 
