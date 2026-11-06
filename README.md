@@ -31,10 +31,10 @@ This repository implements a unified, config-driven build orchestration system t
 
 ## ⚙️ Configuration
 
-All kernel version-specific settings are centralized in [`.github/config/kernel_versions.json`](.github/config/kernel_versions.json). A single `kernel_version` input at workflow dispatch drives the entire build matrix — including Kernel version, Sublevel, Compiler, Rust availability, and AnyKernel3 branch selection.
+All kernel version-specific settings are centralized in [`.github/config/kernel_versions.json`](.github/config/kernel_versions.json). A single `kernel_version` input at workflow dispatch drives the entire build matrix — including kernel version, sublevel, compiler, Rust support, and AnyKernel3 branch selection.
 
 > [!NOTE]
-> **Kernel 6.12.23 Deprecation:** Commit [`650419b`](https://github.com/midori01/gki_ksu_workflow/commit/650419be4e0f4d976aa5f57bbfc9982d8bf130ed) removed the [deprecated](https://android.googlesource.com/kernel/common/+/refs/heads/deprecated/android16-6.12-2025-06) `android16-6.12-2025-06` branch from the default build matrix. If you still need this version, simply revert that commit (`git revert 650419b`). If you require other kernel versions or revisions, feel free to edit [`.github/config/kernel_versions.json`](.github/config/kernel_versions.json) directly.
+> **Kernel 6.12.23 Deprecation:** Commit [`650419b`](https://github.com/midori01/gki_ksu_workflow/commit/650419be4e0f4d976aa5f57bbfc9982d8bf130ed) removed the [deprecated](https://android.googlesource.com/kernel/common/+/refs/heads/deprecated/android16-6.12-2025-06) `android16-6.12-2025-06` branch from the default build matrix. If you still need this version, revert that commit (`git revert 650419b`). To use other kernel versions or revisions, edit [`.github/config/kernel_versions.json`](.github/config/kernel_versions.json) directly.
 
 ---
 
@@ -63,12 +63,13 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
 
-> \* **MidoriSU-RX & MidoriSU-XX Hook Type:** Runtime-configurable via `midorisu_rx_hook_mode` and `midorisu_xx_hook_mode`.
+> \* **MidoriSU-RX & MidoriSU-XX Hook Type:** Configured via `midorisu_rx_hook_mode` and `midorisu_xx_hook_mode`.
 > - `midorisu_rx_hook_mode` — `manual` (default) / `tracepoint`
 > - `midorisu_xx_hook_mode`:
 >   - `branch link hijacking` — default for MidoriSU-XX; uses `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` to scan kernel text and overwrite call-site branch instructions (`b`/`bl`) directly to hooks, bypassing trampoline overhead and complying with ARM64 CFI
 >   - `syscall table tampering` — uses `CONFIG_KSU_TAMPER_SYSCALL_TABLE` to directly tamper with `sys_call_table` entries, avoiding indirect branch (`blr`) overhead while complying with Clang CFI
 >   - `manual` — manually-patched hooks via `scope-min-manual-hooks-v2.3.patch`
+> - `midorisu_xx_kpatch_compat` — with `branch link hijacking`, applies the KernelPatch compatibility fixes (execve fallback and syscall table mirror skip) to MidoriSU-XX
 
 > [!TIP]
 > **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With `all` variants selected, this yields **4 builds per sublevel for each kernel version** (MidoriSU-RX is excluded from `all` and is built only when selected explicitly). Choosing `all` from the `kernel_version` dropdown compiles all configured sublevels across 6.1, 6.6 and 6.12 in parallel for a total of **32 concurrent jobs**.
@@ -77,20 +78,20 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 
 ## 📱 MidoriSU Manager
 
-[**MidoriSU**](https://github.com/midori01/KernelSU) is the official companion app for all MidoriSU kernel variants. Heavily customized and expanded based on [**KowSU**](https://github.com/KOWX712/KernelSU), it offers seamless out-of-the-box compatibility across the entire MidoriSU family — **KX, NX, OX, RX, XX** — including all SUSFS and Droidspaces combinations.
+[**MidoriSU**](https://github.com/midori01/KernelSU) is the official companion app for all MidoriSU kernel variants. Based on [**KowSU**](https://github.com/KOWX712/KernelSU) with extensive customizations and extensions, it offers seamless out-of-the-box compatibility across all MidoriSU variants — **KX, NX, OX, RX, XX** — including all SUSFS and Droidspaces combinations.
 
 | Feature | Description |
 | :--- | :--- |
-| **Modern Bento Dashboard** | Bento-style responsive dashboard with spring press bounce feedback; dynamically displays KSU driver name (native driver & dynamic LKM detection), Roman numeral UAPI version, hook type, SUSFS version, Droidspaces version, Re:Kernel(-X) version, kernel build timestamp, and OEM unlock status. |
+| **Modern Bento Dashboard** | Bento-style responsive dashboard with spring-press bounce feedback; dynamically displays the KSU driver name (native driver and dynamic LKM detection), Roman numeral UAPI version, hook type, SUSFS version, Droidspaces version, Re:Kernel(-X) version, kernel build timestamp, and OEM unlock status. |
 | **Built-in SUSFS Management** | Native SUSFS control panel in Kernel Tools that replaces the susfs4ksu module: SUS Path, SUS Kstat, SUS Map, and Open Redirect rules; kernel version (`uname`) and boot parameter (`/proc/cmdline` / `bootconfig`) spoofing; AVC log spoofing, SUS mount hiding, and a priority UID filter that hides selected apps from `getpriority` / `ioprio` probes. Rules are applied by `ksud` at boot (including a late-loaded SUSFS LKM), with a per-boot report, configuration backup and restore, and one-tap import from an existing susfs4ksu module. Works with both built-in SUSFS and susfs4ksu-lkm. |
-| **Dual Themes & Personalization** | Seamlessly supports both Material 3 Expressive and Miuix UI themes with live preview cards; includes a floating pill bottom navigation bar, re-tapping active tab to scroll to top, module update badges, and a built-in switcher to toggle between **MidoriSU**, **KowSU**, and **Official KernelSU** app names, icons, and splash themes. |
-| **OTA Payload & ARB Analyzer** | Instant extraction of `boot.img` from local or online OTA zip / `payload.bin` archives via HTTP Range Requests without downloading entire multi-gigabyte packages; includes built-in Anti-Rollback (ARB) index and boot kernel version analysis. |
+| **Dual Themes & Personalization** | Supports both Material 3 Expressive and Miuix UI themes with live preview cards; includes a floating pill bottom navigation bar, tap-again-to-scroll-to-top on the active tab, module update badges, and a built-in switcher to toggle between **MidoriSU**, **KowSU**, and **Official KernelSU** app names, icons, and splash themes. |
+| **OTA Payload & ARB Analyzer** | Extracts `boot.img` from local or online OTA zip and `payload.bin` archives via HTTP Range Requests without downloading entire multi-gigabyte packages; includes built-in Anti-Rollback (ARB) index and boot kernel version analysis. |
 | **Flashing & Safety Inspection** | Direct in-app backup and flashing of `boot.img`, flashing AnyKernel3 zip packages with target slot selection (Slot A/B), and automated module pre-flash safety inspection to detect risky scripts and prevent bootloops. |
-| **Kernel Panic & Crash Analyzer** | Dedicated crash analysis tool: scans `/proc/last_kmsg`, `/sys/fs/pstore/console-ramoops*`, and dmesg to pinpoint kernel panics, OOPS call traces, memory faults, and unexpected reboots. |
+| **Kernel Panic & Crash Analyzer** | Scans `/proc/last_kmsg`, `/sys/fs/pstore/console-ramoops*`, and dmesg to pinpoint kernel panics, OOPS call traces, memory faults, and unexpected reboots. |
 | **Allowlist Backup & Restore** | Complete backup and restoration for Superuser allowlist rules and per-app profile configurations. |
-| **Module Export as ZIP** | Export any installed module directly into a standard flashable ZIP archive. |
-| **Kernel Module (LKM) Manager** | Inspect loaded kernel modules with support for dynamic loading and unloading, plus an on-boot module blocklist that stops selected modules before the kernel loads them. A kernel boot guard tolerates the blocked load to prevent bootloops, and blocking a module that first-stage modules depend on asks for confirmation first. |
-| **Kernel Diagnostics** | In-app inspection, searching, filtering, and sharing for `/proc/kallsyms` symbol table, live dmesg kernel logs, and `CONFIG_*` kernel compile options, with bottom bar quick-switch widget. |
+| **Module Export as ZIP** | Exports any installed module directly into a standard flashable ZIP archive. |
+| **Kernel Module (LKM) Manager** | Inspects loaded kernel modules with support for dynamic loading and unloading, plus an on-boot module blocklist that prevents selected modules from loading. A kernel boot guard tolerates blocked loads to prevent bootloops, and blocking a module that first-stage modules depend on prompts for confirmation first. |
+| **Kernel Diagnostics** | In-app inspection, searching, filtering, and sharing for `/proc/kallsyms` symbols, live dmesg kernel logs, and `CONFIG_*` kernel compile options, with a bottom-bar quick-switch widget. |
 | **Toggles & Integrations** | Instant SELinux mode switching (Enforcing / Permissive) and KSU driver update check toggle. |
 
 ---
@@ -99,12 +100,12 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 
 | Type | Mechanism & Characteristics |
 | :--- | :--- |
-| `Kprobes` | Dynamically instruments kernel functions at runtime via kprobe breakpoints. Minimal kernel footprint, broad compatibility. |
+| `Kprobes` | Dynamically instruments kernel functions at runtime via kprobe breakpoints, offering minimal kernel footprint and broad compatibility. |
 | `Tracepoint` | Hooks into the kernel's static syscall tracepoint infrastructure (`sys_enter`/`sys_exit`) without modifying kernel source. |
-| `Inline` | Compile-time injection via `#ifdef CONFIG_KSU_SUSFS` blocks embedded directly into kernel subsystem source. Uses `static_key` branches for runtime toggling. No reliance on kprobes or LSM hooks. Hardwired into VFS (`exec`, `open`, `stat`, `readdir`, `statfs`), SELinux (`avc`, `hooks`, `services`), input, mounts, and procfs. |
-| `De-inlined` | SUSFS hooks applied via kernel source patching rather than inline `#ifdef CONFIG_KSU_SUSFS` blocks. Cleaner separation of SUSFS logic from core kernel subsystems. |
-| `Manual` | Static kernel source patching. Custom hooks injected at compile time into core kernel subsystems. |
-| `Branch Link Hijacking` | Scans kernel text to overwrite caller branch instructions (`b`/`bl`) directly to hooks without trampoline overhead. Complies with ARM64 Clang CFI. Enabled via `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`. |
+| `Inline` | Compile-time injection via `#ifdef CONFIG_KSU_SUSFS` blocks embedded directly into kernel subsystem source. Uses `static_key` branches for runtime toggling with no reliance on kprobes or LSM hooks. Hardwired into VFS (`exec`, `open`, `stat`, `readdir`, `statfs`), SELinux (`avc`, `hooks`, `services`), input, mounts, and procfs. |
+| `De-inlined` | Applies SUSFS hooks via kernel source patching rather than inline `#ifdef CONFIG_KSU_SUSFS` blocks, providing cleaner separation of SUSFS logic from core kernel subsystems. |
+| `Manual` | Applies static kernel source patches to inject custom hooks directly into core kernel subsystems at compile time. |
+| `Branch Link Hijacking` | Scans kernel text to overwrite call-site branch instructions (`b`/`bl`) directly to hooks without trampoline overhead. Complies with ARM64 Clang CFI. Enabled via `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`. |
 | `Syscall Table Tampering` | High-performance method that directly modifies function pointers in `sys_call_table` for sucompat and `sys_reboot`. Avoids indirect branch (`blr`) overhead and complies with Clang CFI. Enabled via `CONFIG_KSU_TAMPER_SYSCALL_TABLE`. |
 
 ---
@@ -117,14 +118,22 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | **Source Mirror** | Choose between Google's official AOSP mirror or a self-hosted mirror for kernel source and toolchain downloads. |
 | **SUSFS** | SUSFS kernel patches are synced from upstream automatically and generated for every supported sublevel, including pinned non-LTS revisions in `kernel_versions.json`. A single `susfs_commit` input controls SUSFS versions across variants. SUSFS is configured in MidoriSU Manager, so no separate susfs4ksu module is attached to releases. |
 | **KSU Toolkit** | Automatically fetches the latest [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) module from nightly.link and links it in the release notes. |
-| **Droidspaces** | Container support via [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) — SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, and networking. Enabled per-variant through the `use_droidspaces` toggle. |
-| **Re:Kernel(-X)** | Integrated [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) and [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) modules compiled directly into the kernel. Provides tombstone freeze recovery, network-triggered unfreeze, and binder async cleanup. Toggled via `use_rekernel` switch. |
-| **VPNHide Next** | Integrated [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend) via in-tree kpatch (`CONFIG_VPNHIDE=y`), hiding VPN network interfaces, routing rules, and socket descriptors at the kernel level without relying on dynamic LKM. Links the companion `vpnhide-bridge.zip` module and manager APK (`vpnhide.apk`) from their upstream releases in the release notes. Toggled via `use_vpnhide` switch. |
-| **Unicode Bypass Fix** | Always enabled. Patches kernel unicode normalization to prevent filesystem bypass attacks via non-standard unicode encodings. |
-| **ADIOS I/O Scheduler** | Optionally integrates [ADIOS](https://github.com/firelzrd/adios) as the built-in default multi-queue I/O scheduler for kernels. Enabled through the `use_adios` toggle. |
-| **LZ4/ZSTD ZRAM backends** | Optionally updates the kernel's LZ4 and ZSTD implementations from the official LZ4 1.10.0 and Zstandard 1.5.7 releases, with ZRAM backend support enabled for kernel 6.12 (only tested on 6.12.23). Controlled by the `use_lz4_zstd` toggle; 6.1 and 6.6 builds remain unchanged. |
-| **Ccache** | Compiler cache integration with a 60-second wait guard for dependency installation, ensuring robust accelerated incremental rebuilds across workflow runs. |
+| **Droidspaces** | Container support via [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) — SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, and networking. Controlled per-variant by the `use_droidspaces` toggle. |
+| **Re:Kernel(-X)** | Integrated [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) and [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) compiled directly into the kernel. Provides tombstone freeze recovery, network-triggered unfreeze, and binder async cleanup. Controlled by the `use_rekernel` toggle. |
+| **VPNHide Next** | Integrated [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend) via in-tree kpatch (`CONFIG_VPNHIDE=y`), hiding VPN network interfaces, routing rules, and socket descriptors at the kernel level without relying on dynamic LKM. Links the companion `vpnhide-bridge.zip` module and manager APK (`vpnhide.apk`) from their upstream releases in the release notes. Controlled by the `use_vpnhide` toggle. |
+| **NoMount** | Integrated [NoMount](https://github.com/maxsteeel/nomount) compiled directly into the kernel (`CONFIG_NOMOUNT=y`), a VFS path redirection framework that injects and hides module files without creating mounts or touching `/proc/mounts`. Links the companion `NoMount-*.zip` metamodule from its upstream release in the release notes. Controlled by the `use_nomount` toggle. |
+| **fgetpriority** | Integrated [fgetpriority](https://github.com/aerath-stuff/fgetpriority) compiled directly into the kernel (`CONFIG_FGETPRIORITY=y`), hiding other app UIDs from `getpriority` / `setpriority` / `ioprio_get` / `ioprio_set` probes made by apps. No module installation is required. Controlled by the `use_fgetpriority` toggle. |
+| **Unicode Bypass Fix** | Always enabled. Patches kernel Unicode normalization to prevent filesystem bypass attacks via non-standard Unicode encodings. |
+| **CVE Fixes** | Always enabled. Detects CVE-2026-43499 (rtmutex) and CVE-2026-64560 (sighand / POSIX CPU timers) in the kernel source and applies the fixes when missing; the result for each sublevel is shown in the release notes. |
+| **Network & Filesystem** | Always enabled. TCP BBR, IPSET, enhanced NAT (IPv6 NAT and REDIRECT), and TMPFS xattr / POSIX ACL. |
+| **ADIOS I/O Scheduler** | Optionally integrates [ADIOS](https://github.com/firelzrd/adios) as the built-in default multi-queue I/O scheduler for kernels. Controlled by the `use_adios` toggle. |
+| **LZ4/ZSTD ZRAM Backends** | Optionally updates the kernel's LZ4 and ZSTD implementations from the official LZ4 1.10.0 and Zstandard 1.5.7 releases, with ZRAM backend support enabled for kernel 6.12 (only tested on 6.12.23). Controlled by the `use_lz4_zstd` toggle; 6.1 and 6.6 builds remain unchanged. |
+| **Ccache** | Compiler cache integration with a 60-second wait guard for dependency installation, ensuring accelerated incremental rebuilds across workflow runs. |
 | **Spoofed Build Metadata** | Customizable `kernel name`, `build timestamp`, `user`, and `host` strings for the compiled image. |
+| **Extra Features & Fixes** | Applies the extra feature and fix commits carried on top of each [MidoriSU](https://github.com/midori01/KernelSU) branch to the matching variant. Controlled by the `use_extra_features` toggle. |
+| **KSU Debug** | Builds with `CONFIG_KSU_DEBUG=y` and uploads a zstd-compressed `vmlinux` artifact for eBPF debugging. Controlled by the `ksu_debug` toggle. |
+| **Upstream Sync** | Updates kernel versions and sources in `kernel_versions.json` and regenerates SUSFS patches from upstream before the build. Controlled by the `sync_upstream` toggle. |
+| **Release Type** | `release` publishes a release and keeps the latest 2 releases per kernel version, `pre-release` publishes a pre-release, and `no-release` only uploads build artifacts. |
 
 ---
 

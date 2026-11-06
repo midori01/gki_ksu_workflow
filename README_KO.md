@@ -31,10 +31,10 @@
 
 ## ⚙️ 설정
 
-커널 버전별 설정은 모두 [`.github/config/kernel_versions.json`](.github/config/kernel_versions.json) 파일에서 통합 관리됩니다. 워크플로우 실행 시 `kernel_version`만 지정하면 커널 버전, 서브 레벨, 컴파일러, Rust 사용 여부, AnyKernel3 브랜치 선택 등 빌드 매트릭스 전체가 자동으로 결정됩니다.
+커널 버전별 설정은 모두 [`.github/config/kernel_versions.json`](.github/config/kernel_versions.json) 파일에서 통합 관리됩니다. 워크플로우 실행 시 `kernel_version`만 지정하면 커널 버전, 서브레벨, 컴파일러, Rust 사용 여부, AnyKernel3 브랜치 선택 등 빌드 매트릭스 전체가 자동으로 결정됩니다.
 
 > [!NOTE]
-> **커널 6.12.23 제거 안내:** 커밋 [`650419b`](https://github.com/midori01/gki_ksu_workflow/commit/650419be4e0f4d976aa5f57bbfc9982d8bf130ed)를 통해 [더 이상 사용되지 않는(deprecated)](https://android.googlesource.com/kernel/common/+/refs/heads/deprecated/android16-6.12-2025-06) `android16-6.12-2025-06` 버전이 기본 빌드 매트릭스에서 제거되었습니다. 해당 버전의 빌드가 필요한 경우 해당 커밋을 되돌리기(revert, `git revert 650419b`)하면 됩니다. 다른 커널 버전이 필요한 경우 [`.github/config/kernel_versions.json`](.github/config/kernel_versions.json) 파일을 직접 수정하여 구성할 수 있습니다.
+> **커널 6.12.23 지원 중단 안내:** 커밋 [`650419b`](https://github.com/midori01/gki_ksu_workflow/commit/650419be4e0f4d976aa5f57bbfc9982d8bf130ed)를 통해 [더 이상 사용되지 않는(deprecated)](https://android.googlesource.com/kernel/common/+/refs/heads/deprecated/android16-6.12-2025-06) `android16-6.12-2025-06` 브랜치가 기본 빌드 매트릭스에서 제거되었습니다. 해당 버전의 빌드가 필요한 경우 해당 커밋을 되돌리기(revert, `git revert 650419b`)하면 됩니다. 다른 커널 버전이나 리비전이 필요한 경우 [`.github/config/kernel_versions.json`](.github/config/kernel_versions.json) 파일을 직접 수정하여 구성할 수 있습니다.
 
 ---
 
@@ -66,31 +66,32 @@
 > \* **MidoriSU-RX 및 MidoriSU-XX 후크 방식:** `midorisu_rx_hook_mode` 및 `midorisu_xx_hook_mode` 옵션을 통해 각각 설정할 수 있습니다.
 > - `midorisu_rx_hook_mode` — `manual` (기본값) / `tracepoint`
 > - `midorisu_xx_hook_mode`:
->   - `branch link hijacking` — MidoriSU-XX의 기본값; `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`를 사용하여 커널 text의 분기 명령(`b`/`bl`)을 후크로 직접 리다이렉션하여 트램펄린 오버헤드를 방지하고 ARM64 CFI를 준수
+>   - `branch link hijacking` — MidoriSU-XX의 기본값; `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`를 사용하여 커널 text를 스캔하고 호출 위치의 분기 명령(`b`/`bl`)을 후크로 직접 덮어써 트램펄린 오버헤드를 우회하고 ARM64 CFI를 준수
 >   - `syscall table tampering` — `CONFIG_KSU_TAMPER_SYSCALL_TABLE`를 사용하여 `sys_call_table` 항목을 직접 변조하여 간접 분기(`blr`) 오버헤드를 방지하고 Clang CFI를 준수
 >   - `manual` — `scope-min-manual-hooks-v2.3.patch`를 통한 수동 후크
+> - `midorisu_xx_kpatch_compat` — `branch link hijacking` 사용 시 MidoriSU-XX에 KernelPatch 호환 수정(execve 폴백 및 syscall table 미러 건너뛰기)을 적용
 
 > [!TIP]
-> **매트릭스 빌드 동작 방식:** 매트릭스는 항상 배리언트당 정확히 **단 하나의 결과물**만 생성합니다. 활성화된 기능(Droidspaces / SUSFS)은 해당 결과물에 함께 적용됩니다. 배리언트에서 `all`을 선택하면(MidoriSU-RX는 `all`에 포함되지 않으며 개별 선택 시에만 빌드됩니다) 각 커널 버전의 **각 서브 레벨당 4개의 빌드**가 실행됩니다. `kernel_version`에서 `all`을 선택하면 6.1 / 6.6 / 6.12의 모든 서브 레벨이 병렬로 컴파일되어 기본 구성 기준 총 **32개의 작업(Job)**이 동시에 실행됩니다.
+> **매트릭스 빌드 동작 방식:** 매트릭스는 항상 배리언트당 정확히 **단 하나의 결과물**만 생성합니다. 활성화된 기능(Droidspaces / SUSFS)은 해당 결과물에 함께 적용됩니다. 배리언트에서 `all`을 선택하면(MidoriSU-RX는 `all`에 포함되지 않으며 개별 선택 시에만 빌드됩니다) 각 커널 버전의 **각 서브레벨당 4개의 빌드**가 실행됩니다. `kernel_version`에서 `all`을 선택하면 6.1 / 6.6 / 6.12의 모든 서브레벨이 병렬로 컴파일되어 총 **32개의 작업(Job)**이 동시에 실행됩니다.
 
 ---
 
 ## 📱 MidoriSU 매니저
 
-[**MidoriSU**](https://github.com/midori01/KernelSU)는 모든 MidoriSU 커널 변종을 지원하는 공식 동반 앱입니다. [**KowSU**](https://github.com/KOWX712/KernelSU)를 기반으로 심도 있는 커스텀 및 기능 확장을 거쳐, **KX, NX, OX, RX, XX** 전 변종은 물론 모든 SUSFS 및 Droidspaces 조합과 완벽히 호환됩니다.
+[**MidoriSU**](https://github.com/midori01/KernelSU)는 모든 MidoriSU 커널 배리언트를 지원하는 공식 동반 앱입니다. [**KowSU**](https://github.com/KOWX712/KernelSU)를 기반으로 심도 있는 커스텀 및 기능 확장을 거쳐, **KX, NX, OX, RX, XX** 전 배리언트는 물론 모든 SUSFS 및 Droidspaces 조합과 완벽히 호환됩니다.
 
 | 기능 | 설명 |
 | :--- | :--- |
-| **현대적인 Bento 대시보드** | 탄력 있는 스프링 바운스 터치 피드백을 갖춘 Bento 스타일 반응형 대시보드: KSU 드라이버 이름(네이티브 드라이버명 및 LKM 동적 감지), 로마 숫자 UAPI 버전, 후크 유형, SUSFS 버전, Droidspaces 버전, Re:Kernel(-X) 버전, 커널 빌드 시각 및 OEM 언락 상태를 한눈에 표시합니다. |
+| **현대적인 Bento 대시보드** | 탄력 있는 스프링 바운스 터치 피드백을 갖춘 Bento 스타일 반응형 대시보드: KSU 드라이버 이름(네이티브 드라이버명 및 LKM 동적 감지), 로마 숫자 UAPI 버전, 후크 방식, SUSFS 버전, Droidspaces 버전, Re:Kernel(-X) 버전, 커널 빌드 시각 및 OEM 언락 상태를 한눈에 표시합니다. |
 | **내장 SUSFS 관리** | susfs4ksu 모듈을 대체하는 커널 도구 내장 SUSFS 제어판: SUS Path, SUS Kstat, SUS Map 및 Open Redirect 규칙, 커널 버전(`uname`) 및 부트 파라미터(`/proc/cmdline` / `bootconfig`) 위장, AVC 로그 위장, SUS 마운트 숨김, 선택한 앱을 `getpriority` / `ioprio` 탐지로부터 숨기는 우선순위 UID 필터를 지원합니다. 규칙은 부팅 시 `ksud`가 자동으로 적용하며(나중에 로드되는 SUSFS LKM 포함), 부팅별 적용 보고서, 설정 백업 및 복원, 기존 susfs4ksu 모듈 설정 원탭 가져오기를 제공합니다. 커널 내장 SUSFS와 susfs4ksu-lkm 모두에서 작동합니다. |
 | **듀얼 테마 및 외관 커스텀** | Material 3 Expressive 및 Miuix의 2가지 UI 스타일과 실시간 테마 미리보기를 완벽 지원하며, Material 플로팅 필 하단 내비게이션 바, 탭 재터치 시 상단 스크롤, 모듈 업데이트 배지, **MidoriSU**, **KowSU**, **공식 KernelSU** 간의 앱 이름, 아이콘 및 스플래시 화면 테마를 즉시 전환할 수 있습니다. |
-| **OTA Payload 추출 및 ARB 분석** | 로컬 또는 온라인 OTA ZIP / `payload.bin`에서 `boot.img`를 수초 만에 직접 추출합니다. HTTP Range Request를 지원하여 수십 GB 전체 패키지를 다운로드할 필요가 없으며, 안티 롤백(ARB) 인덱스 및 부트 커널 버전 분석 기능이 내장되어 있습니다. |
-| **플래싱 및 안전 사전 점검** | 앱 내에서 `boot.img`의 직접 백업 및 플래싱을 지원하며, AnyKernel3 ZIP 패키지 플래싱 및 대상 슬롯 선택(Slot A/B)을 지원합니다. 모듈 플래싱 전 자동 정적 안전 검사를 통해 위험한 스크립트를 감지하고 무한 부팅 위험을 사전에 차단합니다. |
+| **OTA Payload 추출 및 ARB 분석** | 로컬 또는 온라인 OTA ZIP / `payload.bin`에서 `boot.img`를 수초 만에 직접 추출합니다. HTTP Range Request를 지원하여 수 GB에 달하는 전체 패키지를 다운로드할 필요가 없으며, 안티 롤백(ARB) 인덱스 및 부트 커널 버전 분석 기능이 내장되어 있습니다. |
+| **플래싱 및 안전 사전 점검** | 앱 내에서 `boot.img`의 직접 백업 및 플래싱을 지원하며, AnyKernel3 ZIP 패키지 플래싱 및 대상 슬롯 선택(Slot A/B)을 지원합니다. 모듈 플래싱 전 자동 정적 안전 검사를 통해 위험한 스크립트를 감지하고 부트루프 위험을 사전에 차단합니다. |
 | **커널 Panic 및 크래시 로그 분석기** | 전용 커널 크래시 분석 도구: `/proc/last_kmsg`, `/sys/fs/pstore/console-ramoops*`, dmesg를 정밀 스캔하여 Kernel Panic, OOPS 콜 트레이스, 메모리 오류 및 비정상 재부팅 원인을 진단합니다. |
-| **화이트리스트 백업 및 복원** | Superuser 권한 허용 목록과 앱 프로필 정책의 완벽한 백업 및 복원을 지원합니다. |
+| **허용 목록 백업 및 복원** | Superuser 권한 허용 목록과 앱 프로필 정책의 완벽한 백업 및 복원을 지원합니다. |
 | **모듈 ZIP 내보내기** | 설치된 임의의 모듈을 플래시 가능한 표준 ZIP 아카이브로 직접 내보낼 수 있습니다. |
 | **커널 모듈 (LKM) 관리자** | 로드된 커널 모듈을 확인하고 동적 로드 및 언로드 작업을 지원합니다. 또한 부팅 시 모듈 차단 목록으로 지정한 모듈을 커널이 로드하기 전에 차단할 수 있습니다. 커널 부팅 보호가 차단으로 인한 로드 실패를 무시하여 부트루프를 방지하며, 1단계 모듈이 의존하는 모듈을 차단할 때는 먼저 확인을 요청합니다. |
-| **커널 진단 도구** | `/proc/kallsyms` 심볼 테이블, 실시간 dmesg 커널 로그, `CONFIG_*` 커널 빌드 구성의 앱 내 탐색·검색·공유를 지원하며 하단 바 퀵 스위처 위젯을 제공합니다. |
+| **커널 진단 도구** | `/proc/kallsyms` 심볼 테이블, 실시간 dmesg 커널 로그, `CONFIG_*` 커널 빌드 구성의 앱 내 탐색·검색·필터링·공유를 지원하며 하단 바 퀵 스위처 위젯을 제공합니다. |
 | **빠른 전환 및 기능 연동** | SELinux 모드(Enforcing / Permissive) 즉시 전환 및 KSU 드라이버 업데이트 확인 토글을 지원합니다. |
 
 ---
@@ -104,8 +105,8 @@
 | `Inline` | `#ifdef CONFIG_KSU_SUSFS` 블록을 커널 서브시스템 소스에 직접 삽입하는 컴파일 타임 주입 방식입니다. `static_key` 분기를 통해 런타임에 활성/비활성 전환이 가능하며, kprobe나 LSM 후크에 의존하지 않습니다. VFS(`exec`, `open`, `stat`, `readdir`, `statfs`), SELinux(`avc`, `hooks`, `services`), input, mounts, procfs에 내장됩니다. |
 | `De-inlined` | `#ifdef CONFIG_KSU_SUSFS` 인라인 블록을 사용하는 대신 커널 소스에 패치를 적용하여 SUSFS 후크를 통합합니다. 이를 통해 SUSFS 로직이 코어 커널 서브시스템과 더욱 명확하게 분리됩니다. |
 | `Manual` | 커널 소스에 대한 정적 패치 방식입니다. 컴파일 시 자체 후크를 코어 커널 서브시스템에 직접 주입합니다. |
-| `Branch Link Hijacking` | 커널 text 섹션을 스캔하고 호출 위치의 분기 명령(`b`/`bl`)을 후크로 직접 덮어써 트램펄린 오버헤드를 우회하고 Clang CFI를 준수합니다. `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`로 활성화됩니다. |
-| `Syscall Table Tampering` | `sys_call_table`의 함수 포인터(`sys_reboot`, `sys_execve` 등)를 직접 교체하는 고성능 후크 방식입니다. 간접 분기(`blr`) 오버헤드를 방지하고 Clang CFI를 준수합니다. `CONFIG_KSU_TAMPER_SYSCALL_TABLE`로 활성화됩니다. |
+| `Branch Link Hijacking` | 커널 text 섹션을 스캔하고 호출 위치의 분기 명령(`b`/`bl`)을 후크로 직접 덮어써 트램펄린 오버헤드를 우회하고 ARM64 Clang CFI를 준수합니다. `CONFIG_KSU_HACK_ARM64_BRANCH_LINK`로 활성화됩니다. |
+| `Syscall Table Tampering` | sucompat(`sys_execve` 등)과 `sys_reboot`에 사용되는 `sys_call_table`의 함수 포인터를 직접 교체하는 고성능 후크 방식입니다. 간접 분기(`blr`) 오버헤드를 방지하고 Clang CFI를 준수합니다. `CONFIG_KSU_TAMPER_SYSCALL_TABLE`로 활성화됩니다. |
 
 ---
 
@@ -113,18 +114,26 @@
 
 | 기능 | 설명 |
 | :--- | :--- |
-| **커널 버전** | `6.1`, `6.6`, `6.12` 중 단일 버전을 선택하거나 `all`을 통해 전체 버전을 선택할 수 있습니다. 서브 레벨, 리비전, 컴파일러, Rust 설정 등은 중앙 집중식 config에서 자동으로 적용됩니다. |
+| **커널 버전** | `6.1`, `6.6`, `6.12` 중 단일 버전을 선택하거나 `all`을 통해 전체 버전을 선택할 수 있습니다. 서브레벨, 리비전, 컴파일러, Rust 설정 등은 중앙 집중식 config에서 자동으로 적용됩니다. |
 | **소스 미러** | 커널 소스 및 툴체인 다운로드 시 Google 공식 AOSP 미러 또는 자체 호스팅 미러 중에서 선택할 수 있습니다. |
-| **SUSFS** | SUSFS 커널 패치는 업스트림에서 자동으로 동기화되며, `kernel_versions.json`에 고정한 비 LTS 리비전을 포함해 지원되는 모든 서브 레벨용으로 생성됩니다. 모든 배리언트의 SUSFS 버전은 단일 `susfs_commit` 입력값을 통해 통합 관리됩니다. SUSFS는 MidoriSU 매니저에서 직접 설정하므로 릴리스에 별도의 susfs4ksu 모듈이 포함되지 않습니다. |
+| **SUSFS** | SUSFS 커널 패치는 업스트림에서 자동으로 동기화되며, `kernel_versions.json`에 고정한 비 LTS 리비전을 포함해 지원되는 모든 서브레벨용으로 생성됩니다. 모든 배리언트의 SUSFS 버전은 단일 `susfs_commit` 입력값을 통해 통합 관리됩니다. SUSFS는 MidoriSU 매니저에서 직접 설정하므로 릴리스에 별도의 susfs4ksu 모듈이 포함되지 않습니다. |
 | **KSU 툴킷** | 최신 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 모듈을 nightly.link에서 자동으로 찾아 릴리스 노트에 다운로드 링크를 추가합니다. |
-| **Droidspaces** | [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS)를 활용한 컨테이너 지원 기능으로 SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, 네트워킹 기능을 제공합니다. `use_droidspaces` 옵션을 통해 배리언트마다 활성화할 수 있습니다. |
+| **Droidspaces** | [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS)를 활용한 컨테이너 지원 기능으로 SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, 네트워킹 기능을 제공합니다. 배리언트별로 `use_droidspaces` 옵션으로 제어합니다. |
 | **Re:Kernel(-X)** | [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 및 [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) 모듈을 커널에 직접 내장합니다. 툼스톤(tombstone) 기반 프리즈 복구, 네트워크 트리거 해제, 바인더(binder) 비동기 정리를 제공합니다. `use_rekernel` 옵션으로 제어합니다. |
 | **VPNHide Next** | In-tree kpatch(`CONFIG_VPNHIDE=y`)를 통해 [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend)를 통합하여 동적 LKM에 의존하지 않고 커널 수준에서 VPN 네트워크 인터페이스, 라우팅 규칙 및 소켓 디스크립터를 은닉합니다. 함께 사용되는 `vpnhide-bridge.zip` 모듈 및 매니저 APK(`vpnhide.apk`)의 업스트림 다운로드 링크를 릴리스 노트에 추가합니다. `use_vpnhide` 옵션으로 제어합니다. |
+| **NoMount** | [NoMount](https://github.com/maxsteeel/nomount)를 커널에 직접 내장합니다(`CONFIG_NOMOUNT=y`). 마운트를 생성하거나 `/proc/mounts`를 오염시키지 않고 모듈 파일을 주입·은닉하는 VFS 경로 리디렉션 프레임워크입니다. 함께 사용되는 `NoMount-*.zip` 메타모듈의 업스트림 다운로드 링크를 릴리스 노트에 추가합니다. `use_nomount` 옵션으로 제어합니다. |
+| **fgetpriority** | [fgetpriority](https://github.com/aerath-stuff/fgetpriority)를 커널에 직접 내장합니다(`CONFIG_FGETPRIORITY=y`). 앱이 `getpriority` / `setpriority` / `ioprio_get` / `ioprio_set`로 다른 앱의 UID를 탐지하는 결과를 은닉하며, 모듈 설치가 필요 없습니다. `use_fgetpriority` 옵션으로 제어합니다. |
 | **유니코드 바이패스 수정** | 항상 활성화됩니다. 비표준 유니코드 인코딩을 이용한 파일시스템 우회 공격을 방지하기 위해 커널의 유니코드 정규화 로직을 패치합니다. |
-| **ADIOS I/O 스케줄러** | [ADIOS](https://github.com/firelzrd/adios)를 커널 내장 기본 멀티큐 I/O 스케줄러로 통합합니다. `use_adios` 옵션으로 활성화합니다. |
-| **LZ4/ZSTD ZRAM 백엔드** | 선택적으로 커널의 LZ4 및 ZSTD 구현을 공식 LZ4 1.10.0 및 Zstandard 1.5.7 릴리스로 업데이트하고 kernel 6.12 (6.12.23에서만 테스트됨) 의 ZRAM 백엔드를 활성화합니다. `use_lz4_zstd` 옵션으로 제어하며, 6.1 및 6.6 빌드는 변경되지 않습니다. |
+| **CVE 수정** | 항상 활성화됩니다. 커널 소스에서 CVE-2026-43499(rtmutex) 및 CVE-2026-64560(sighand / POSIX CPU timers)을 검사하고, 수정이 없으면 패치를 적용합니다. 서브레벨별 결과는 릴리스 노트에 표시됩니다. |
+| **네트워크 및 파일시스템** | 항상 활성화됩니다. TCP BBR, IPSET, 향상된 NAT(IPv6 NAT 및 REDIRECT), TMPFS xattr / POSIX ACL. |
+| **ADIOS I/O 스케줄러** | [ADIOS](https://github.com/firelzrd/adios)를 커널 내장 기본 멀티큐 I/O 스케줄러로 통합합니다. `use_adios` 옵션으로 제어합니다. |
+| **LZ4/ZSTD ZRAM 백엔드** | 선택적으로 커널의 LZ4 및 ZSTD 구현을 공식 LZ4 1.10.0 및 Zstandard 1.5.7 릴리스로 업데이트하고 커널 6.12(6.12.23에서만 테스트됨)의 ZRAM 백엔드를 활성화합니다. `use_lz4_zstd` 옵션으로 제어하며, 6.1 및 6.6 빌드는 변경되지 않습니다. |
 | **Ccache** | 의존성 설치 완료 후 60초 대기 시간을 두어 컴파일러 캐시를 안전하게 통합합니다. 여러 워크플로우 실행에 걸쳐 안정적이고 강력한 증분 빌드 속도 향상을 제공합니다. |
 | **빌드 메타데이터 커스터마이징** | 컴파일된 이미지에 포함되는 `커널 이름`, `빌드 타임스탬프`, `사용자 이름`, `호스트 이름` 문자열을 자유롭게 설정할 수 있습니다. |
+| **추가 기능 및 수정** | [MidoriSU](https://github.com/midori01/KernelSU) 각 브랜치 상단에 포함된 추가 기능 및 수정 커밋을 해당 배리언트에 적용합니다. `use_extra_features` 옵션으로 제어합니다. |
+| **KSU 디버그** | `CONFIG_KSU_DEBUG=y`로 빌드하고 eBPF 디버깅용 zstd 압축 `vmlinux` 아티팩트를 업로드합니다. `ksu_debug` 옵션으로 제어합니다. |
+| **업스트림 동기화** | 빌드 전에 `kernel_versions.json`의 커널 버전과 소스를 업데이트하고 업스트림에서 SUSFS 패치를 다시 생성합니다. `sync_upstream` 옵션으로 제어합니다. |
+| **릴리스 유형** | `release`는 정식 릴리스를 게시하고 커널 버전별로 최신 2개를 유지하며, `pre-release`는 프리릴리스를 게시하고, `no-release`는 빌드 산출물만 업로드합니다. |
 
 ---
 
