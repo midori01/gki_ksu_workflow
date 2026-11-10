@@ -1,10 +1,10 @@
 From: github-actions <actions@github.com>
-Date: Sun, 01 Nov 2026 19:23:31 +0000
+Date: Tue, 10 Nov 2026 02:56:40 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-2026-03
 X-Kernel-Target-Branch: android16-6.12-2026-03
-X-Kernel-Target-Commit: 4127f37464d651b3c27881613f636a6062a316b6
+X-Kernel-Target-Commit: e5806b2d75856cc04837fa97e1e16186f4cf3808
 X-SUSFS-Source-Ref: origin/gki-android16-6.12
-X-SUSFS-Source-Commit: 68f62fae75ada3959f816841a3c64299383521ed
+X-SUSFS-Source-Commit: 395a8c0c88d348e9fe7c14f66a456fde4653287c
 
 ---
  block/ioprio.c                 |  22 ++-
@@ -127,7 +127,7 @@ index 9f5d06f4a..eeea6b70b 100644
  obj-$(CONFIG_PROC_FS)		+= proc_namespace.o
  obj-$(CONFIG_LEGACY_DIRECT_IO)	+= direct-io.o
 diff --git a/fs/exec.c b/fs/exec.c
-index 965fdc593..80d5ff9b2 100644
+index ade11d083..6955e9503 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -70,6 +70,9 @@
@@ -140,7 +140,7 @@ index 965fdc593..80d5ff9b2 100644
  
  #include <linux/uaccess.h>
  #include <asm/mmu_context.h>
-@@ -1932,6 +1935,23 @@ static int bprm_execve(struct linux_binprm *bprm)
+@@ -1945,6 +1948,23 @@ static int bprm_execve(struct linux_binprm *bprm)
  	return retval;
  }
  
@@ -164,7 +164,7 @@ index 965fdc593..80d5ff9b2 100644
  static int do_execveat_common(int fd, struct filename *filename,
  			      struct user_arg_ptr argv,
  			      struct user_arg_ptr envp,
-@@ -1939,10 +1959,42 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1952,10 +1972,42 @@ static int do_execveat_common(int fd, struct filename *filename,
  {
  	struct linux_binprm *bprm;
  	int retval;
@@ -207,7 +207,7 @@ index 965fdc593..80d5ff9b2 100644
  	/*
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
-@@ -2009,6 +2061,22 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -2022,6 +2074,22 @@ static int do_execveat_common(int fd, struct filename *filename,
  	}
  
  	retval = bprm_execve(bprm);
