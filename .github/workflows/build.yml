@@ -390,9 +390,10 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          pattern: 'Kernel-${{ matrix.kv }}-*'
+          pattern: '*_Kernel-${{ matrix.kv }}.*'
           path: release_zips
           merge-multiple: true
+          skip-decompress: true
 
       # Companion modules and apps are linked from the release body instead of
       # being re-uploaded as assets, so each link points at its upstream download.
