@@ -1,10 +1,10 @@
 From: github-actions <actions@github.com>
-Date: Sun, 01 Nov 2026 19:19:32 +0000
+Date: Thu, 12 Nov 2026 02:00:08 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android14-6.1-lts
 X-Kernel-Target-Branch: android14-6.1-lts
-X-Kernel-Target-Commit: fcab623b3d2b0107e56b44e4e791f9a1cc5ad0ff
+X-Kernel-Target-Commit: d9343ad6cb603d53c658600b6281e75c1bbf38b1
 X-SUSFS-Source-Ref: origin/gki-android14-6.1
-X-SUSFS-Source-Commit: a0ac906915c8a8d50d474dfb3cae478ef32edc1a
+X-SUSFS-Source-Commit: 69b8e734920b8f9ed885ab8d112969719698e242
 
 ---
  block/ioprio.c                 |  22 +++-
@@ -127,7 +127,7 @@ index 102e4cd2b..a1929dbc8 100644
  obj-y +=	buffer.o direct-io.o mpage.o
  else
 diff --git a/fs/exec.c b/fs/exec.c
-index 6999d609d..d2052e43c 100644
+index d8e97339f..0aa0e88e1 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -64,6 +64,9 @@
@@ -140,7 +140,7 @@ index 6999d609d..d2052e43c 100644
  
  #ifndef __GENKSYMS__
  #include <linux/dma-buf.h>
-@@ -1904,6 +1907,23 @@ static int bprm_execve(struct linux_binprm *bprm,
+@@ -1911,6 +1914,23 @@ static int bprm_execve(struct linux_binprm *bprm,
  	return retval;
  }
  
@@ -164,7 +164,7 @@ index 6999d609d..d2052e43c 100644
  static int do_execveat_common(int fd, struct filename *filename,
  			      struct user_arg_ptr argv,
  			      struct user_arg_ptr envp,
-@@ -1911,10 +1931,42 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1918,10 +1938,42 @@ static int do_execveat_common(int fd, struct filename *filename,
  {
  	struct linux_binprm *bprm;
  	int retval;
@@ -207,7 +207,7 @@ index 6999d609d..d2052e43c 100644
  	/*
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
-@@ -1981,6 +2033,22 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1988,6 +2040,22 @@ static int do_execveat_common(int fd, struct filename *filename,
  	}
  
  	retval = bprm_execve(bprm, fd, filename, flags);
