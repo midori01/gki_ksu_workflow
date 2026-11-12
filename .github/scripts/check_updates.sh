@@ -520,5 +520,9 @@ if [ "$NEEDS_COMMIT" = true ]; then
   git config user.email "actions@github.com"
   git add "$CONFIG_FILE"
   git diff --staged --quiet || git commit -m "auto: update kernel versions and upload sources"
-  git push
+  for i in 1 2 3 4 5; do
+    git pull --rebase && git push && break
+    [ "$i" -eq 5 ] && exit 1
+    sleep 3
+  done
 fi
