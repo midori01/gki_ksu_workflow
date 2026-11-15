@@ -124,7 +124,7 @@
 | **NoMount** | [NoMount](https://github.com/maxsteeel/nomount)를 커널에 직접 내장합니다(`CONFIG_NOMOUNT=y`). 마운트를 생성하거나 `/proc/mounts`를 오염시키지 않고 모듈 파일을 주입·은닉하는 VFS 경로 리디렉션 프레임워크입니다. 함께 사용되는 `NoMount-*.zip` 메타모듈의 업스트림 다운로드 링크를 릴리스 노트에 추가합니다. `use_nomount` 옵션으로 제어합니다. |
 | **fgetpriority** | [fgetpriority](https://github.com/aerath-stuff/fgetpriority)를 커널에 직접 내장합니다(`CONFIG_FGETPRIORITY=y`). 앱이 `getpriority` / `setpriority` / `ioprio_get` / `ioprio_set`로 다른 앱의 UID를 탐지하는 결과를 은닉하며, 모듈 설치가 필요 없습니다. `use_fgetpriority` 옵션으로 제어합니다. |
 | **유니코드 바이패스 수정** | 항상 활성화됩니다. 비표준 유니코드 인코딩을 이용한 파일시스템 우회 공격을 방지하기 위해 커널의 유니코드 정규화 로직을 패치합니다. |
-| **CVE 수정** | 항상 활성화됩니다. 커널 소스에서 CVE-2026-43499(rtmutex) 및 CVE-2026-64560(sighand / POSIX CPU timers)을 검사하고, 수정이 없으면 패치를 적용합니다. 서브레벨별 결과는 릴리스 노트에 표시됩니다. |
+| **CVE 수정** | 항상 활성화됩니다. 커널 소스에서 CVE-2026-43499(rtmutex), CVE-2026-64560(sighand / POSIX CPU timers) 및 CVE-2026-98260(exec / POSIX CPU timers)을 검사하고, 수정이 없으면 패치를 적용합니다. 서브레벨별 결과는 릴리스 노트에 표시됩니다. |
 | **네트워크 및 파일시스템** | 항상 활성화됩니다. TCP BBR, IPSET, 향상된 NAT(IPv6 NAT 및 REDIRECT), TMPFS xattr / POSIX ACL. |
 | **ADIOS I/O 스케줄러** | [ADIOS](https://github.com/firelzrd/adios)를 커널 내장 기본 멀티큐 I/O 스케줄러로 통합합니다. `use_adios` 옵션으로 제어합니다. |
 | **LZ4/ZSTD ZRAM 백엔드** | 선택적으로 커널의 LZ4 및 ZSTD 구현을 공식 LZ4 1.10.0 및 Zstandard 1.5.7 릴리스로 업데이트하고 커널 6.12(6.12.23에서만 테스트됨)의 ZRAM 백엔드를 활성화합니다. `use_lz4_zstd` 옵션으로 제어하며, 6.1 및 6.6 빌드는 변경되지 않습니다. |

@@ -528,7 +528,7 @@ jobs:
             fi
             out "susfs_date=\`$(cat commit_info/susfs_date)\`"
           fi
-          for cve in 43499 64560; do
+          for cve in 43499 64560 98260; do
             if ls commit_info/cve_${cve}_fixed_* >/dev/null 2>&1; then
               if grep -l '^false$' commit_info/cve_${cve}_fixed_* >/dev/null 2>&1; then
                 out "cve_${cve}_fixed=false"
@@ -578,7 +578,7 @@ jobs:
             > - **Time**: `${{ needs.setup.outputs.build_timestamp }}`
             > - **Builder**: `${{ needs.setup.outputs.build_user }}@${{ needs.setup.outputs.build_host }}`
             - **Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}　**Unicode Bypass Fix**: ✅
-            - **CVE-2026-43499 Fix**: ${{ steps.ksu_info.outputs.cve_43499_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_43499_failed_subs) }}　**CVE-2026-64560 Fix**: ${{ steps.ksu_info.outputs.cve_64560_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_64560_failed_subs) }}
+            - **CVE-2026-43499 Fix**: ${{ steps.ksu_info.outputs.cve_43499_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_43499_failed_subs) }}　**CVE-2026-64560 Fix**: ${{ steps.ksu_info.outputs.cve_64560_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_64560_failed_subs) }}　**CVE-2026-98260 Fix**: ${{ steps.ksu_info.outputs.cve_98260_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_98260_failed_subs) }}
             - **ADIOS I/O Scheduler**: ${{ inputs.use_adios && matrix.kv != '6.1' && '✅' || '❌' }}　**LZ4/ZSTD ZRAM**: ${{ inputs.use_lz4_zstd && matrix.kv == '6.12' && '✅' || '❌' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅

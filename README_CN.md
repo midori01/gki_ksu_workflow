@@ -124,7 +124,7 @@
 | **NoMount** | 集成的 [NoMount](https://github.com/maxsteeel/nomount) 直接编译进内核（`CONFIG_NOMOUNT=y`），这是一个 VFS 路径重定向框架，无需创建挂载、也不改动 `/proc/mounts` 即可注入和隐藏模块文件。在发布说明中附上配套 `NoMount-*.zip` 元模块的上游发布下载链接。通过 `use_nomount` 开关控制。 |
 | **fgetpriority** | 集成的 [fgetpriority](https://github.com/aerath-stuff/fgetpriority) 直接编译进内核（`CONFIG_FGETPRIORITY=y`），对来自应用的 `getpriority` / `setpriority` / `ioprio_get` / `ioprio_set` 探测隐藏其他应用 UID。无需安装模块。通过 `use_fgetpriority` 开关控制。 |
 | **Unicode 绕过修复** | 始终启用。修补内核 Unicode 规范化，以防止通过非标准 Unicode 编码进行文件系统绕过攻击。 |
-| **CVE 修复** | 始终启用。检测内核源码中的 CVE-2026-43499（rtmutex）与 CVE-2026-64560（sighand / POSIX CPU timers），并在缺失时自动应用修复；各子版本的结果显示在发布说明中。 |
+| **CVE 修复** | 始终启用。检测内核源码中的 CVE-2026-43499（rtmutex）、CVE-2026-64560（sighand / POSIX CPU timers）与 CVE-2026-98260（exec / POSIX CPU timers），并在缺失时自动应用修复；各子版本的结果显示在发布说明中。 |
 | **网络与文件系统** | 始终启用。TCP BBR、IPSET、增强型 NAT（IPv6 NAT 与 REDIRECT）以及 TMPFS xattr / POSIX ACL。 |
 | **ADIOS I/O 调度器** | 可选集成 [ADIOS](https://github.com/firelzrd/adios) 作为内核的内置默认多队列 I/O 调度器。通过 `use_adios` 开关控制。 |
 | **LZ4/ZSTD ZRAM 后端** | 可选将内核中的 LZ4 与 ZSTD 实现更新为官方 LZ4 1.10.0 与 Zstandard 1.5.7 版本，并为内核 6.12（仅在 6.12.23 上测试）启用 ZRAM 后端支持。通过 `use_lz4_zstd` 开关控制；6.1 与 6.6 构建保持不变。 |

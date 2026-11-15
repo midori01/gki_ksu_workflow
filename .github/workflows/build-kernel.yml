@@ -438,7 +438,7 @@ jobs:
       - name: Apply CVE Fixes
         working-directory: kernel_workspace/common
         run: |
-          for cve in 43499 64560; do
+          for cve in 43499 64560 98260; do
             if bash "${{ github.workspace }}/.github/scripts/check_cve.sh" $cve > /dev/null 2>&1; then
               echo "CVE-2026-$cve fix already present."
               echo "CVE_${cve}_FIXED=true" >> $GITHUB_ENV
@@ -552,6 +552,7 @@ jobs:
           mkdir -p "$COMMIT_DIR"
           echo "${CVE_43499_FIXED:-false}" > "$COMMIT_DIR/cve_43499_fixed_${{ inputs.kernel_version }}.${{ inputs.sub_level }}"
           echo "${CVE_64560_FIXED:-false}" > "$COMMIT_DIR/cve_64560_fixed_${{ inputs.kernel_version }}.${{ inputs.sub_level }}"
+          echo "${CVE_98260_FIXED:-false}" > "$COMMIT_DIR/cve_98260_fixed_${{ inputs.kernel_version }}.${{ inputs.sub_level }}"
           cd KernelSU
           save_ksu_commit() {
             git rev-parse HEAD > "$COMMIT_DIR/${1}_ksu_commit"

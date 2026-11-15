@@ -1,15 +1,16 @@
 #!/bin/bash
-# check_cve.sh - CVE-2026-43499 / CVE-2026-64560 Detection Script
-# Usage: check_cve.sh [43499|64560]  (default: check all)
+# check_cve.sh - CVE-2026-43499 / CVE-2026-64560 / CVE-2026-98260 Detection Script
+# Usage: check_cve.sh [43499|64560|98260]  (default: check all)
 
 RTMUTEX="kernel/locking/rtmutex.c"
 RTMUTEX_API="kernel/locking/rtmutex_api.c"
 EXIT="kernel/exit.c"
 SIGNAL="kernel/signal.c"
 POSIX_CPU_TIMERS="kernel/time/posix-cpu-timers.c"
+EXEC="fs/exec.c"
 
 # Ensure required files exist
-for f in "$RTMUTEX" "$RTMUTEX_API" "$EXIT" "$SIGNAL" "$POSIX_CPU_TIMERS"; do
+for f in "$RTMUTEX" "$RTMUTEX_API" "$EXIT" "$SIGNAL" "$POSIX_CPU_TIMERS" "$EXEC"; do
     if [ ! -f "$f" ]; then
         echo "Error: $f not found. Run from kernel source root." >&2
         exit 1
@@ -130,11 +131,58 @@ check_64560() {
     summary 2026-64560 "Release store=$RELEASE" "Acquire barrier=$ACQUIRE" "Sighand lookup=$LOOKUP"
 }
 
+check_98260() {
+    echo "========================================="
+    echo "CVE-2026-98260 Vulnerability Detection"
+    echo "========================================="
+    echo ""
+
+    # Line numbers inside begin_new_exec()
+    local body dethread unshare cleanups l
+    body=$(awk '/^int begin_new_exec\(/ { f = 1 } f { print } f && /^}/ { exit }' "$EXEC")
+    dethread=$(grep -nF 'retval = de_thread(me);' <<< "$body" | head -n1 | cut -d: -f1)
+    unshare=$(grep -nF 'retval = unshare_files();' <<< "$body" | head -n1 | cut -d: -f1)
+    cleanups=$(grep -nE 'posixtimer_exec\(me\);|posix_cpu_timers_exit\(me\);' <<< "$body" | cut -d: -f1)
+
+    # Early cleanup
+    echo "[1] POSIX timer cleanup right after de_thread()"
+    EARLY=false
+    if [ -n "$dethread" ] && [ -n "$unshare" ]; then
+        for l in $cleanups; do
+            [ "$l" -gt "$dethread" ] && [ "$l" -lt "$unshare" ] && EARLY=true
+        done
+    fi
+    if $EARLY; then
+        echo "    ✅ Fixed"
+    else
+        echo "    ❌ Vulnerable: POSIX timers cleaned up after exec_mmap()"
+    fi
+    echo ""
+
+    # Late cleanup removed
+    echo "[2] Late POSIX timer cleanup removed"
+    LATE_REMOVED=true
+    if [ -n "$unshare" ]; then
+        for l in $cleanups; do
+            [ "$l" -gt "$unshare" ] && LATE_REMOVED=false
+        done
+    fi
+    if $LATE_REMOVED; then
+        echo "    ✅ Fixed"
+    else
+        echo "    ❌ Late cleanup still present"
+    fi
+    echo ""
+
+    summary 2026-98260 "Early cleanup=$EARLY" "Late removed=$LATE_REMOVED"
+}
+
 RET=0
-for cve in ${1:-43499 64560}; do
+for cve in ${1:-43499 64560 98260}; do
     case "$cve" in
         43499) check_43499 ;;
         64560) check_64560 ;;
+        98260) check_98260 ;;
         *) echo "Error: unknown CVE $cve" >&2; exit 1 ;;
     esac
     rc=$?

@@ -124,7 +124,7 @@
 | **NoMount** | [NoMount](https://github.com/maxsteeel/nomount) をカーネルに直接組み込みます（`CONFIG_NOMOUNT=y`）。マウントを作成せず `/proc/mounts` を汚すことなくモジュールファイルの注入・隠蔽を行う VFS パスリダイレクトフレームワークです。付属の `NoMount-*.zip` メタモジュールの上流ダウンロードリンクをリリースノートに記載します。`use_nomount` スイッチで制御します。 |
 | **fgetpriority** | [fgetpriority](https://github.com/aerath-stuff/fgetpriority) をカーネルに直接組み込みます（`CONFIG_FGETPRIORITY=y`）。アプリが `getpriority` / `setpriority` / `ioprio_get` / `ioprio_set` を用いて他アプリの UID を探知する結果を隠蔽し、モジュールのインストールは不要です。`use_fgetpriority` スイッチで制御します。 |
 | **Unicode バイパス修正** | 常に有効です。非標準の Unicode エンコーディングを用いたファイルシステムバイパス攻撃を防ぐため、カーネルの Unicode 正規化処理にパッチを適用します。 |
-| **CVE 修正** | 常に有効です。カーネルソース内の CVE-2026-43499（rtmutex）および CVE-2026-64560（sighand / POSIX CPU timers）を検出し、未修正の場合は修正を適用します。各サブレベルの結果はリリースノートに表示されます。 |
+| **CVE 修正** | 常に有効です。カーネルソース内の CVE-2026-43499（rtmutex）、CVE-2026-64560（sighand / POSIX CPU timers）および CVE-2026-98260（exec / POSIX CPU timers）を検出し、未修正の場合は修正を適用します。各サブレベルの結果はリリースノートに表示されます。 |
 | **ネットワークとファイルシステム** | 常に有効です。TCP BBR、IPSET、拡張 NAT（IPv6 NAT および REDIRECT）、TMPFS xattr / POSIX ACL。 |
 | **ADIOS I/O スケジューラ** | [ADIOS](https://github.com/firelzrd/adios) をカーネル内蔵のデフォルト・マルチキュー I/O スケジューラとして統合します。`use_adios` スイッチで制御します。 |
 | **LZ4/ZSTD ZRAM バックエンド** | オプションでカーネルの LZ4 と ZSTD 実装を公式 LZ4 1.10.0 および Zstandard 1.5.7 に更新し、カーネル 6.12（6.12.23 でのみテスト済み）の ZRAM バックエンドを有効化します。`use_lz4_zstd` スイッチで制御し、6.1 および 6.6 ビルドは変更されません。 |
