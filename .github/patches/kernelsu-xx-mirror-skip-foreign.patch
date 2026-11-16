@@ -1,7 +1,6 @@
-diff --git a/kernel/hook/syscall_table_mirror_arm64.c b/kernel/hook/syscall_table_mirror_arm64.c
-index 3c68d65..9e86892 100644
---- a/kernel/hook/syscall_table_mirror_arm64.c
-+++ b/kernel/hook/syscall_table_mirror_arm64.c
+diff --git a/kernel/downstream/arm64_syscall_table_mirror.h b/kernel/downstream/arm64_syscall_table_mirror.h
+--- a/kernel/downstream/arm64_syscall_table_mirror.h
++++ b/kernel/downstream/arm64_syscall_table_mirror.h
 @@ -178,8 +178,77 @@ static int do_mirror_syscall_table(const char *native_sym, const char *compat_sy
  	return 0;
  }
