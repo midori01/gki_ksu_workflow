@@ -1,8 +1,8 @@
 From: github-actions <actions@github.com>
-Date: Sun, 15 Nov 2026 06:29:48 +0000
+Date: Tue, 17 Nov 2026 22:53:52 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android15-6.6-lts
 X-Kernel-Target-Branch: android15-6.6-lts
-X-Kernel-Target-Commit: 1c39bb5f635a741f90a5ecb4535e7bd264083a80
+X-Kernel-Target-Commit: 824580839cbc0d47e64dd2bbdef66590a57ef92d
 X-SUSFS-Source-Ref: origin/gki-android15-6.6
 X-SUSFS-Source-Commit: f98f08223bbf469cc0a1542166383d253557fc32
 
@@ -114,7 +114,7 @@ index 9bb1d3de7..a6333655c 100644
  		if (type != EV_SYN)
  			add_input_randomness(type, code, value);
 diff --git a/fs/Makefile b/fs/Makefile
-index c6963a9a4..e27ac368b 100644
+index 1aa301304..a8358d9a7 100644
 --- a/fs/Makefile
 +++ b/fs/Makefile
 @@ -22,6 +22,8 @@ obj-y :=	open.o read_write.o file_table.o super.o \
@@ -127,7 +127,7 @@ index c6963a9a4..e27ac368b 100644
  obj-$(CONFIG_PROC_FS)		+= proc_namespace.o
  obj-$(CONFIG_LEGACY_DIRECT_IO)	+= direct-io.o
 diff --git a/fs/exec.c b/fs/exec.c
-index 8dc93215b..339c85ea6 100644
+index 25d7daefe..138099a73 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -67,6 +67,9 @@
@@ -140,7 +140,7 @@ index 8dc93215b..339c85ea6 100644
  
  #ifndef __GENKSYMS__
  #include <linux/dma-buf.h>
-@@ -1926,6 +1929,23 @@ static int bprm_execve(struct linux_binprm *bprm,
+@@ -1945,6 +1948,23 @@ static int bprm_execve(struct linux_binprm *bprm,
  	return retval;
  }
  
@@ -164,7 +164,7 @@ index 8dc93215b..339c85ea6 100644
  static int do_execveat_common(int fd, struct filename *filename,
  			      struct user_arg_ptr argv,
  			      struct user_arg_ptr envp,
-@@ -1933,10 +1953,42 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1952,10 +1972,42 @@ static int do_execveat_common(int fd, struct filename *filename,
  {
  	struct linux_binprm *bprm;
  	int retval;
@@ -207,7 +207,7 @@ index 8dc93215b..339c85ea6 100644
  	/*
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
-@@ -2003,6 +2055,22 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -2022,6 +2074,22 @@ static int do_execveat_common(int fd, struct filename *filename,
  	}
  
  	retval = bprm_execve(bprm, fd, filename, flags);
@@ -231,7 +231,7 @@ index 8dc93215b..339c85ea6 100644
  	free_bprm(bprm);
  
 diff --git a/fs/namei.c b/fs/namei.c
-index b31b583f1..2cd037455 100644
+index f4bc7a88d..435ae1af9 100644
 --- a/fs/namei.c
 +++ b/fs/namei.c
 @@ -41,10 +41,21 @@
@@ -256,7 +256,7 @@ index b31b583f1..2cd037455 100644
  /* [Feb-1997 T. Schoebel-Theuer]
   * Fundamental changes in the pathname lookup mechanisms (namei)
   * were necessary because of omirr.  The reason is that omirr needs
-@@ -1585,6 +1596,14 @@ static struct dentry *lookup_dcache(const struct qstr *name,
+@@ -1590,6 +1601,14 @@ static struct dentry *lookup_dcache(const struct qstr *name,
  			return ERR_PTR(error);
  		}
  	}
@@ -271,7 +271,7 @@ index b31b583f1..2cd037455 100644
  	return dentry;
  }
  
-@@ -1602,6 +1621,9 @@ struct dentry *lookup_one_qstr_excl(const struct qstr *name,
+@@ -1607,6 +1626,9 @@ struct dentry *lookup_one_qstr_excl(const struct qstr *name,
  	struct dentry *dentry = lookup_dcache(name, base, flags);
  	struct dentry *old;
  	struct inode *dir = base->d_inode;
@@ -281,7 +281,7 @@ index b31b583f1..2cd037455 100644
  
  	if (dentry)
  		return dentry;
-@@ -1611,6 +1633,9 @@ struct dentry *lookup_one_qstr_excl(const struct qstr *name,
+@@ -1616,6 +1638,9 @@ struct dentry *lookup_one_qstr_excl(const struct qstr *name,
  		return ERR_PTR(-ENOENT);
  
  	dentry = d_alloc(base, name);
@@ -291,7 +291,7 @@ index b31b583f1..2cd037455 100644
  	if (unlikely(!dentry))
  		return ERR_PTR(-ENOMEM);
  
-@@ -1619,6 +1644,19 @@ struct dentry *lookup_one_qstr_excl(const struct qstr *name,
+@@ -1624,6 +1649,19 @@ struct dentry *lookup_one_qstr_excl(const struct qstr *name,
  		dput(dentry);
  		dentry = old;
  	}
@@ -311,7 +311,7 @@ index b31b583f1..2cd037455 100644
  	return dentry;
  }
  EXPORT_SYMBOL(lookup_one_qstr_excl);
-@@ -1627,6 +1665,9 @@ static struct dentry *lookup_fast(struct nameidata *nd)
+@@ -1632,6 +1670,9 @@ static struct dentry *lookup_fast(struct nameidata *nd)
  {
  	struct dentry *dentry, *parent = nd->path.dentry;
  	int status = 1;
@@ -321,7 +321,7 @@ index b31b583f1..2cd037455 100644
  
  	/*
  	 * Rename seqlock is not required here because in the off chance
-@@ -1635,6 +1676,16 @@ static struct dentry *lookup_fast(struct nameidata *nd)
+@@ -1640,6 +1681,16 @@ static struct dentry *lookup_fast(struct nameidata *nd)
  	 */
  	if (nd->flags & LOOKUP_RCU) {
  		dentry = __d_lookup_rcu(parent, &nd->last, &nd->next_seq);
@@ -338,7 +338,7 @@ index b31b583f1..2cd037455 100644
  		if (unlikely(!dentry)) {
  			if (!try_to_unlazy(nd))
  				return ERR_PTR(-ECHILD);
-@@ -1658,6 +1709,16 @@ static struct dentry *lookup_fast(struct nameidata *nd)
+@@ -1663,6 +1714,16 @@ static struct dentry *lookup_fast(struct nameidata *nd)
  			status = d_revalidate(dentry, nd->flags);
  	} else {
  		dentry = __d_lookup(parent, &nd->last);
@@ -355,7 +355,7 @@ index b31b583f1..2cd037455 100644
  		if (unlikely(!dentry))
  			return NULL;
  		status = d_revalidate(dentry, nd->flags);
-@@ -1679,12 +1740,19 @@ static struct dentry *__lookup_slow(const struct qstr *name,
+@@ -1684,12 +1745,19 @@ static struct dentry *__lookup_slow(const struct qstr *name,
  	struct dentry *dentry, *old;
  	struct inode *inode = dir->d_inode;
  	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
@@ -375,7 +375,7 @@ index b31b583f1..2cd037455 100644
  	if (IS_ERR(dentry))
  		return dentry;
  	if (unlikely(!d_in_lookup(dentry))) {
-@@ -1693,6 +1761,12 @@ static struct dentry *__lookup_slow(const struct qstr *name,
+@@ -1698,6 +1766,12 @@ static struct dentry *__lookup_slow(const struct qstr *name,
  			if (!error) {
  				d_invalidate(dentry);
  				dput(dentry);
@@ -388,7 +388,7 @@ index b31b583f1..2cd037455 100644
  				goto again;
  			}
  			dput(dentry);
-@@ -1706,6 +1780,19 @@ static struct dentry *__lookup_slow(const struct qstr *name,
+@@ -1711,6 +1785,19 @@ static struct dentry *__lookup_slow(const struct qstr *name,
  			dentry = old;
  		}
  	}
@@ -408,7 +408,7 @@ index b31b583f1..2cd037455 100644
  	return dentry;
  }
  
-@@ -2007,6 +2094,11 @@ static const char *walk_component(struct nameidata *nd, int flags)
+@@ -2012,6 +2099,11 @@ static const char *walk_component(struct nameidata *nd, int flags)
  	if (IS_ERR(dentry))
  		return ERR_CAST(dentry);
  	if (unlikely(!dentry)) {
@@ -420,7 +420,7 @@ index b31b583f1..2cd037455 100644
  		dentry = lookup_slow(&nd->last, nd->path.dentry, nd->flags);
  		if (IS_ERR(dentry))
  			return ERR_CAST(dentry);
-@@ -2274,6 +2366,15 @@ static int link_path_walk(const char *name, struct nameidata *nd)
+@@ -2279,6 +2371,15 @@ static int link_path_walk(const char *name, struct nameidata *nd)
  		const char *link;
  		u64 hash_len;
  		int type;
@@ -436,7 +436,7 @@ index b31b583f1..2cd037455 100644
  
  		idmap = mnt_idmap(nd->path.mnt);
  		err = may_lookup(idmap, nd);
-@@ -2463,6 +2564,9 @@ static inline const char *lookup_last(struct nameidata *nd)
+@@ -2468,6 +2569,9 @@ static inline const char *lookup_last(struct nameidata *nd)
  {
  	if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
  		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
@@ -446,7 +446,7 @@ index b31b583f1..2cd037455 100644
  
  	return walk_component(nd, WALK_TRAILING);
  }
-@@ -3410,15 +3514,39 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
+@@ -3465,15 +3569,39 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
  	int error, create_error = 0;
  	umode_t mode = op->mode;
  	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
@@ -486,7 +486,7 @@ index b31b583f1..2cd037455 100644
  			if (IS_ERR(dentry))
  				return dentry;
  		}
-@@ -3517,6 +3645,9 @@ static const char *open_last_lookups(struct nameidata *nd,
+@@ -3572,6 +3700,9 @@ static const char *open_last_lookups(struct nameidata *nd,
  	bool got_write = false;
  	struct dentry *dentry;
  	const char *res;
@@ -496,7 +496,7 @@ index b31b583f1..2cd037455 100644
  
  	nd->flags |= op->intent;
  
-@@ -3743,9 +3874,32 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
+@@ -3802,9 +3933,32 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
  		const struct open_flags *op,
  		struct file *file)
  {
@@ -529,7 +529,7 @@ index b31b583f1..2cd037455 100644
  	if (unlikely(error))
  		return error;
  	error = mnt_want_write(path.mnt);
-@@ -3759,24 +3913,61 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
+@@ -3818,24 +3972,61 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
  	mnt_drop_write(path.mnt);
  out:
  	path_put(&path);
@@ -591,7 +591,7 @@ index b31b583f1..2cd037455 100644
  	struct file *file;
  	int error;
  
-@@ -3793,10 +3984,33 @@ static struct file *path_openat(struct nameidata *nd,
+@@ -3852,10 +4043,33 @@ static struct file *path_openat(struct nameidata *nd,
  		while (!(error = link_path_walk(s, nd)) &&
  		       (s = open_last_lookups(nd, file, op)) != NULL)
  			;
@@ -625,7 +625,7 @@ index b31b583f1..2cd037455 100644
  	if (likely(!error)) {
  		if (likely(file->f_mode & FMODE_OPENED))
  			return file;
-@@ -5105,6 +5319,11 @@ int readlink_copy(char __user *buffer, int buflen, const char *link)
+@@ -5164,6 +5378,11 @@ int readlink_copy(char __user *buffer, int buflen, const char *link)
   *
   * Does not call security hook.
   */
@@ -637,7 +637,7 @@ index b31b583f1..2cd037455 100644
  int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
  {
  	struct inode *inode = d_inode(dentry);
-@@ -5114,7 +5333,18 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
+@@ -5173,7 +5392,18 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
  
  	if (unlikely(!(inode->i_opflags & IOP_DEFAULT_READLINK))) {
  		if (unlikely(inode->i_op->readlink))
@@ -656,7 +656,7 @@ index b31b583f1..2cd037455 100644
  
  		if (!d_is_symlink(dentry))
  			return -EINVAL;
-@@ -5130,6 +5360,15 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
+@@ -5189,6 +5419,15 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
  		if (IS_ERR(link))
  			return PTR_ERR(link);
  	}
@@ -673,7 +673,7 @@ index b31b583f1..2cd037455 100644
  	do_delayed_call(&done);
  	return res;
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 97fc42277..51b85060f 100644
+index e76ffac20..868ff84b0 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -32,12 +32,22 @@
@@ -944,7 +944,7 @@ index 97fc42277..51b85060f 100644
  
 @@ -1195,6 +1402,11 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
  	mnt->mnt.mnt_flags = old->mnt.mnt_flags;
- 	mnt->mnt.mnt_flags &= ~(MNT_WRITE_HOLD|MNT_MARKED|MNT_INTERNAL);
+ 	mnt->mnt.mnt_flags &= ~(MNT_WRITE_HOLD|MNT_MARKED|MNT_INTERNAL|MNT_UMOUNT);
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 +	if (unlikely(is_mnt_ksu_unshared))
@@ -954,7 +954,7 @@ index 97fc42277..51b85060f 100644
  	atomic_inc(&sb->s_active);
  	mnt->mnt.mnt_idmap = mnt_idmap_get(mnt_idmap(&old->mnt));
  
-@@ -3825,6 +4037,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3879,6 +4091,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE;
@@ -964,7 +964,7 @@ index 97fc42277..51b85060f 100644
  	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
  	if (IS_ERR(new)) {
  		namespace_unlock();
-@@ -5080,3 +5295,43 @@ static int __init init_fs_namespace_sysctls(void)
+@@ -5148,3 +5363,43 @@ static int __init init_fs_namespace_sysctls(void)
  fs_initcall(init_fs_namespace_sysctls);
  
  #endif /* CONFIG_SYSCTL */
@@ -1191,7 +1191,7 @@ index b799e7784..ce9f67305 100644
  		goto out;
  
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index cf20a8f08..71ee077cf 100644
+index 036c02a25..601bb5c24 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
 @@ -101,6 +101,10 @@
@@ -1205,7 +1205,7 @@ index cf20a8f08..71ee077cf 100644
  #include <trace/events/oom.h>
  #include <trace/hooks/sched.h>
  #include "internal.h"
-@@ -1835,6 +1839,10 @@ static const char *proc_pid_get_link(struct dentry *dentry,
+@@ -1829,6 +1833,10 @@ static const char *proc_pid_get_link(struct dentry *dentry,
  	return ERR_PTR(error);
  }
  
@@ -1216,7 +1216,7 @@ index cf20a8f08..71ee077cf 100644
  static int do_proc_readlink(const struct path *path, char __user *buffer, int buflen)
  {
  	char *tmp = kmalloc(PATH_MAX, GFP_KERNEL);
-@@ -1844,6 +1852,18 @@ static int do_proc_readlink(const struct path *path, char __user *buffer, int bu
+@@ -1838,6 +1846,18 @@ static int do_proc_readlink(const struct path *path, char __user *buffer, int bu
  	if (!tmp)
  		return -ENOMEM;
  
@@ -1235,7 +1235,7 @@ index cf20a8f08..71ee077cf 100644
  	pathname = d_path(path, tmp, PATH_MAX);
  	len = PTR_ERR(pathname);
  	if (IS_ERR(pathname))
-@@ -2466,6 +2486,10 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
+@@ -2446,6 +2466,10 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
  	for_each_vma(vmi, vma) {
  		if (!vma->vm_file)
  			continue;
@@ -1273,7 +1273,7 @@ index 2e244ada1..ca76c06d0 100644
  		seq_puts(m, saved_boot_config);
  	return 0;
 diff --git a/fs/proc/fd.c b/fs/proc/fd.c
-index 4297287f6..0ce657709 100644
+index ab37819bc..bf1d5bb40 100644
 --- a/fs/proc/fd.c
 +++ b/fs/proc/fd.c
 @@ -15,11 +15,22 @@
@@ -1372,7 +1372,7 @@ index 4297287f6..0ce657709 100644
  	show_fd_locks(m, file, files);
  	if (seq_has_overflowed(m))
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 052e6d7bc..24a441252 100644
+index a01c628d5..7a3bb8c8e 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -23,6 +23,9 @@
@@ -1438,7 +1438,7 @@ index 052e6d7bc..24a441252 100644
  	}
  
  	start = vma->vm_start;
-@@ -1040,6 +1079,13 @@ static int show_smap(struct seq_file *m, void *v)
+@@ -1044,6 +1083,13 @@ static int show_smap(struct seq_file *m, void *v)
  	struct vm_area_struct *vma = v;
  	struct mem_size_stats mss;
  
@@ -1452,7 +1452,7 @@ index 052e6d7bc..24a441252 100644
  	memset(&mss, 0, sizeof(mss));
  
  	if (!vma_data_pages(vma))
-@@ -1103,7 +1149,14 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
+@@ -1107,7 +1153,14 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
  
  	vma_start = vma->vm_start;
  	do {
@@ -1467,7 +1467,7 @@ index 052e6d7bc..24a441252 100644
  		last_vma_end = vma->vm_end;
  
  		/*
-@@ -1169,8 +1222,15 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
+@@ -1173,8 +1226,15 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
  
  			/* Case 4 above */
  			if (vma->vm_end > last_vma_end) {
@@ -1483,7 +1483,7 @@ index 052e6d7bc..24a441252 100644
  			}
  		}
  	} for_each_vma(vmi, vma);
-@@ -1948,6 +2008,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+@@ -1952,6 +2012,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
  	while (count && (start_vaddr < end_vaddr)) {
  		int len;
  		unsigned long end;
@@ -1493,7 +1493,7 @@ index 052e6d7bc..24a441252 100644
  
  		pm.pos = 0;
  		end = (start_vaddr + PAGEMAP_WALK_SIZE) & PAGEMAP_WALK_MASK;
-@@ -1957,7 +2020,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
+@@ -1961,7 +2024,15 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
  		ret = mmap_read_lock_killable(mm);
  		if (ret)
  			goto out_free;
@@ -2266,7 +2266,7 @@ index 2a37f9f3d..05d7dfab1 100644
  	if (!error)
  		buf->f_flags = calculate_f_flags(path->mnt);
 diff --git a/fs/super.c b/fs/super.c
-index 2d8303d32..505e62bb8 100644
+index 22686f4c7..761c62db1 100644
 --- a/fs/super.c
 +++ b/fs/super.c
 @@ -37,6 +37,9 @@
@@ -2279,7 +2279,7 @@ index 2d8303d32..505e62bb8 100644
  #include <uapi/linux/mount.h>
  #include "internal.h"
  
-@@ -1260,6 +1263,11 @@ void emergency_thaw_all(void)
+@@ -1271,6 +1274,11 @@ void emergency_thaw_all(void)
  
  static DEFINE_IDA(unnamed_dev_ida);
  
@@ -2291,7 +2291,7 @@ index 2d8303d32..505e62bb8 100644
  /**
   * get_anon_bdev - Allocate a block device for filesystems which don't have one.
   * @p: Pointer to a dev_t.
-@@ -1275,6 +1283,22 @@ int get_anon_bdev(dev_t *p)
+@@ -1286,6 +1294,22 @@ int get_anon_bdev(dev_t *p)
  {
  	int dev;
  
@@ -2366,10 +2366,10 @@ index cd44e9c42..4c6c4c74d 100644
  }
  
 diff --git a/kernel/reboot.c b/kernel/reboot.c
-index 344ceaf5e..c2d1a782d 100644
+index a51a25618..c79be6607 100644
 --- a/kernel/reboot.c
 +++ b/kernel/reboot.c
-@@ -693,6 +693,9 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
+@@ -692,6 +692,9 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
  
  DEFINE_MUTEX(system_transition_mutex);
  
@@ -2379,7 +2379,7 @@ index 344ceaf5e..c2d1a782d 100644
  /*
   * Reboot system call: for obvious reasons only root may call it,
   * and even root needs to set up some magic numbers in the registers
-@@ -708,6 +711,15 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
+@@ -707,6 +710,15 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
  	char buffer[256];
  	int ret = 0;
  
@@ -2396,7 +2396,7 @@ index 344ceaf5e..c2d1a782d 100644
  	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
  		return -EPERM;
 diff --git a/kernel/sys.c b/kernel/sys.c
-index c6b0141e4..94b885c93 100644
+index a834bb299..c405f2f15 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
 @@ -217,6 +217,10 @@ static int set_one_prio(struct task_struct *p, int niceval, int error)
@@ -2509,7 +2509,7 @@ index 1f8011193..b5ea74223 100644
  		if (IS_ERR_OR_NULL(page)) {
  			/* We might need to expand the stack to access it */
 diff --git a/security/selinux/avc.c b/security/selinux/avc.c
-index 8e40b0941..629658620 100644
+index 031a3fe48..866f4b184 100644
 --- a/security/selinux/avc.c
 +++ b/security/selinux/avc.c
 @@ -48,6 +48,12 @@
@@ -2552,7 +2552,7 @@ index 8e40b0941..629658620 100644
  	audit_log_format(ab, " tclass=%s", tclass);
  
 diff --git a/security/selinux/hooks.c b/security/selinux/hooks.c
-index 3f4c1bfec..2b7f0e282 100644
+index 3d9c6b6a0..6307653eb 100644
 --- a/security/selinux/hooks.c
 +++ b/security/selinux/hooks.c
 @@ -107,6 +107,11 @@
@@ -2567,7 +2567,7 @@ index 3f4c1bfec..2b7f0e282 100644
  
  /* SECMARK reference count */
  static atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
-@@ -3347,6 +3352,158 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
+@@ -3360,6 +3365,158 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
  	spin_unlock(&isec->lock);
  }
  
@@ -2726,7 +2726,7 @@ index 3f4c1bfec..2b7f0e282 100644
  static int selinux_inode_getxattr(struct dentry *dentry, const char *name)
  {
  	const struct cred *cred = current_cred();
-@@ -6624,6 +6781,152 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
+@@ -6763,6 +6920,152 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
  	return error;
  }
  
@@ -2879,7 +2879,7 @@ index 3f4c1bfec..2b7f0e282 100644
  static int selinux_ismaclabel(const char *name)
  {
  	return (strcmp(name, XATTR_SELINUX_SUFFIX) == 0);
-@@ -7172,8 +7475,13 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
+@@ -7312,8 +7615,13 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
  	LSM_HOOK_INIT(inode_permission, selinux_inode_permission),
  	LSM_HOOK_INIT(inode_setattr, selinux_inode_setattr),
  	LSM_HOOK_INIT(inode_getattr, selinux_inode_getattr),
@@ -2893,7 +2893,7 @@ index 3f4c1bfec..2b7f0e282 100644
  	LSM_HOOK_INIT(inode_getxattr, selinux_inode_getxattr),
  	LSM_HOOK_INIT(inode_listxattr, selinux_inode_listxattr),
  	LSM_HOOK_INIT(inode_removexattr, selinux_inode_removexattr),
-@@ -7252,8 +7560,11 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
+@@ -7393,8 +7701,11 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
  	LSM_HOOK_INIT(d_instantiate, selinux_d_instantiate),
  
  	LSM_HOOK_INIT(getprocattr, selinux_getprocattr),
@@ -2907,7 +2907,7 @@ index 3f4c1bfec..2b7f0e282 100644
  	LSM_HOOK_INIT(secctx_to_secid, selinux_secctx_to_secid),
  	LSM_HOOK_INIT(release_secctx, selinux_release_secctx),
 diff --git a/security/selinux/selinuxfs.c b/security/selinux/selinuxfs.c
-index b8c263457..f199e8faf 100644
+index cce49e7dd..2443b966e 100644
 --- a/security/selinux/selinuxfs.c
 +++ b/security/selinux/selinuxfs.c
 @@ -44,6 +44,16 @@
@@ -2927,7 +2927,7 @@ index b8c263457..f199e8faf 100644
  enum sel_inos {
  	SEL_ROOT_INO = 2,
  	SEL_LOAD,	/* load policy */
-@@ -220,11 +230,28 @@ static int sel_open_handle_status(struct inode *inode, struct file *filp)
+@@ -219,11 +229,28 @@ static int sel_open_handle_status(struct inode *inode, struct file *filp)
  {
  	struct page    *status = selinux_kernel_status_page();
  
@@ -2956,7 +2956,7 @@ index b8c263457..f199e8faf 100644
  	return 0;
  }
  
-@@ -652,6 +679,48 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
+@@ -633,6 +660,48 @@ static ssize_t sel_write_context(struct file *file, char *buf, size_t size)
  	return length;
  }
  
@@ -3005,7 +3005,7 @@ index b8c263457..f199e8faf 100644
  static ssize_t sel_read_checkreqprot(struct file *filp, char __user *buf,
  				     size_t count, loff_t *ppos)
  {
-@@ -793,18 +862,29 @@ static const struct file_operations sel_transition_ops = {
+@@ -774,18 +843,29 @@ static const struct file_operations sel_transition_ops = {
   * Remaining nodes use transaction based IO methods like nfsd/nfsctl.c
   */
  static ssize_t sel_write_access(struct file *file, char *buf, size_t size);
@@ -3035,7 +3035,7 @@ index b8c263457..f199e8faf 100644
  };
  
  static ssize_t selinux_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)
-@@ -889,6 +969,63 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
+@@ -870,6 +950,63 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
  	return length;
  }
  
@@ -3100,7 +3100,7 @@ index b8c263457..f199e8faf 100644
  {
  	char *scon = NULL, *tcon = NULL;
 diff --git a/security/selinux/ss/services.c b/security/selinux/ss/services.c
-index e5d143145..3a1b815a5 100644
+index 8afc994f5..1dbdfee3d 100644
 --- a/security/selinux/ss/services.c
 +++ b/security/selinux/ss/services.c
 @@ -70,6 +70,13 @@
@@ -3117,7 +3117,7 @@ index e5d143145..3a1b815a5 100644
  struct selinux_policy_convert_data {
  	struct convert_context_args args;
  	struct sidtab_convert_params sidtab_params;
-@@ -2197,11 +2204,23 @@ void selinux_policy_commit(struct selinux_load_state *load_state)
+@@ -2199,11 +2206,23 @@ void selinux_policy_commit(struct selinux_load_state *load_state)
  			pr_info("SELinux: Enabling MLS support...\n");
  	}
  
@@ -3141,7 +3141,7 @@ index e5d143145..3a1b815a5 100644
  	seqno = newpolicy->latest_granting;
  
  	/* Install the new policy. */
-@@ -3075,8 +3094,18 @@ int security_set_bools(u32 len, int *values)
+@@ -3077,8 +3096,18 @@ int security_set_bools(u32 len, int *values)
  	/* Re-evaluate the conditional rules in the copy */
  	evaluate_cond_nodes(&newpolicy->policydb);
  
@@ -3160,7 +3160,7 @@ index e5d143145..3a1b815a5 100644
  	seqno = newpolicy->latest_granting;
  
  	/* Install the new policy */
-@@ -4008,3 +4037,245 @@ int security_read_state_kernel(void **data, size_t *len)
+@@ -4024,3 +4053,245 @@ int security_read_state_kernel(void **data, size_t *len)
  	}
  	return err;
  }
