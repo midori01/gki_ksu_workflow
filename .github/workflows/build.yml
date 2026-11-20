@@ -420,6 +420,9 @@ jobs:
           merge-multiple: true
           skip-decompress: true
 
+      - name: Package TCP Congestion Control module
+        run: bash .github/scripts/package_tcp_congestion.sh release_zips
+
       # Companion modules and apps are linked from the release body instead of
       # being re-uploaded as assets, so each link points at its upstream download.
       - name: Resolve KSU Toolkit Module Link

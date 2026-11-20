@@ -1,0 +1,6 @@
+id=tcp_congestion
+name=TCP Congestion Control
+version=1.0.0
+versionCode=1
+author=reF1nd
+description=View the kernel's available TCP congestion controls and choose the default for new connections in WebUI.

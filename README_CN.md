@@ -126,6 +126,7 @@
 | **Unicode 绕过修复** | 始终启用。修补内核 Unicode 规范化，以防止通过非标准 Unicode 编码进行文件系统绕过攻击。 |
 | **CVE 修复** | 始终启用。检测内核源码中的 CVE-2026-43499（rtmutex）、CVE-2026-64560（sighand / POSIX CPU timers）与 CVE-2026-98260（exec / POSIX CPU timers），并在缺失时自动应用修复；各子版本的结果显示在发布说明中。 |
 | **网络与文件系统** | 始终启用。TCP BBRv1（`bbr`）与 BBRv3（`bbr3`）、IPSET、增强型 NAT（IPv6 NAT 与 REDIRECT）以及 TMPFS xattr / POSIX ACL。 |
+| **TCP 拥塞控制模块** | 每个 Release 附带独立的 Magisk / KernelSU 安装包。WebUI 列出本机内核已注册的算法，所选算法对新建 TCP 连接立即生效，并在开机后重新应用。选择**跟随系统**可取消设置。更新会保留选择，优先使用 KernelSU 原生热安装，其他兼容的文件式安装器会直接启用新版本。Magisk 用户可通过兼容 KernelSU 的 WebUI 应用打开模块。 |
 | **ADIOS I/O 调度器** | 可选集成 [ADIOS](https://github.com/firelzrd/adios) 作为内核的内置默认多队列 I/O 调度器。通过 `use_adios` 开关控制。独立的 `build_adios_module` 开关为 6.6 和 6.12 发布附带 ADIOS 模块：在未内置 ADIOS 的内核（如使用 LKM 模式 KernelSU 的官方内核）上以 LKM 加载 ADIOS，内核已内置时只负责切换调度器，可通过 WebUI 或 Action 按钮切换默认调度器。选择其他调度器之前保持系统原有调度器不变。 |
 | **LZ4/ZSTD ZRAM 后端** | 可选将内核中的 LZ4 与 ZSTD 实现更新为官方 LZ4 1.10.0 与 Zstandard 1.5.7 版本，并为内核 6.12（仅在 6.12.23 上测试）启用 ZRAM 后端支持。通过 `use_lz4_zstd` 开关控制；6.1 与 6.6 构建保持不变。 |
 | **Ccache** | 编译器缓存集成，配备 60 秒依赖安装等待保护，确保跨工作流运行的健壮加速增量重建。 |
