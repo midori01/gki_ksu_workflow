@@ -17,4 +17,6 @@ if [ "${BOOTMODE:-}" = true ]; then
 			*) abort "! Could not activate TCP Congestion Control." ;;
 		esac
 	fi
+	# Legacy installers copy staged module.prop to the active directory on return.
+	sh "$MODPATH/tcpcc" indicator || ui_print "! Could not refresh the module list description."
 fi

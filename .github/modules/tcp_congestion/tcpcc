@@ -9,6 +9,34 @@ command=${1:-apply}
 
 fail() { echo "$*" >&2; exit 1; }
 
+update_indicator() {
+	prop=${0%/*}/module.prop
+	[ -f "$prop" ] || return 0
+	badge='[❓ Default: unavailable]'
+	if actual=$(cat "$ipv4/tcp_congestion_control" 2>/dev/null) && [ -n "$actual" ]; then
+		if [ ! -f "$state" ]; then
+			badge="[⚪ Unconfigured: $actual]"
+		elif IFS=' ' read -r _boot _original wanted < "$state"; then
+			if [ -z "$wanted" ]; then
+				badge="[↩️ System default: $actual]"
+			elif [ "$actual" = "$wanted" ]; then
+				badge="[✅ Applied: $actual]"
+			elif available=$(cat "$ipv4/tcp_available_congestion_control") && [ -n "$available" ]; then
+				if registered "$wanted"; then
+					badge="[⚠️ Active: $actual · Selected: $wanted]"
+				else
+					badge="[↩️ System default: $actual · Unavailable: $wanted]"
+				fi
+			fi
+		fi
+	fi
+	desc=$(sed -n 's/^description=//p' "$prop") || return 1
+	case "$desc" in "$badge "*) return 0 ;; esac
+	# Quote the replacement for sed, including punctuation in kernel algorithm names.
+	escaped=$(printf '%s' "$badge" | sed 's/[\\&|]/\\&/g')
+	sed -i "s|^description=\\[.*\\] |description=|; s|^description=|description=$escaped |" "$prop"
+}
+
 registered() {
 	for algo in $available; do
 		[ "$algo" != "$1" ] || return 0
@@ -28,7 +56,7 @@ save_state() {
 }
 
 case "$command" in
-	status) ;;
+	indicator|status) ;;
 	set) [ "$#" = 2 ] || fail 'Expected one algorithm.' ;;
 	reset|apply) [ "$#" -le 1 ] || fail 'Unexpected arguments.' ;;
 	*) fail 'Usage: tcpcc status | set NAME | reset | apply' ;;
@@ -40,9 +68,13 @@ fi
 if [ -d "$data" ]; then
 	exec 9<"$data" || exit 1
 	# Android mksh closes private descriptors on exec. Pass the held directory on stdin.
-	if [ "$command" = status ]; then flock -s 0 <&9; else flock -x 0 <&9; fi || fail 'Cannot lock settings.'
+	flock -x 0 <&9 || fail 'Cannot lock settings.'
 fi
 
+if [ "$command" = indicator ]; then update_indicator; exit $?; fi
+
+# Refresh after the operation, including no preference or an unavailable saved name.
+trap 'update_indicator || :' 0
 saved_boot= original= preferred=
 if [ -f "$state" ]; then
 	IFS=' ' read -r saved_boot original preferred < "$state" || fail 'Cannot read the saved selection.'
@@ -66,7 +98,8 @@ if [ "$command" = reset ]; then
 	if [ "$boot" = "$saved_boot" ] && [ "$current" = "$preferred" ] && registered "$original"; then
 		write_default "$original" || fail 'Could not restore the previous default.'
 	fi
-	rm -f "$state" || fail 'Cannot clear the saved selection.'
+	# An empty preference records an explicit return to system control.
+	save_state "$boot" "$current" "" || fail 'Cannot clear the saved selection.'
 	exit 0
 fi
 
@@ -86,7 +119,7 @@ fi
 # Record the original before writing procfs, so an interrupted apply can be retried.
 save_state "$boot" "$baseline" "$target" || fail 'Cannot save the selection.'
 if ! write_default "$target"; then
-	if [ -n "$preferred" ]; then
+	if [ -n "$saved_boot" ]; then
 		save_state "$saved_boot" "$original" "$preferred" || fail 'Cannot recover the saved selection.'
 	else
 		rm -f "$state" || fail 'Cannot clear the failed selection.'
