@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TCP Congestion Control</title>
+<style>
+:root { color-scheme: light dark; --bg:#f4f5f9; --card:#fff; --ink:#171a22; --muted:#576174; --line:#dce1eb; --accent:#345cc9; --selected:#eef2ff; }
+@media (prefers-color-scheme:dark) {
+  :root { --bg:#101217; --card:#1a1d25; --ink:#edf0fa; --muted:#a8b2c5; --line:#343948; --accent:#adc1ff; --selected:#252e48; }
+}
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui,Roboto,sans-serif; padding:calc(env(safe-area-inset-top,0px) + 24px) 16px calc(env(safe-area-inset-bottom,0px) + 24px); }
+main { max-width:560px; margin:auto; }
+header,.saved { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+h1 { font-size:clamp(21px,5.5vw,28px); letter-spacing:-.025em; line-height:1.2; margin:0; }
+header { margin:0 2px 20px; }
+button { font:inherit; font-weight:600; border:0; border-radius:12px; padding:10px 15px; cursor:pointer; }
+.secondary { color:var(--accent); background:transparent; }
+button:disabled { opacity:.48; cursor:default; }
+.card,fieldset { margin:0 0 14px; padding:18px; background:var(--card); border:1px solid var(--line); border-radius:18px; }
+h2,.label { font-size:14px; font-weight:600; color:var(--muted); margin:0; }
+code { font-family:ui-monospace,monospace; overflow-wrap:anywhere; }
+#current { display:block; font-size:34px; letter-spacing:-.04em; line-height:1.25; margin:5px 0; }
+.hint,#feedback { font-size:14px; color:var(--muted); }
+.hint { margin:0 0 16px; }
+.saved { border-top:1px solid var(--line); padding-top:13px; font-size:14px; }
+#preferred { text-align:end; overflow-wrap:anywhere; }
+fieldset { min-width:0; }
+.sr { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+#options { margin:12px 0 16px; }
+.option { display:flex; align-items:center; gap:12px; min-height:46px; padding:9px 12px; border-radius:10px; cursor:pointer; }
+.option:has(input:checked) { background:var(--selected); }
+input { accent-color:var(--accent); width:18px; height:18px; margin:0; flex:none; }
+.controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.primary { color:var(--card); background:var(--accent); }
+#feedback { margin:8px 6px; overflow-wrap:anywhere; }
+#feedback[data-error] { color:light-dark(#ad2d28,#ffb0a9); }
+</style>
+</head>
+<body>
+<main>
+  <header><h1 data-text="title"></h1><button id="refresh" class="secondary" data-text="refresh"></button></header>
+  <section class="card">
+    <h2 data-text="current"></h2><code id="current">—</code>
+    <p class="hint" data-text="hint"></p>
+    <div class="saved"><span data-text="boot"></span><strong id="preferred">—</strong></div>
+  </section>
+  <fieldset id="editor" disabled>
+    <legend class="sr" data-text="available"></legend>
+    <h2 aria-hidden="true" data-text="available"></h2>
+    <div id="options"></div>
+    <div class="controls">
+      <button id="apply" class="primary" data-text="apply"></button>
+      <button id="reset" class="secondary" data-text="reset"></button>
+    </div>
+  </fieldset>
+  <p id="feedback" role="status" aria-live="polite"></p>
+</main>
+<script>
+const strings = {
+  en: {title:'TCP Congestion Control',refresh:'Refresh',current:'Current default',hint:'Applies to new TCP connections.',boot:'On boot',system:'Follow system',available:'Available algorithms',apply:'Apply and save',reset:'Follow system',missing:'currently unavailable',done:'Selection saved.',cleared:'Following the system default.',loading:'Reading kernel settings…',failed:'Could not read kernel settings.',bridge:'Open this page in a root manager or companion app with KernelSU WebUI support.'},
+  zh: {title:'TCP 拥塞控制',refresh:'刷新',current:'当前默认算法',hint:'用于新建的 TCP 连接。',boot:'开机设置',system:'跟随系统',available:'可用算法',apply:'应用并保存',reset:'跟随系统',missing:'当前不可用',done:'已保存所选算法。',cleared:'已恢复跟随系统。',loading:'正在读取内核设置…',failed:'无法读取内核设置。',bridge:'请在支持 KernelSU WebUI 的管理器或独立 WebUI 应用中打开。'},
+  ja: {title:'TCP 輻輳制御',refresh:'更新',current:'現在の既定値',hint:'新しい TCP 接続に適用されます。',boot:'起動時の設定',system:'システムに従う',available:'利用可能なアルゴリズム',apply:'適用して保存',reset:'システムに従う',missing:'現在利用不可',done:'設定を保存しました。',cleared:'システムの既定値に従います。',loading:'カーネル設定を読み込み中…',failed:'カーネル設定を読み込めません。',bridge:'KernelSU WebUI 対応の管理アプリまたは WebUI アプリで開いてください。'},
+  ko: {title:'TCP 혼잡 제어',refresh:'새로고침',current:'현재 기본 알고리즘',hint:'새 TCP 연결에 적용됩니다.',boot:'부팅 시 설정',system:'시스템 설정 따르기',available:'사용 가능한 알고리즘',apply:'적용 및 저장',reset:'시스템 설정 따르기',missing:'현재 사용 불가',done:'설정을 저장했습니다.',cleared:'시스템 기본 설정을 따릅니다.',loading:'커널 설정을 읽는 중…',failed:'커널 설정을 읽을 수 없습니다.',bridge:'KernelSU WebUI를 지원하는 관리자 또는 WebUI 앱에서 열어 주세요.'}
+};
+const locale = navigator.language.split('-')[0];
+const t = strings[locale] || strings.en;
+document.documentElement.lang = strings[locale] ? locale : 'en';
+document.title = t.title;
+document.querySelectorAll('[data-text]').forEach(el => { el.textContent = t[el.dataset.text]; });
+
+const byId = id => document.getElementById(id);
+let serial = 0, busy = false, state = null;
+function run(args) {
+  return new Promise((resolve, reject) => {
+    if (!window.ksu || typeof window.ksu.exec !== 'function') return reject(new Error(t.bridge));
+    const callback = '__tcpcc_' + Date.now() + '_' + serial++;
+    window[callback] = (errno, stdout, stderr) => {
+      delete window[callback];
+      if (Number(errno) === 0) resolve(stdout || '');
+      else reject(new Error((stderr || '').trim() || t.failed));
+    };
+    const quoted = args.map(arg => "'" + arg.replace(/'/g, "'\\''") + "'").join(' ');
+    try { window.ksu.exec('sh /data/adb/modules/tcp_congestion/tcpcc ' + quoted, '{}', callback); }
+    catch (err) { delete window[callback]; reject(err); }
+  });
+}
+
+function selected() { return byId('options').querySelector('input:checked')?.value; }
+function controls() {
+  byId('refresh').disabled = busy;
+  byId('editor').disabled = busy || !state;
+  const choice = selected();
+  byId('apply').disabled = !state || !choice || (state.preferred === choice && state.current === choice);
+  byId('reset').disabled = !state?.preferred;
+}
+function message(text, error = false) {
+  byId('feedback').textContent = text;
+  byId('feedback').toggleAttribute('data-error', error);
+}
+function render(raw) {
+  const [current, preferred, available] = raw.replace(/\r\n/g, '\n').split('\n');
+  if (!current || !available?.trim()) throw new Error(t.failed);
+  const names = available.trim().split(/\s+/);
+  state = {current, preferred};
+  byId('current').textContent = current;
+  byId('preferred').textContent = preferred ? preferred + (names.includes(preferred) ? '' : ' (' + t.missing + ')') : t.system;
+  const options = byId('options');
+  options.replaceChildren();
+  for (const name of names) {
+    const label = document.createElement('label'), input = document.createElement('input'), caption = document.createElement('code');
+    label.className = 'option';
+    input.type = 'radio'; input.name = 'algorithm'; input.value = name;
+    input.checked = name === (names.includes(preferred) ? preferred : current);
+    caption.textContent = name;
+    label.append(input, caption);
+    options.append(label);
+  }
+}
+
+async function update(args = []) {
+  if (busy) return;
+  busy = true; controls();
+  let failure;
+  try {
+    if (args.length) await run(args);
+  } catch (err) { failure = err; }
+  try {
+    render(await run(['status']));
+    message(failure ? failure.message : args.length ? (args[0] === 'reset' ? t.cleared : t.done) : '', !!failure);
+  } catch (err) {
+    state = null; byId('options').replaceChildren();
+    byId('current').textContent = byId('preferred').textContent = '—';
+    message(failure ? failure.message : err.message, true);
+  } finally { busy = false; controls(); }
+}
+byId('options').addEventListener('change', controls);
+byId('refresh').addEventListener('click', () => update());
+byId('apply').addEventListener('click', () => { if (selected()) update(['set', selected()]); });
+byId('reset').addEventListener('click', () => update(['reset']));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) update(); });
+message(t.loading);
+update();
+</script>
+</body>
+</html>

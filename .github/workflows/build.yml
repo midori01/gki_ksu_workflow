@@ -420,6 +420,9 @@ jobs:
           merge-multiple: true
           skip-decompress: true
 
+      - name: Package TCP Congestion Control module
+        run: bash .github/scripts/package_tcp_congestion.sh release_zips
+
       # Companion modules and apps are linked from the release body instead of
       # being re-uploaded as assets, so each link points at its upstream download.
       - name: Resolve KSU Toolkit Module Link
@@ -606,7 +609,7 @@ jobs:
             - **CVE-2026-43499 Fix**: ${{ steps.ksu_info.outputs.cve_43499_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_43499_failed_subs) }}　**CVE-2026-64560 Fix**: ${{ steps.ksu_info.outputs.cve_64560_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_64560_failed_subs) }}　**CVE-2026-98260 Fix**: ${{ steps.ksu_info.outputs.cve_98260_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_98260_failed_subs) }}
             - **ADIOS I/O Scheduler**: ${{ inputs.use_adios && matrix.kv != '6.1' && '✅' || '❌' }}　**LZ4/ZSTD ZRAM**: ${{ inputs.use_lz4_zstd && matrix.kv == '6.12' && '✅' || '❌' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
-            - **TCP BBR**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
+            - **TCP BBRv1 / BBRv3**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
             - **KSU Toolkit**: ${{ env.TOOLKIT_LINK && format('✅ ({0})', env.TOOLKIT_LINK) || '❌' }}
             - **VPNHide Next**: ${{ env.VPNHIDE_LINKS && format('✅ ({0})', env.VPNHIDE_LINKS) || (inputs.use_vpnhide && '✅' || '❌') }}
             - **NoMount**: ${{ env.NOMOUNT_LINKS && format('✅ ({0})', env.NOMOUNT_LINKS) || (inputs.use_nomount && '✅' || '❌') }}

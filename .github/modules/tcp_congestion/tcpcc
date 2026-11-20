@@ -1,0 +1,95 @@
+#!/system/bin/sh
+# With no arguments this is also the KernelSU hot-install callback.
+set -f
+umask 077
+data=/data/adb/tcp_congestion
+ipv4=/proc/sys/net/ipv4
+state=$data/selection
+command=${1:-apply}
+
+fail() { echo "$*" >&2; exit 1; }
+
+registered() {
+	for algo in $available; do
+		[ "$algo" != "$1" ] || return 0
+	done
+	return 1
+}
+
+write_default() {
+	[ "$current" != "$1" ] || return 0
+	printf '%s\n' "$1" > "$ipv4/tcp_congestion_control" &&
+		[ "$(cat "$ipv4/tcp_congestion_control")" = "$1" ]
+}
+
+save_state() {
+	printf '%s %s %s\n' "$1" "$2" "$3" > "$state.new" &&
+		mv -f "$state.new" "$state"
+}
+
+case "$command" in
+	status) ;;
+	set) [ "$#" = 2 ] || fail 'Expected one algorithm.' ;;
+	reset|apply) [ "$#" -le 1 ] || fail 'Unexpected arguments.' ;;
+	*) fail 'Usage: tcpcc status | set NAME | reset | apply' ;;
+esac
+
+if [ "$command" = set ]; then
+	mkdir -p "$data" || fail 'Cannot create the settings directory.'
+fi
+if [ -d "$data" ]; then
+	exec 9<"$data" || exit 1
+	# Android mksh closes private descriptors on exec. Pass the held directory on stdin.
+	if [ "$command" = status ]; then flock -s 0 <&9; else flock -x 0 <&9; fi || fail 'Cannot lock settings.'
+fi
+
+saved_boot= original= preferred=
+if [ -f "$state" ]; then
+	IFS=' ' read -r saved_boot original preferred < "$state" || fail 'Cannot read the saved selection.'
+fi
+case "$command" in
+	apply|reset) [ -n "$preferred" ] || exit 0 ;;
+esac
+
+available=$(cat "$ipv4/tcp_available_congestion_control") &&
+	current=$(cat "$ipv4/tcp_congestion_control") &&
+	[ -n "$current" ] && [ -n "$available" ] || fail 'Cannot read TCP congestion controls.'
+
+if [ "$command" = status ]; then
+	# One line per field. Kernel algorithm names are whitespace-delimited.
+	printf '%s\n%s\n%s\n' "$current" "$preferred" "$available"
+	exit 0
+fi
+boot=$(cat /proc/sys/kernel/random/boot_id) && [ -n "$boot" ] || fail 'Cannot identify this boot.'
+
+if [ "$command" = reset ]; then
+	if [ "$boot" = "$saved_boot" ] && [ "$current" = "$preferred" ] && registered "$original"; then
+		write_default "$original" || fail 'Could not restore the previous default.'
+	fi
+	rm -f "$state" || fail 'Cannot clear the saved selection.'
+	exit 0
+fi
+
+if [ "$command" = apply ]; then
+	target=$preferred
+else
+	target=$2
+fi
+registered "$target" || fail "Algorithm unavailable: $target"
+if [ "$saved_boot" = "$boot" ] && [ "$preferred" = "$target" ] && [ "$current" = "$target" ]; then
+	exit 0
+fi
+baseline=$current
+if [ "$boot" = "$saved_boot" ] && [ "$current" = "$preferred" ]; then
+	baseline=$original
+fi
+# Record the original before writing procfs, so an interrupted apply can be retried.
+save_state "$boot" "$baseline" "$target" || fail 'Cannot save the selection.'
+if ! write_default "$target"; then
+	if [ -n "$preferred" ]; then
+		save_state "$saved_boot" "$original" "$preferred" || fail 'Cannot recover the saved selection.'
+	else
+		rm -f "$state" || fail 'Cannot clear the failed selection.'
+	fi
+	fail "Kernel did not accept $target."
+fi
