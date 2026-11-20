@@ -76,6 +76,11 @@ on:
         required: true
         default: true
         type: boolean
+      build_tcp_congestion_module:
+        description: 'TCP Congestion Control Module'
+        required: true
+        default: true
+        type: boolean
       use_lz4_zstd:
         description: 'LZ4/ZSTD ZRAM (6.12.23 only)'
         required: true
@@ -358,8 +363,17 @@ jobs:
     with:
       version: ${{ needs.setup.outputs.release_tag }}
 
+  tcp_congestion_module:
+    needs: setup
+    if: |
+      always() &&
+      !cancelled() &&
+      inputs.build_tcp_congestion_module &&
+      needs.setup.result == 'success'
+    uses: ./.github/workflows/build-tcp-congestion-module.yml
+
   release:
-    needs: [setup, build, adios_module]
+    needs: [setup, build, adios_module, tcp_congestion_module]
     if: |
       always() &&
       inputs.release_type != 'no-release' &&
@@ -420,8 +434,13 @@ jobs:
           merge-multiple: true
           skip-decompress: true
 
-      - name: Package TCP Congestion Control module
-        run: bash .github/scripts/package_tcp_congestion.sh release_zips
+      - uses: actions/download-artifact@v8
+        if: needs.tcp_congestion_module.result == 'success'
+        with:
+          pattern: 'TCP_Congestion_Control-*'
+          path: release_zips
+          merge-multiple: true
+          skip-decompress: true
 
       # Companion modules and apps are linked from the release body instead of
       # being re-uploaded as assets, so each link points at its upstream download.
@@ -474,6 +493,18 @@ jobs:
           tag=$(cat commit_info/nomount_tag 2>/dev/null || true)
           links=$(gh release view ${tag:+"$tag"} --repo maxsteeel/nomount --json assets --jq '[.assets[] | select(.name | test("^NoMount-.*\\.zip$")) | "[`\(.name)`](\(.url))"] | join(", ")' 2>/dev/null || true)
           echo "NOMOUNT_LINKS=$links" >> $GITHUB_ENV
+
+      - name: Resolve Bundled Module Links
+        env:
+          RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ needs.setup.outputs.release_tag }}-${{ matrix.kv }}
+        run: |
+          module_link() {
+            local f
+            f=$(find release_zips -maxdepth 1 -name "$1" -printf '%f\n' 2>/dev/null | sort | head -n 1)
+            [ -n "$f" ] && echo "[\`$f\`]($RELEASE_URL/$f)" || true
+          }
+          echo "ADIOS_MODULE_LINK=$(module_link 'ADIOS_Module-*.zip')" >> $GITHUB_ENV
+          echo "TCPCC_MODULE_LINK=$(module_link 'TCP_Congestion_Control-*.zip')" >> $GITHUB_ENV
 
       - name: Read Commit Info
         id: ksu_info
@@ -607,9 +638,11 @@ jobs:
             > - **Builder**: `${{ needs.setup.outputs.build_user }}@${{ needs.setup.outputs.build_host }}`
             - **Ccache Speedup**: ${{ inputs.use_ccache && '✅' || '❌' }}　**Unicode Bypass Fix**: ✅
             - **CVE-2026-43499 Fix**: ${{ steps.ksu_info.outputs.cve_43499_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_43499_failed_subs) }}　**CVE-2026-64560 Fix**: ${{ steps.ksu_info.outputs.cve_64560_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_64560_failed_subs) }}　**CVE-2026-98260 Fix**: ${{ steps.ksu_info.outputs.cve_98260_fixed == 'true' && '✅' || format('❌ ({0})', steps.ksu_info.outputs.cve_98260_failed_subs) }}
-            - **ADIOS I/O Scheduler**: ${{ inputs.use_adios && matrix.kv != '6.1' && '✅' || '❌' }}　**LZ4/ZSTD ZRAM**: ${{ inputs.use_lz4_zstd && matrix.kv == '6.12' && '✅' || '❌' }}
+            - **ADIOS I/O Scheduler**: ${{ inputs.use_adios && matrix.kv != '6.1' && '✅' || '❌' }}${{ env.ADIOS_MODULE_LINK && format(' ({0})', env.ADIOS_MODULE_LINK) || '' }}
+            - **LZ4/ZSTD ZRAM**: ${{ inputs.use_lz4_zstd && matrix.kv == '6.12' && '✅' || '❌' }}
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
-            - **TCP BBRv1 / BBRv3**: ✅　**IPSET**: ✅　**Enhanced NAT**: ✅
+            - **IPSET**: ✅　**Enhanced NAT**: ✅
+            - **TCP BBRv1 / BBRv3**: ✅${{ env.TCPCC_MODULE_LINK && format(' ({0})', env.TCPCC_MODULE_LINK) || '' }}
             - **KSU Toolkit**: ${{ env.TOOLKIT_LINK && format('✅ ({0})', env.TOOLKIT_LINK) || '❌' }}
             - **VPNHide Next**: ${{ env.VPNHIDE_LINKS && format('✅ ({0})', env.VPNHIDE_LINKS) || (inputs.use_vpnhide && '✅' || '❌') }}
             - **NoMount**: ${{ env.NOMOUNT_LINKS && format('✅ ({0})', env.NOMOUNT_LINKS) || (inputs.use_nomount && '✅' || '❌') }}
