@@ -266,6 +266,10 @@ jobs:
           sed -i '/same_magic(/,/return strcmp/s/return strcmp(amagic, bmagic) == 0;/return 1;/' common/kernel/module/version.c || true
           sed -i 's/PAGE_ALIGN(cma->mapped_size)/PAGE_ALIGN(cma->mapped_size ? cma->mapped_size : cma->max_size)/' common/drivers/virt/gunyah/vm_mgr_cma_mem.c || true
 
+      - name: Apply TCP BBRv3
+        working-directory: kernel_workspace/common
+        run: patch --batch --forward --fuzz=0 -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/bbrv3.patch"
+
       - name: Setup KernelSU
         working-directory: kernel_workspace/common
         run: |
@@ -672,6 +676,8 @@ jobs:
           export RKX_VERSION="${RKX_VERSION}"
           export KBUILD_ABS_SRCTREE=1
           make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error gki_defconfig
+          grep -Fxq 'CONFIG_TCP_CONG_BBR=y' out/.config
+          grep -Fxq 'CONFIG_TCP_CONG_BBR3=y' out/.config
           make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error headers
           make -j$(nproc) LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- O=out KCFLAGS+=-O2 KCFLAGS+=-Wno-error Image
           [ "${{ inputs.use_ccache }}" = "true" ] && ccache -s || true
