@@ -1,0 +1,112 @@
+#!/system/bin/sh
+MODDIR=${0%/*}
+. "$MODDIR/common.sh"
+
+json_str() {
+	printf '"%s"' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+}
+
+json_list() {
+	first=1
+	printf '['
+	for x in $1; do
+		[ $first = 1 ] || printf ','
+		json_str "$x"
+		first=0
+	done
+	printf ']'
+}
+
+devices_json() {
+	awk -v skip="$ADIOS_SKIP_DEVS" -v orig="$ADIOS_ORIG" '
+		BEGIN {
+			if ((getline line < orig) > 0)
+				while ((getline line < orig) > 0) {
+					split(line, a, " ")
+					o[a[1]] = a[2]
+				}
+		}
+		{
+			d = FILENAME
+			sub("^/sys/block/", "", d)
+			sub("/.*", "", d)
+			if (d ~ skip || NF < 2) next
+			cur = ""
+			av = ""
+			for (i = 1; i <= NF; i++) {
+				s = $i
+				if (s ~ /^\[.*\]$/) {
+					s = substr(s, 2, length(s) - 2)
+					cur = s
+				}
+				av = av (i > 1 ? "," : "") "\"" s "\""
+				if (!(s in seen)) {
+					seen[s] = 1
+					sl = sl (n++ ? "," : "") "\"" s "\""
+				}
+			}
+			devs = devs (devs != "" ? "," : "") "{\"name\":\"" d "\",\"current\":\"" cur "\",\"original\":\"" o[d] "\",\"available\":[" av "]}"
+		}
+		END { printf "\"schedulers\":[%s],\"devices\":[%s]", sl, devs }
+	' /sys/block/*/queue/scheduler 2>/dev/null
+}
+
+cmd_status() {
+	snapshot_original
+	if [ -f "$ADIOS_SAFE" ]; then safe=true; else safe=false; fi
+	lkms=
+	for f in $(lkm_candidates); do
+		lkms="$lkms ${f##*/}"
+	done
+	printf '{"mode":%s,"safe":%s,"pref":%s,"version":%s,"kernel":%s,"kmi":%s,"lkm":%s,%s}\n' \
+		"$(json_str "$(adios_mode)")" "$safe" "$(json_str "$(read_pref)")" \
+		"$(json_str "$(adios_version)")" "$(json_str "$(uname -r)")" "$(json_str "$(kmi_tag)")" \
+		"$(json_list "$lkms")" "$(devices_json)"
+}
+
+cmd_enable() {
+	rm -f "$ADIOS_SAFE"
+	adios_registered || load_adios || echo "ADIOS is not available on this kernel" >&2
+	apply_pref
+	rc=$?
+	update_desc
+	return $rc
+}
+
+cmd_set() {
+	case $1 in
+		""|default|system)
+			rm -f "$ADIOS_PREF"
+			;;
+		*)
+			if ! printf '%s' "$1" | grep -qE '^[a-z0-9_-]+$'; then
+				echo "invalid scheduler: $1" >&2
+				return 1
+			fi
+			[ "$1" = adios ] && ! adios_registered && load_adios
+			if ! all_schedulers | grep -qx "$1"; then
+				echo "scheduler not available: $1" >&2
+				return 1
+			fi
+			mkdir -p "$ADIOS_DATA"
+			echo "$1" > "$ADIOS_PREF"
+			;;
+	esac
+	if [ -f "$ADIOS_SAFE" ] && [ "$1" != adios ]; then
+		apply_pref
+		rc=$?
+		update_desc
+		return $rc
+	fi
+	cmd_enable
+}
+
+case $1 in
+	status) cmd_status ;;
+	set) cmd_set "$2" ;;
+	enable) cmd_enable ;;
+	*)
+		echo "usage: ${0##*/} status | set <scheduler|default> | enable" >&2
+		exit 1
+		;;
+esac

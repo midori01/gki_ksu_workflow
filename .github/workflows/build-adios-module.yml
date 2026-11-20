@@ -1,0 +1,113 @@
+name: Build ADIOS Module
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: false
+        type: string
+        default: ''
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Module Version (Leave blank for now)'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  lkm:
+    name: ADIOS LKM - ${{ matrix.kmi }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        kmi:
+          - android15-6.6
+          - android16-6.12
+    container:
+      image: ghcr.io/ylarod/ddk-min:${{ matrix.kmi }}
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Build ADIOS LKM
+        run: |
+          set -euo pipefail
+          test -f "${KDIR:?}/Makefile"
+          ksrc=$(readlink -f "$KDIR/source" 2>/dev/null || true)
+          [ -f "$ksrc/block/blk.h" ] || ksrc="$KDIR"
+          [ -f "$ksrc/block/blk.h" ] || ksrc="/opt/ddk/src/${{ matrix.kmi }}"
+          test -f "$ksrc/block/blk.h"
+          src="$PWD/adios_src"
+          mkdir -p "$src" out
+          awk '/^\+\+\+ b\/block\/adios\.c$/{f=1;next} f&&/^diff --git/{exit} f&&/^\+/{print substr($0,2)}' \
+            ".github/patches/${{ matrix.kmi }}/adios.patch" > "$src/adios.c"
+          grep -q 'module_init(adios_init)' "$src/adios.c"
+          printf 'obj-m := adios.o\nccflags-y := -I%s/block\n' "$ksrc" > "$src/Kbuild"
+          make -j"$(nproc)" -C "$KDIR" ARCH=arm64 LLVM=1 LLVM_IAS=1 M="$src" modules
+          install -Dm644 "$src/adios.ko" "out/adios-${{ matrix.kmi }}.ko"
+          llvm-strip --strip-unneeded -R .BTF "out/adios-${{ matrix.kmi }}.ko"
+          sed -n 's/^#define ADIOS_VERSION "\(.*\)"$/\1/p' "$src/adios.c" > "out/adios-${{ matrix.kmi }}.version"
+          test -s "out/adios-${{ matrix.kmi }}.version"
+          ls -l out
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: adios-lkm-${{ matrix.kmi }}
+          path: out/
+          retention-days: 1
+
+  package:
+    name: Package ADIOS Module
+    needs: lkm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: adios-lkm-*
+          path: lkm
+          merge-multiple: true
+
+      - name: Package Module
+        id: pkg
+        env:
+          VER: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          ver="$VER"
+          [ -n "$ver" ] || ver=$(TZ='Asia/Tokyo' date +'%Y%m%d-%H%M')
+          [[ "$ver" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "::error::Invalid module version"; exit 1; }
+          for k in android15-6.6 android16-6.12; do
+            test -f "lkm/adios-$k.ko"
+            test -s "lkm/adios-$k.version"
+          done
+          stage="$RUNNER_TEMP/adios_module"
+          cp -r .github/modules/adios "$stage"
+          mkdir -p "$stage/lkm"
+          cp lkm/*.ko "$stage/lkm/"
+          for f in lkm/adios-*.version; do
+            k=${f##*/adios-}
+            echo "${k%.version} $(cat "$f")"
+          done > "$stage/lkm/versions"
+          sed -i "s/^version=.*/version=$ver/; s/^versionCode=.*/versionCode=${{ github.run_number }}/" "$stage/module.prop"
+          zip_name="ADIOS_Module-$ver.zip"
+          (cd "$stage" && zip -r9 "$GITHUB_WORKSPACE/$zip_name" .)
+          unzip -l "$zip_name"
+          echo "zip=$zip_name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: ${{ steps.pkg.outputs.zip }}
+          archive: false
+          retention-days: 1

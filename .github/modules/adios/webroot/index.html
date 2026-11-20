@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ADIOS</title>
+<style>
+:root {
+  --bg: #f4f5f9;
+  --card: #ffffff;
+  --text: #15171c;
+  --muted: #6a7080;
+  --line: #e6e8ef;
+  --accent: #3d6cf0;
+  --accent-soft: #e7edfe;
+  --ok: #1f9d57;
+  --ok-soft: #e3f6eb;
+  --warn: #c27a00;
+  --warn-soft: #fdf1dc;
+  --bad: #d23b3b;
+  --bad-soft: #fbe5e5;
+  --shadow: 0 1px 2px rgba(20, 24, 40, .04), 0 6px 20px rgba(20, 24, 40, .06);
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1015;
+    --card: #181b22;
+    --text: #eceef3;
+    --muted: #9198a8;
+    --line: #262a34;
+    --accent: #7c9bff;
+    --accent-soft: #1d2540;
+    --ok: #4cc983;
+    --ok-soft: #142b20;
+    --warn: #f0b04a;
+    --warn-soft: #2e2412;
+    --bad: #ff7373;
+    --bad-soft: #321818;
+    --shadow: none;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px calc(env(safe-area-inset-bottom, 0px) + 28px);
+}
+main { max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }
+header { padding: 4px 4px 6px; }
+h1 { margin: 0; font-size: 28px; letter-spacing: -.02em; font-weight: 700; }
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.card { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--line); overflow: hidden; }
+.card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; padding: 16px 18px 8px; font-weight: 600; }
+.status { padding: 18px; display: grid; gap: 14px; }
+.status-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: 13px; }
+.chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.ver { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; text-align: right; overflow-wrap: anywhere; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.banner { display: none; padding: 14px 18px; background: var(--warn-soft); color: var(--warn); border-radius: 16px; gap: 12px; align-items: center; justify-content: space-between; }
+.banner.show { display: flex; }
+.banner p { margin: 0; font-size: 13px; }
+button.ghost { border: 0; background: var(--warn); color: var(--card); font: inherit; font-weight: 600; font-size: 13px; padding: 8px 14px; border-radius: 999px; }
+.options { list-style: none; margin: 0; padding: 4px 8px 10px; }
+.opt { display: flex; align-items: center; gap: 14px; padding: 12px 10px; border-radius: 14px; cursor: pointer; transition: background .15s ease; }
+.opt:active { background: var(--accent-soft); }
+.opt .radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); flex: none; display: grid; place-items: center; transition: border-color .15s ease; }
+.opt .radio::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); transform: scale(0); transition: transform .18s cubic-bezier(.3, 1.6, .5, 1); }
+.opt.sel .radio { border-color: var(--accent); }
+.opt.sel .radio::after { transform: scale(1); }
+.opt .txt { flex: 1; min-width: 0; }
+.opt .name { font-weight: 600; }
+.opt .desc { color: var(--muted); font-size: 12px; }
+.opt.busy { opacity: .5; pointer-events: none; }
+.tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.devs { padding: 2px 18px 12px; }
+.dev { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.dev:first-child { border-top: 0; }
+.dev .n { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 600; }
+.dev .r { text-align: right; }
+.dev .c { font-weight: 600; }
+.dev .o { color: var(--muted); font-size: 12px; }
+.empty { color: var(--muted); padding: 8px 18px 18px; font-size: 13px; }
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); transform: translate(-50%, 20px); opacity: 0; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 13px; transition: all .25s ease; pointer-events: none; max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>ADIOS</h1>
+    <div class="sub" data-i18n="subtitle"></div>
+  </header>
+
+  <section class="card status">
+    <div class="status-top">
+      <span id="mode" class="chip warn">…</span>
+      <span id="version" class="ver"></span>
+    </div>
+    <dl class="kv">
+      <dt data-i18n="kernel"></dt><dd id="kernel">-</dd>
+      <dt>KMI</dt><dd id="kmi">-</dd>
+    </dl>
+  </section>
+
+  <div id="safe" class="banner">
+    <p data-i18n="safeMsg"></p>
+    <button class="ghost" id="resume" data-i18n="resume"></button>
+  </div>
+
+  <section class="card">
+    <h2 data-i18n="defaultSched"></h2>
+    <ul id="options" class="options"></ul>
+  </section>
+
+  <section class="card">
+    <h2 data-i18n="devices"></h2>
+    <div id="devs" class="devs"></div>
+  </section>
+</main>
+<div id="toast" class="toast"></div>
+
+<script>
+const MODDIR = "/data/adb/modules/adios";
+const I18N = {
+  en: {
+    subtitle: "Adaptive Deadline I/O Scheduler",
+    kernel: "Kernel",
+    builtin: "Built-in",
+    lkm: "LKM loaded",
+    missing: "Unavailable",
+    safe: "Safe mode",
+    safeMsg: "The previous boot did not finish. ADIOS was paused for this boot.",
+    resume: "Resume",
+    defaultSched: "Default scheduler",
+    system: "System default",
+    systemDesc: "Keep the scheduler set by the ROM and kernel",
+    current: "in use",
+    devices: "Block devices",
+    original: "original",
+    noDevs: "No switchable block devices found",
+    applied: "Applied",
+    failed: "Failed",
+    noKsu: "KernelSU WebUI API not available",
+    lkmOnly: "Loads the bundled LKM",
+    vendorSched: "Provided by the ROM or vendor kernel modules",
+    sched: {
+      "none": "No scheduling, requests go straight to the device; suits fast NVMe",
+      "mq-deadline": "Serves requests by deadline; general purpose and stable",
+      "kyber": "Limits queue depth to meet target latencies",
+      "bfq": "Fair bandwidth per process, favors interactivity; higher overhead",
+      "cpq": "Xiaomi SmartFocusIO: deadline scheduling with cgroup priority levels that favor foreground I/O",
+      "adios": "Adaptive deadline scheduling that learns device latency"
+    }
+  },
+  zh: {
+    subtitle: "自适应截止期 I/O 调度器",
+    kernel: "内核",
+    builtin: "内核内置",
+    lkm: "LKM 已加载",
+    missing: "不可用",
+    safe: "安全模式",
+    safeMsg: "上次开机未完成，本次开机已暂停 ADIOS。",
+    resume: "恢复",
+    defaultSched: "默认调度器",
+    system: "系统默认",
+    systemDesc: "保持 ROM 和内核设定的调度器",
+    current: "使用中",
+    devices: "块设备",
+    original: "原始",
+    noDevs: "没有可切换的块设备",
+    applied: "已应用",
+    failed: "失败",
+    noKsu: "KernelSU WebUI 接口不可用",
+    lkmOnly: "将加载模块自带的 LKM",
+    vendorSched: "由 ROM 或厂商内核模块提供",
+    sched: {
+      "none": "不调度，请求直接下发到设备，适合高速 NVMe",
+      "mq-deadline": "按截止时间调度请求，通用、稳定",
+      "kyber": "按目标延迟限制队列深度",
+      "bfq": "按进程公平分配带宽，偏重交互，开销较大",
+      "cpq": "小米 SmartFocusIO：截止期调度，按 cgroup 优先级分级，优先前台 I/O",
+      "adios": "自适应截止期调度，会学习设备延迟"
+    }
+  },
+  ja: {
+    subtitle: "適応型デッドライン I/O スケジューラ",
+    kernel: "カーネル",
+    builtin: "カーネル内蔵",
+    lkm: "LKM 読み込み済み",
+    missing: "利用不可",
+    safe: "セーフモード",
+    safeMsg: "前回の起動が完了しませんでした。今回の起動では ADIOS を停止しています。",
+    resume: "再開",
+    defaultSched: "デフォルトスケジューラ",
+    system: "システムデフォルト",
+    systemDesc: "ROM とカーネルが設定したスケジューラを維持します",
+    current: "使用中",
+    devices: "ブロックデバイス",
+    original: "元の設定",
+    noDevs: "切り替え可能なブロックデバイスがありません",
+    applied: "適用しました",
+    failed: "失敗しました",
+    noKsu: "KernelSU WebUI API が利用できません",
+    lkmOnly: "同梱の LKM を読み込みます",
+    vendorSched: "ROM またはベンダーのカーネルモジュールが提供します",
+    sched: {
+      "none": "スケジューリングせず、要求をそのままデバイスへ渡します。高速な NVMe 向け",
+      "mq-deadline": "要求を期限に基づいて処理します。汎用的で安定",
+      "kyber": "目標レイテンシに合わせてキューの深さを制限します",
+      "bfq": "プロセスごとに帯域を公平に配分し、操作性を重視します。負荷はやや高め",
+      "cpq": "Xiaomi SmartFocusIO：cgroup の優先度レベルでフォアグラウンドの I/O を優先するデッドラインスケジューリング",
+      "adios": "デバイスのレイテンシを学習する適応型のデッドラインスケジューリング"
+    }
+  }
+};
+const lang = (navigator.language || "en").toLowerCase();
+const langKey = lang.startsWith("zh") ? "zh" : lang.startsWith("ja") ? "ja" : "en";
+const T = I18N[langKey];
+document.documentElement.lang = langKey;
+document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = T[el.dataset.i18n]; });
+
+let seq = 0;
+function exec(cmd) {
+  return new Promise(resolve => {
+    if (typeof ksu === "undefined" || !ksu.exec) {
+      resolve({ errno: -1, stdout: "", stderr: T.noKsu });
+      return;
+    }
+    const cb = `__adios_cb_${Date.now()}_${seq++}`;
+    window[cb] = (errno, stdout, stderr) => {
+      delete window[cb];
+      resolve({ errno, stdout, stderr });
+    };
+    ksu.exec(cmd, "{}", cb);
+  });
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+let state = null;
+let busy = false;
+
+function render(s) {
+  state = s;
+  const mode = document.getElementById("mode");
+  const key = s.safe ? "safe" : s.mode;
+  mode.textContent = T[key] || s.mode;
+  mode.className = "chip " + (s.safe ? "warn" : s.mode === "missing" ? "bad" : "ok");
+  document.getElementById("version").textContent = s.version ? "v" + s.version : "";
+  document.getElementById("kernel").textContent = s.kernel;
+  document.getElementById("kmi").textContent = s.kmi;
+  document.getElementById("safe").classList.toggle("show", s.safe);
+
+  const scheds = s.schedulers.filter(n => /^[a-z0-9_-]+$/.test(n));
+  if (!scheds.includes("adios") && s.mode === "missing" && s.lkm.length) scheds.push("adios");
+  const inUse = new Set(s.devices.map(d => d.current));
+  const list = document.getElementById("options");
+  list.replaceChildren();
+  [["", T.system, T.systemDesc], ...scheds.map(n => [n, n, [T.sched[n] || T.vendorSched, n === "adios" && s.mode === "missing" ? T.lkmOnly : ""].filter(Boolean).join(" · ")])].forEach(([value, name, desc]) => {
+    const li = el("li", "opt" + ((s.pref || "") === value ? " sel" : ""));
+    li.append(el("span", "radio"));
+    const txt = el("div", "txt");
+    txt.append(el("div", "name", name));
+    if (desc) txt.append(el("div", "desc", desc));
+    li.append(txt);
+    if (value && inUse.has(value)) li.append(el("span", "tag", T.current));
+    li.addEventListener("click", () => choose(value, li));
+    list.append(li);
+  });
+
+  const devs = document.getElementById("devs");
+  devs.replaceChildren();
+  if (!s.devices.length) {
+    devs.append(el("div", "empty", T.noDevs));
+  }
+  s.devices.forEach(d => {
+    const row = el("div", "dev");
+    row.append(el("span", "n", d.name));
+    const r = el("div", "r");
+    r.append(el("div", "c", d.current));
+    if (d.original) r.append(el("div", "o", `${T.original}: ${d.original}`));
+    row.append(r);
+    devs.append(row);
+  });
+}
+
+async function refresh() {
+  const r = await exec(`sh ${MODDIR}/adiosctl status`);
+  if (r.errno !== 0) {
+    toast((r.stderr || "").trim() || T.failed);
+    return;
+  }
+  try {
+    render(JSON.parse(r.stdout));
+  } catch (e) {
+    toast(T.failed);
+  }
+}
+
+async function choose(value, li) {
+  if (busy || !state) return;
+  busy = true;
+  li.classList.add("busy");
+  const r = await exec(`sh ${MODDIR}/adiosctl set ${value || "default"}`);
+  busy = false;
+  li.classList.remove("busy");
+  toast(r.errno === 0 ? `${T.applied}: ${value || T.system}` : ((r.stderr || "").trim() || T.failed));
+  await refresh();
+}
+
+document.getElementById("resume").addEventListener("click", async () => {
+  if (busy) return;
+  busy = true;
+  const r = await exec(`sh ${MODDIR}/adiosctl enable`);
+  busy = false;
+  toast(r.errno === 0 ? T.applied : ((r.stderr || "").trim() || T.failed));
+  await refresh();
+});
+
+refresh();
+</script>
+</body>
+</html>

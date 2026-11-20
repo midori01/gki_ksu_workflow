@@ -1,0 +1,6 @@
+id=adios
+name=ADIOS I/O Scheduler
+version=dev
+versionCode=1
+author=Midori
+description=Adaptive Deadline I/O Scheduler: built-in detection, LKM fallback and scheduler switching via WebUI or Action.

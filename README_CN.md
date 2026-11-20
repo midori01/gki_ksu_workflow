@@ -126,7 +126,7 @@
 | **Unicode 绕过修复** | 始终启用。修补内核 Unicode 规范化，以防止通过非标准 Unicode 编码进行文件系统绕过攻击。 |
 | **CVE 修复** | 始终启用。检测内核源码中的 CVE-2026-43499（rtmutex）、CVE-2026-64560（sighand / POSIX CPU timers）与 CVE-2026-98260（exec / POSIX CPU timers），并在缺失时自动应用修复；各子版本的结果显示在发布说明中。 |
 | **网络与文件系统** | 始终启用。TCP BBR、IPSET、增强型 NAT（IPv6 NAT 与 REDIRECT）以及 TMPFS xattr / POSIX ACL。 |
-| **ADIOS I/O 调度器** | 可选集成 [ADIOS](https://github.com/firelzrd/adios) 作为内核的内置默认多队列 I/O 调度器。通过 `use_adios` 开关控制。 |
+| **ADIOS I/O 调度器** | 可选集成 [ADIOS](https://github.com/firelzrd/adios) 作为内核的内置默认多队列 I/O 调度器。通过 `use_adios` 开关控制。独立的 `build_adios_module` 开关为 6.6 和 6.12 发布附带 ADIOS 模块：在未内置 ADIOS 的内核（如使用 LKM 模式 KernelSU 的官方内核）上以 LKM 加载 ADIOS，内核已内置时只负责切换调度器，可通过 WebUI 或 Action 按钮切换默认调度器。选择其他调度器之前保持系统原有调度器不变。 |
 | **LZ4/ZSTD ZRAM 后端** | 可选将内核中的 LZ4 与 ZSTD 实现更新为官方 LZ4 1.10.0 与 Zstandard 1.5.7 版本，并为内核 6.12（仅在 6.12.23 上测试）启用 ZRAM 后端支持。通过 `use_lz4_zstd` 开关控制；6.1 与 6.6 构建保持不变。 |
 | **Ccache** | 编译器缓存集成，配备 60 秒依赖安装等待保护，确保跨工作流运行的健壮加速增量重建。 |
 | **伪装构建元数据** | 可为编译出的镜像自定义 `kernel name`、`build timestamp`、`user` 与 `host` 字符串。 |

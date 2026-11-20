@@ -71,6 +71,11 @@ on:
         required: true
         default: true
         type: boolean
+      build_adios_module:
+        description: 'ADIOS Module (6.6 & 6.12 only)'
+        required: true
+        default: true
+        type: boolean
       use_lz4_zstd:
         description: 'LZ4/ZSTD ZRAM (6.12.23 only)'
         required: true
@@ -341,8 +346,20 @@ jobs:
       midorisu_xx_kpatch_compat: ${{ inputs.midorisu_xx_kpatch_compat }}
       ksu_debug: ${{ inputs.ksu_debug }}
 
+  adios_module:
+    needs: setup
+    if: |
+      always() &&
+      !cancelled() &&
+      inputs.build_adios_module &&
+      inputs.kernel_version != '6.1' &&
+      needs.setup.result == 'success'
+    uses: ./.github/workflows/build-adios-module.yml
+    with:
+      version: ${{ needs.setup.outputs.release_tag }}
+
   release:
-    needs: [setup, build]
+    needs: [setup, build, adios_module]
     if: |
       always() &&
       inputs.release_type != 'no-release' &&
@@ -391,6 +408,14 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           pattern: '*_Kernel-${{ matrix.kv }}.*'
+          path: release_zips
+          merge-multiple: true
+          skip-decompress: true
+
+      - uses: actions/download-artifact@v8
+        if: matrix.kv != '6.1' && needs.adios_module.result == 'success'
+        with:
+          pattern: 'ADIOS_Module-*'
           path: release_zips
           merge-multiple: true
           skip-decompress: true
