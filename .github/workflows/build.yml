@@ -74,12 +74,12 @@ on:
       build_adios_module:
         description: 'ADIOS Module (6.6 & 6.12 only)'
         required: true
-        default: true
+        default: false
         type: boolean
       build_tcp_congestion_module:
         description: 'TCP Congestion Control Module'
         required: true
-        default: true
+        default: false
         type: boolean
       use_lz4_zstd:
         description: 'LZ4/ZSTD ZRAM (6.12.23 only)'

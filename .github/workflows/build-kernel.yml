@@ -303,27 +303,29 @@ jobs:
         if: inputs.use_extra_features
         working-directory: kernel_workspace/common
         run: |
+          kp() { curl -sSfL --retry 5 --retry-all-errors --retry-delay 10 -o "$RUNNER_TEMP/kp.patch" "https://github.com/midori01/KernelSU/commit/$1.patch" && patch -p1 -d KernelSU < "$RUNNER_TEMP/kp.patch"; }
           case "${{ inputs.variant }}" in
             MidoriSU-KX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/kow~2.patch")
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/kow~1.patch")
+              kp kow~2
+              kp kow~1
               ;;
             MidoriSU-NX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/next~2.patch")
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/next~1.patch")
+              kp next~2
+              kp next~1
               ;;
             MidoriSU-OX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/official~2.patch")
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/official~1.patch")
+              kp official~2
+              kp official~1
               ;;
             MidoriSU-RX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/resuki~1.patch")
+              kp resuki~1
               ;;
             MidoriSU-XX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/xx~1.patch")
+              kp xx~1
               ;;
           esac
           sed -i "s/strscpy(cmd.name, \"[^\"]*\", sizeof(cmd.name));/strscpy(cmd.name, \"$(echo "$REPO" | cut -d'/' -f1)\", sizeof(cmd.name));/" KernelSU/kernel/supercall/dispatch.c
+          grep -Fq "strscpy(cmd.name, \"${REPO%%/*}\", sizeof(cmd.name));" KernelSU/kernel/supercall/dispatch.c
 
       - name: Setup SUSFS
         if: inputs.use_susfs
@@ -350,23 +352,24 @@ jobs:
               [ "$sub" -le "${{ inputs.sub_level }}" ] && PATCH_VER="$KMI_VERSION.$sub" && break
             done
           fi
+          kp() { curl -sSfL --retry 5 --retry-all-errors --retry-delay 10 -o "$RUNNER_TEMP/kp.patch" "https://github.com/midori01/KernelSU/commit/$1.patch" && patch -p1 -d KernelSU < "$RUNNER_TEMP/kp.patch"; }
           echo "[+] SUSFS patch: 50_add_susfs_in_gki-${PATCH_VER}.patch"
           bash "$DEINLINED_SCRIPT" "$PATCH_DIR/50_add_susfs_in_gki-${PATCH_VER}.patch" && patch -p1 < deinlined.patch
           case "${{ inputs.variant }}" in
             MidoriSU-KX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/kow.patch")
+              kp kow
               ;;
             MidoriSU-NX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/next.patch")
+              kp next
               ;;
             MidoriSU-OX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/official.patch")
+              kp official
               ;;
             MidoriSU-RX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/resuki.patch")
+              kp resuki
               ;;
             MidoriSU-XX)
-              patch -p1 -d KernelSU < <(curl -sSfL "https://github.com/midori01/KernelSU/commit/xx.patch")
+              kp xx
               ;;
           esac
 
