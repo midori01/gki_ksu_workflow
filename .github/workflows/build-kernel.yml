@@ -292,7 +292,6 @@ jobs:
             MidoriSU-XX) SPEC="${{ inputs.midorisu_xx_branch }}" ;;
           esac
           IFS=':' read -r REPO BRANCH <<< "$SPEC"
-          echo "REPO=$REPO" >> $GITHUB_ENV
           git clone --branch "${BRANCH}" "https://github.com/${REPO}.git" KernelSU
           bash "${{ github.workspace }}/.github/scripts/setup_ksu.sh"
           ln -sf ../KernelSU/kernel drivers/kernelsu
@@ -324,8 +323,6 @@ jobs:
               kp xx~1
               ;;
           esac
-          sed -i "s/strscpy(cmd.name, \"[^\"]*\", sizeof(cmd.name));/strscpy(cmd.name, \"$(echo "$REPO" | cut -d'/' -f1)\", sizeof(cmd.name));/" KernelSU/kernel/supercall/dispatch.c
-          grep -Fq "strscpy(cmd.name, \"${REPO%%/*}\", sizeof(cmd.name));" KernelSU/kernel/supercall/dispatch.c
 
       - name: Setup SUSFS
         if: inputs.use_susfs
