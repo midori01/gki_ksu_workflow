@@ -30,8 +30,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "824580839cbc0d47e64dd2bbdef66590a57ef92d",
-        "commit_date": "2026-11-16 13:07:41 +0000"
+        "commit": "8e5968bb7acad6681669022aab8db9c83b3c2e69",
+        "commit_date": "2026-11-23 09:17:18 +0000"
       }
     },
     "default_clang": "r510928",
@@ -100,8 +100,8 @@
         "supported_r": [
           "r00"
         ],
-        "commit": "c5e3d3a3d3b60eb95c36e3c49dbfe7a34c220c5a",
-        "commit_date": "2026-11-15 01:07:08 +0000"
+        "commit": "c55001a4a6a693873506dad52483486c04bf2c1e",
+        "commit_date": "2026-11-23 09:20:01 +0000"
       }
     },
     "default_clang": "r536225",
