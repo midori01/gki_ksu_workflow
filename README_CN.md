@@ -72,7 +72,7 @@
 > - `midorisu_xx_kpatch_compat` — 配合 `branch link hijacking` 使用，为 MidoriSU-XX 打入 KernelPatch 兼容修复（execve 回退与 syscall table mirror 跳过）
 
 > [!TIP]
-> **矩阵构建编排：** 矩阵始终为每个变体产出恰好 **1 个构建产物** — 启用的各项功能（Droidspaces 和/或 SUSFS）均应用至该单一构建产物。选择 `all` 变体时（MidoriSU-RX 不包含在 `all` 中，仅在单独选择时构建），每个内核版本的 **每个子版本产生 4 次构建**。从 `kernel_version` 下拉菜单中选择 `all` 将并行编译 6.1、6.6 与 6.12 的所有子版本，共 **28 个并发 Job**。
+> **矩阵构建编排：** 矩阵始终为每个变体产出恰好 **1 个构建产物** — 启用的各项功能（Droidspaces 和/或 SUSFS）均应用至该单一构建产物。选择全部 5 个变体时，每个内核版本的 **每个子版本产生 5 次构建**。从 `kernel_version` 下拉菜单中选择 `all` 将并行编译 6.1、6.6 与 6.12 的所有子版本，共 **35 个并发 Job**。
 
 ---
 

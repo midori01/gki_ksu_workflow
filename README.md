@@ -72,7 +72,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 > - `midorisu_xx_kpatch_compat` — with `branch link hijacking`, applies the KernelPatch compatibility fixes (execve fallback and syscall table mirror skip) to MidoriSU-XX
 
 > [!TIP]
-> **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With `all` variants selected, this yields **4 builds per sublevel for each kernel version** (MidoriSU-RX is excluded from `all` and is built only when selected explicitly). Choosing `all` from the `kernel_version` dropdown compiles all configured sublevels across 6.1, 6.6 and 6.12 in parallel for a total of **28 concurrent jobs**.
+> **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With all 5 variants selected, this yields **5 builds per sublevel for each kernel version**. Choosing `all` from the `kernel_version` dropdown compiles all configured sublevels across 6.1, 6.6 and 6.12 in parallel for a total of **35 concurrent jobs**.
 
 ---
 
