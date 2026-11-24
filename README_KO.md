@@ -87,6 +87,7 @@
 | :--- | :--- |
 | **현대적인 Bento 대시보드** | 탄력 있는 스프링 바운스 터치 피드백을 갖춘 Bento 스타일 반응형 대시보드: KSU 드라이버 이름(네이티브 드라이버명 및 LKM 동적 감지), 로마 숫자 UAPI 버전, 후크 방식, SUSFS 버전, Droidspaces 버전, Re:Kernel(-X) 버전, 커널 빌드 시각 및 OEM 언락 상태를 한눈에 표시합니다. |
 | **내장 SUSFS 관리** | susfs4ksu 모듈을 대체하는 커널 도구 내장 SUSFS 제어판: SUS Path, SUS Kstat, SUS Map 및 Open Redirect 규칙, 커널 버전(`uname`) 및 부트 파라미터(`/proc/cmdline` / `bootconfig`) 위장, AVC 로그 위장, SUS 마운트 숨김, 선택한 앱을 `getpriority` / `ioprio` 탐지로부터 숨기는 우선순위 UID 필터를 지원합니다. 규칙은 부팅 시 `ksud`가 자동으로 적용하며(나중에 로드되는 SUSFS LKM 포함), 부팅별 적용 보고서, 설정 백업 및 복원, 기존 susfs4ksu 모듈 설정 원탭 가져오기를 제공합니다. 커널 내장 SUSFS와 susfs4ksu-lkm 모두에서 작동합니다. |
+| **내장 KSU 툴킷** | backslashxx의 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit)을 커널 도구에 네이티브로 이식: 활성 매니저 전환, KSU 버전·커널 플래그·`uname` 위장, 커널 언마운트 목록 관리, 커널 SU 로그 확인, sucompat 오버헤드 벤치마크를 지원합니다. 설정은 부팅 시 `ksud`가 복원하며 기존 ksu_toolkit 모듈 설정을 원탭으로 가져올 수 있습니다. 커널이 지원하지 않는 인터페이스는 기능별로 감지해 비활성화합니다. |
 | **듀얼 테마 및 외관 커스텀** | Material 3 Expressive 및 Miuix의 2가지 UI 스타일과 실시간 테마 미리보기를 완벽 지원하며, Material 플로팅 필 하단 내비게이션 바, 탭 재터치 시 상단 스크롤, 모듈 업데이트 배지, **MidoriSU**, **KowSU**, **공식 KernelSU** 간의 앱 이름, 아이콘 및 스플래시 화면 테마를 즉시 전환할 수 있습니다. |
 | **OTA Payload 추출 및 ARB 분석** | 로컬 또는 온라인 OTA ZIP / `payload.bin`에서 `boot.img`를 수초 만에 직접 추출합니다. HTTP Range Request를 지원하여 수 GB에 달하는 전체 패키지를 다운로드할 필요가 없으며, 안티 롤백(ARB) 인덱스 및 부트 커널 버전 분석 기능이 내장되어 있습니다. |
 | **플래싱 및 안전 사전 점검** | 앱 내에서 `boot.img`의 직접 백업 및 플래싱을 지원하며, AnyKernel3 ZIP 패키지 플래싱 및 대상 슬롯 선택(Slot A/B)을 지원합니다. 모듈 플래싱 전 자동 정적 안전 검사를 통해 위험한 스크립트를 감지하고 부트루프 위험을 사전에 차단합니다. |
@@ -120,7 +121,7 @@
 | **커널 버전** | `6.1`, `6.6`, `6.12` 중 단일 버전을 선택하거나 `all`을 통해 전체 버전을 선택할 수 있습니다. 서브레벨, 리비전, 컴파일러, Rust 설정 등은 중앙 집중식 config에서 자동으로 적용됩니다. |
 | **소스 미러** | 커널 소스 및 툴체인 다운로드 시 Google 공식 AOSP 미러 또는 자체 호스팅 미러 중에서 선택할 수 있습니다. |
 | **SUSFS** | SUSFS 커널 패치는 업스트림에서 자동으로 동기화되며, `kernel_versions.json`에 고정한 비 LTS 리비전을 포함해 지원되는 모든 서브레벨용으로 생성됩니다. 모든 배리언트의 SUSFS 버전은 단일 `susfs_commit` 입력값을 통해 통합 관리됩니다. SUSFS는 MidoriSU 매니저에서 직접 설정하므로 릴리스에 별도의 susfs4ksu 모듈이 포함되지 않습니다. |
-| **KSU 툴킷** | 최신 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 모듈을 nightly.link에서 자동으로 찾아 릴리스 노트에 다운로드 링크를 추가합니다. |
+| **KSU 툴킷** | 커널 측 툴킷 인터페이스를 활성화합니다. backslashxx의 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 기능은 MidoriSU 매니저에 내장되어 릴리스 노트에 별도 모듈 링크를 추가하지 않습니다. |
 | **Droidspaces** | [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS)를 활용한 컨테이너 지원 기능으로 SYSVIPC, IPC_NS, PID_NS, DEVTMPFS, NTSync, 네트워킹 기능을 제공합니다. 배리언트별로 `use_droidspaces` 옵션으로 제어합니다. |
 | **Re:Kernel(-X)** | [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 및 [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) 모듈을 커널에 직접 내장합니다. 툼스톤(tombstone) 기반 프리즈 복구, 네트워크 트리거 해제, 바인더(binder) 비동기 정리를 제공합니다. `use_rekernel` 옵션으로 제어합니다. |
 | **VPNHide Next** | In-tree kpatch(`CONFIG_VPNHIDE=y`)를 통해 [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend)를 통합하여 동적 LKM에 의존하지 않고 커널 수준에서 VPN 네트워크 인터페이스, 라우팅 규칙 및 소켓 디스크립터를 은닉합니다. 함께 사용되는 `vpnhide-bridge.zip` 모듈 및 매니저 APK(`vpnhide.apk`)의 업스트림 다운로드 링크를 릴리스 노트에 추가합니다. `use_vpnhide` 옵션으로 제어합니다. |

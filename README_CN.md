@@ -87,6 +87,7 @@
 | :--- | :--- |
 | **现代化 Bento 仪表盘** | Bento 风格响应式仪表盘，带弹性按压回弹动效；动态显示 KSU 驱动名称（原生驱动与动态 LKM 识别）、罗马数字 UAPI 版本、Hook 类型、SUSFS 版本、Droidspaces 版本、Re:Kernel(-X) 版本、内核构建时间与 OEM 解锁状态。 |
 | **内置 SUSFS 管理** | 内核工具中原生集成的 SUSFS 控制面板，可取代 susfs4ksu 模块：支持 SUS Path、SUS Kstat、SUS Map 与 Open Redirect 规则；内核版本（`uname`）与启动参数（`/proc/cmdline` / `bootconfig`）伪装；AVC 日志伪装、SUS 挂载隐藏，以及对 `getpriority` / `ioprio` 探测隐藏指定应用的优先级 UID 过滤。规则由 `ksud` 在开机时应用（同样适用于延迟加载的 SUSFS LKM），并提供每次开机的应用报告、配置备份与恢复，以及从现有 susfs4ksu 模块一键导入。同时支持内置 SUSFS 与 susfs4ksu-lkm。 |
+| **内置 KSU 工具箱** | 内核工具中原生移植的 backslashxx [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit)：切换生效的管理器、伪装 KSU 版本、内核 flags 与 `uname`、管理内核卸载列表、查看内核 SU 日志，以及测试 sucompat 开销。设置由 `ksud` 在开机时恢复，支持从现有 ksu_toolkit 模块一键导入；内核不支持的接口会逐项检测并禁用。 |
 | **双主题与个性化** | 支持 Material 3 Expressive 与 Miuix 两套 UI 主题，并提供实时预览卡片；配备悬浮胶囊底部导航栏、再次点击当前标签页回到顶部、模块更新角标，内置切换器可在 **MidoriSU**、**KowSU** 与 **官方 KernelSU** 之间切换应用名称、图标与启动页主题。 |
 | **OTA Payload 提取与 ARB 分析** | 通过 HTTP Range 请求从本地或在线 OTA zip / `payload.bin` 中直接提取 `boot.img`，无需下载数 GB 的完整包；内置防回滚（ARB）索引与 boot 内核版本分析。 |
 | **刷写与安全检查** | 在应用内直接备份与刷写 `boot.img`，刷写 AnyKernel3 zip 包时可选择目标槽位（Slot A/B），并在刷入模块前自动进行安全检查，识别高危脚本以防止无限重启。 |
@@ -120,7 +121,7 @@
 | **内核版本** | 选择 `6.1`、`6.6`、`6.12` 或 `all` 来编译单个或全部内核版本。子版本、修订版本、编译器与 Rust 配置均从集中配置中自动解析。 |
 | **源码镜像** | 支持在 Google 官方 AOSP 镜像与自建镜像之间进行选择，用于内核源码和工具链下载。 |
 | **SUSFS** | SUSFS 内核补丁自动从上游同步，并为每个受支持的子版本生成，包括 `kernel_versions.json` 中固定的非 LTS 修订版本。通过单个 `susfs_commit` 输入控制各变体的 SUSFS 版本。SUSFS 直接在 MidoriSU 管理器中配置，发布中不再附带独立的 susfs4ksu 模块。 |
-| **KSU 工具箱** | 自动从 nightly.link 获取最新的 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 模块，并在发布说明中附上下载链接。 |
+| **KSU 工具箱** | 内核侧启用工具箱接口；backslashxx 的 [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) 功能已内置到 MidoriSU 管理器，发布说明中不再附带独立模块。 |
 | **Droidspaces** | 通过 [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) 提供容器支持 — SYSVIPC、IPC_NS、PID_NS、DEVTMPFS、NTSync 与网络。按变体通过 `use_droidspaces` 开关控制。 |
 | **Re:Kernel(-X)** | 集成的 [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) 与 [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) 模块直接编译进内核。提供 tombstone 冻结恢复、网络触发解冻与 binder 异步清理。通过 `use_rekernel` 开关控制。 |
 | **VPNHide Next** | 通过树内 kpatch（`CONFIG_VPNHIDE=y`）集成 [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend)，在内核层隐藏 VPN 网络接口、路由规则和套接字描述符，无需依赖动态 LKM。在发布说明中附上配套 `vpnhide-bridge.zip` 模块与管理器 APK（`vpnhide.apk`）的上游发布下载链接。通过 `use_vpnhide` 开关控制。 |

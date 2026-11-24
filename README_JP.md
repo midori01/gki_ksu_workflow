@@ -87,6 +87,7 @@
 | :--- | :--- |
 | **モダンな Bento ダッシュボード** | 弾むようなプレスフィードバックを備えた Bento スタイルのレスポンシブダッシュボード。KSU ドライバ名（ネイティブ名および LKM 動的検出）、ローマ数字 UAPI バージョン、フック方式、SUSFS バージョン、Droidspaces バージョン、Re:Kernel(-X) バージョン、カーネルビルド時刻、OEM ロック解除状態を一目で確認可能。 |
 | **内蔵 SUSFS 管理** | susfs4ksu モジュールに代わる、カーネルツール内蔵の SUSFS コントロールパネル。SUS Path / SUS Kstat / SUS Map / Open Redirect ルール、カーネルバージョン（`uname`）と起動パラメータ（`/proc/cmdline` / `bootconfig`）の偽装、AVC ログ偽装、SUS マウントの隠蔽、指定アプリを `getpriority` / `ioprio` による検出から隠す優先度 UID フィルタに対応。ルールは起動時に `ksud` が自動適用し（後から読み込まれる SUSFS LKM にも対応）、起動ごとの適用レポート、設定のバックアップ／復元、既存の susfs4ksu モジュールからのワンタップ移行も可能です。カーネル内蔵 SUSFS と susfs4ksu-lkm の両方で動作します。 |
+| **内蔵 KSU ツールキット** | backslashxx 氏の [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) をカーネルツールにネイティブ移植：有効なマネージャーの切り替え、KSU バージョン・カーネルフラグ・`uname` の偽装、カーネルアンマウントリストの管理、カーネル内 SU ログの閲覧、sucompat オーバーヘッドのベンチマークに対応。設定は起動時に `ksud` が復元し、既存の ksu_toolkit モジュールからのワンタップ移行も可能です。カーネルが対応しないインターフェースは機能ごとに検出して無効化します。 |
 | **デュアルテーマと外観カスタマイズ** | Material 3 Expressive と Miuix の両 UI スタイルおよびリアルタイムプレビューに完全対応。Material 向けフローティングピル型ボトムナビゲーション、タブ再タップによるトップへのスムーズスクロール、モジュール更新バッジ、さらに **MidoriSU**、**KowSU**、**公式 KernelSU** のアプリ名・アイコン・起動画面テーマの即時切り替えを搭載。 |
 | **OTA Payload 抽出と ARB 解析** | ローカルまたはオンラインの OTA ZIP / `payload.bin` から `boot.img` をすばやく抽出。HTTP Range Request により大容量パッケージ全体をダウンロードすることなく直接抽出可能。アンチロールバック（ARB）インデックスおよびブートカーネルバージョンの解析機能を内蔵。 |
 | **フラッシュ・安全事前検査** | アプリ内で `boot.img` のバックアップと直接フラッシュが可能。AnyKernel3 ZIP の直接フラッシュおよび対象スロット選択（Slot A/B）に対応。モジュールフラッシュ前の自動静的セキュリティ検査により、危険なスクリプトを検知しブートループを未然に防止。 |
@@ -120,7 +121,7 @@
 | **カーネルバージョン** | `6.1`、`6.6`、`6.12`、または `all` から、単一または全バージョンを選択できます。サブレベル、リビジョン、コンパイラ、Rust の各設定は、一元化された config から自動解決されます。 |
 | **ソースミラー** | カーネルソースおよびツールチェーンの取得先として、Google 公式の AOSP ミラー、またはセルフホストミラーを選択可能です。 |
 | **SUSFS** | SUSFS カーネルパッチは上流から自動同期され、`kernel_versions.json` で固定した非 LTS リビジョンを含む、サポート対象の全サブレベル向けに生成されます。全バリアントの SUSFS バージョンは単一の `susfs_commit` 入力で一元管理されます。SUSFS は MidoriSU マネージャーで直接設定するため、リリースに susfs4ksu モジュールは同梱されません。 |
-| **KSU ツールキット** | 最新の [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) モジュールを nightly.link から自動取得し、リリースノートにダウンロードリンクを記載します。 |
+| **KSU ツールキット** | カーネル側のツールキットインターフェースを有効化。backslashxx 氏の [ksu_toolkit](https://github.com/backslashxx/ksu_toolkit) の機能は MidoriSU マネージャーに内蔵されたため、リリースノートに別モジュールのリンクは記載されません。 |
 | **Droidspaces** | [Droidspaces-OSS](https://github.com/ravindu644/Droidspaces-OSS) を利用したコンテナ対応。SYSVIPC、IPC_NS、PID_NS、DEVTMPFS、NTSync、ネットワーク機能を提供します。バリアントごとに `use_droidspaces` スイッチで制御します。 |
 | **Re:Kernel(-X)** | [Re:Kernel](https://github.com/Sakion-Team/Re-Kernel) および [Re:Kernel-X](https://github.com/myflavor/ReKernel-X) モジュールをカーネルに直接組み込みます。tombstone によるフリーズ復旧、ネットワークトリガーによる解除、binder 非同期クリーンアップを提供します。`use_rekernel` スイッチで制御します。 |
 | **VPNHide Next** | In-tree kpatch（`CONFIG_VPNHIDE=y`）を介して [VPNHide Next](https://github.com/soranerai/vpnhide_next_backend) を統合し、動的 LKM に依存することなくカーネルレベルで VPN ネットワークインターフェース、ルーティングルール、ソケット記述子を隠蔽します。付属の `vpnhide-bridge.zip` モジュールおよびマネージャー APK（`vpnhide.apk`）の上流ダウンロードリンクをリリースノートに記載します。`use_vpnhide` スイッチで制御します。 |

@@ -446,16 +446,6 @@ jobs:
 
       # Companion modules and apps are linked from the release body instead of
       # being re-uploaded as assets, so each link points at its upstream download.
-      - name: Resolve KSU Toolkit Module Link
-        if: inputs.ksu_variant != 'None'
-        run: |
-          link=""
-          url=$(curl -sL "https://nightly.link/backslashxx/ksu_toolkit/workflows/module/master?preview" | grep -oP 'https://nightly\.link/backslashxx/ksu_toolkit/workflows/module/master/ksu_toolkit-\d+\.zip' | head -n 1 || true)
-          if [ -n "$url" ]; then
-            link="[\`$(basename "$url")\`]($url)"
-          fi
-          echo "TOOLKIT_LINK=$link" >> $GITHUB_ENV
-
       - name: Resolve MidoriSU Manager APK Link
         if: inputs.ksu_variant != 'None'
         env:
@@ -647,7 +637,7 @@ jobs:
             - **Droidspaces**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**NTSync**: ${{ inputs.use_droidspaces && '✅' || '❌' }}　**TMPFS**: ✅
             - **IPSET**: ✅　**Enhanced NAT**: ✅
             - **TCP BBRv1 / BBRv3**: ✅${{ env.TCPCC_MODULE_LINK && format(' ({0})', env.TCPCC_MODULE_LINK) || '' }}
-            - **KSU Toolkit**: ${{ env.TOOLKIT_LINK && format('✅ ({0})', env.TOOLKIT_LINK) || '❌' }}
+            - **KSU Toolkit**: ${{ inputs.ksu_variant != 'None' && '✅' || '❌' }}
             - **VPNHide Next**: ${{ env.VPNHIDE_LINKS && format('✅ ({0})', env.VPNHIDE_LINKS) || (inputs.use_vpnhide && '✅' || '❌') }}
             - **NoMount**: ${{ env.NOMOUNT_LINKS && format('✅ ({0})', env.NOMOUNT_LINKS) || (inputs.use_nomount && '✅' || '❌') }}
             - **Compiler**: `clang-${{ env.CLANG_VERSION }}`${{ env.RUST_VERSION && format('　**Rust**: `{0}`', env.RUST_VERSION) || '' }}
