@@ -62,6 +62,8 @@
 | [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Branch Link` |
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
+| NoKSU | ❌ | ❌ | `—` |
+| NoKSU-DS | ❌ | ✅ | `—` |
 
 > \* **MidoriSU-RX 및 MidoriSU-XX 후크 방식:** `midorisu_rx_hook_mode` 및 `midorisu_xx_hook_mode` 옵션을 통해 각각 설정할 수 있습니다.
 > - `midorisu_rx_hook_mode` — `manual` (기본값) / `tracepoint`
@@ -70,6 +72,7 @@
 >   - `syscall table tampering` — `CONFIG_KSU_TAMPER_SYSCALL_TABLE`를 사용하여 `sys_call_table` 항목을 직접 변조하여 간접 분기(`blr`) 오버헤드를 방지하고 Clang CFI를 준수
 >   - `manual` — `scope-min-manual-hooks-v2.3.patch`를 통한 수동 후크
 > - `midorisu_xx_kpatch_compat` — `branch link hijacking` 사용 시 MidoriSU-XX에 KernelPatch 호환 수정(execve 폴백 및 syscall table 미러 건너뛰기)을 적용
+> - `None` — `ksu_variant`에서 선택하면 KernelSU 드라이버가 없는 커널을 빌드합니다. KernelSU, Extra Features & Fixes, SUSFS는 건너뛰며 나머지 기능(Re:Kernel, VPNHide, NoMount, fgetpriority, Droidspaces, ADIOS 등)은 평소대로 빌드됩니다. 결과물 이름은 `NoKSU_Kernel-*.zip`입니다. `None`은 `all`에 포함되지 않으므로 단독으로 선택해야 합니다.
 
 > [!TIP]
 > **매트릭스 빌드 동작 방식:** 매트릭스는 항상 배리언트당 정확히 **단 하나의 결과물**만 생성합니다. 활성화된 기능(Droidspaces / SUSFS)은 해당 결과물에 함께 적용됩니다. 5개 배리언트를 모두 선택하면 각 커널 버전의 **각 서브레벨당 5개의 빌드**가 실행됩니다. `kernel_version`에서 `all`을 선택하면 6.1 / 6.6 / 6.12의 모든 서브레벨이 병렬로 컴파일되어 총 **35개의 작업(Job)**이 동시에 실행됩니다.

@@ -62,6 +62,8 @@
 | [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Branch Link` |
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
+| NoKSU | ❌ | ❌ | `—` |
+| NoKSU-DS | ❌ | ✅ | `—` |
 
 > \* **MidoriSU-RX および MidoriSU-XX のフック方式:** `midorisu_rx_hook_mode` および `midorisu_xx_hook_mode` で個別に設定可能です。
 > - `midorisu_rx_hook_mode` — `manual`（デフォルト）/ `tracepoint`
@@ -70,6 +72,7 @@
 >   - `syscall table tampering` — `CONFIG_KSU_TAMPER_SYSCALL_TABLE` を使用して `sys_call_table` のエントリを直接改変し、間接分岐（`blr`）のオーバーヘッドを回避しつつ Clang CFI に適合
 >   - `manual` — `scope-min-manual-hooks-v2.3.patch` による手動フック
 > - `midorisu_xx_kpatch_compat` — `branch link hijacking` 使用時、MidoriSU-XX に KernelPatch 互換修正（execve フォールバックおよび syscall table ミラーのスキップ）を適用
+> - `None` — `ksu_variant` で選択すると KernelSU ドライバーを含まないカーネルをビルドします。KernelSU、Extra Features & Fixes、SUSFS はスキップされ、その他の機能（Re:Kernel、VPNHide、NoMount、fgetpriority、Droidspaces、ADIOS など）は通常どおりビルドされます。成果物名は `NoKSU_Kernel-*.zip` です。`None` は `all` に含まれないため、単独で選択してください。
 
 > [!TIP]
 > **マトリクスビルドの仕組み:** マトリクスは常にバリアントごとに **1 つの成果物** のみを生成します。有効化した機能（Droidspaces / SUSFS）は、その単一の成果物に適用されます。5 つのバリアントすべてを選択した場合、カーネルバージョンの **各サブレベルごとに 5 つのビルド** が実行されます。`kernel_version` で `all` を選択すると、6.1 / 6.6 / 6.12 の全サブレベルが並列コンパイルされ、合計 **35 のジョブ** が同時に実行されます。

@@ -34,6 +34,7 @@ on:
           - MidoriSU-OX
           - MidoriSU-RX
           - MidoriSU-XX
+          - None
       midorisu_rx_hook_mode:
         description: 'MidoriSU-RX Hook Mode'
         required: true
@@ -169,7 +170,7 @@ jobs:
       kernel_version: ${{ inputs.kernel_version }}
 
   sync_susfs:
-    if: inputs.sync_upstream && inputs.enable_susfs
+    if: inputs.sync_upstream && inputs.enable_susfs && inputs.ksu_variant != 'None'
     uses: ./.github/workflows/sync-susfs.yml
     with:
       kernel_version: ${{ inputs.kernel_version }}
@@ -308,6 +309,7 @@ jobs:
               [[ "$variant" =~ ^(all|MidoriSU-OX)$ ]] && add_variant MidoriSU-OX true
               [[ "$variant" =~ ^(all|MidoriSU-RX)$ ]] && add_variant MidoriSU-RX true
               [[ "$variant" =~ ^(all|MidoriSU-XX)$ ]] && add_variant MidoriSU-XX true
+              [ "$variant" = "None" ] && add_variant None false
             done
           done < /tmp/kvs.txt
 
@@ -445,6 +447,7 @@ jobs:
       # Companion modules and apps are linked from the release body instead of
       # being re-uploaded as assets, so each link points at its upstream download.
       - name: Resolve KSU Toolkit Module Link
+        if: inputs.ksu_variant != 'None'
         run: |
           link=""
           url=$(curl -sL "https://nightly.link/backslashxx/ksu_toolkit/workflows/module/master?preview" | grep -oP 'https://nightly\.link/backslashxx/ksu_toolkit/workflows/module/master/ksu_toolkit-\d+\.zip' | head -n 1 || true)
@@ -454,6 +457,7 @@ jobs:
           echo "TOOLKIT_LINK=$link" >> $GITHUB_ENV
 
       - name: Resolve MidoriSU Manager APK Link
+        if: inputs.ksu_variant != 'None'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -630,8 +634,8 @@ jobs:
             ${{ steps.ksu_info.outputs.vpnhide_line }}
             ${{ steps.ksu_info.outputs.nomount_line }}
             ${{ steps.ksu_info.outputs.fgetpriority_line }}
-            - **KSU Driver**: `${{ steps.ksu_info.outputs.driver_version || env.KSUD_VERSION }}`　**KSU Daemon (ksud)**: `${{ env.KSUD_VERSION }}`
-            - **Manager**: ${{ env.MIDORISU_APK_LINK || '❌' }}
+            ${{ inputs.ksu_variant != 'None' && format('- **KSU Driver**: `{0}`　**KSU Daemon (ksud)**: `{1}`', steps.ksu_info.outputs.driver_version || env.KSUD_VERSION, env.KSUD_VERSION) || '' }}
+            - **Manager**: ${{ inputs.ksu_variant == 'None' && 'None (KernelSU is not built in)' || env.MIDORISU_APK_LINK || '❌' }}
             > **Spoofed Kernel Build Info**
             ${{ env.RELEASE_UNAME }}
             > - **Time**: `${{ needs.setup.outputs.build_timestamp }}`

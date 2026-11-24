@@ -177,7 +177,7 @@ runs:
             ;;
         esac
         
-        if [ "${{ inputs.ksu_debug }}" = "true" ]; then
+        if [ "${{ inputs.ksu_debug }}" = "true" ] && [ "${{ inputs.variant }}" != "None" ]; then
           cat >> $DEFCONFIG <<-'EOF'
         CONFIG_KSU_DEBUG=y
         EOF
