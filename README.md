@@ -62,6 +62,8 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 | [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Branch Link` |
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
+| NoKSU | ❌ | ❌ | `—` |
+| NoKSU-DS | ❌ | ✅ | `—` |
 
 > \* **MidoriSU-RX & MidoriSU-XX Hook Type:** Configured via `midorisu_rx_hook_mode` and `midorisu_xx_hook_mode`.
 > - `midorisu_rx_hook_mode` — `manual` (default) / `tracepoint`
@@ -70,6 +72,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 >   - `syscall table tampering` — uses `CONFIG_KSU_TAMPER_SYSCALL_TABLE` to directly tamper with `sys_call_table` entries, avoiding indirect branch (`blr`) overhead while complying with Clang CFI
 >   - `manual` — manually-patched hooks via `scope-min-manual-hooks-v2.3.patch`
 > - `midorisu_xx_kpatch_compat` — with `branch link hijacking`, applies the KernelPatch compatibility fixes (execve fallback and syscall table mirror skip) to MidoriSU-XX
+> - `None` — select it from `ksu_variant` to build a kernel without any KernelSU driver; KernelSU, Extra Features & Fixes and SUSFS are skipped, and the other features (Re:Kernel, VPNHide, NoMount, fgetpriority, Droidspaces, ADIOS, etc.) are built as usual. Artifacts are named `NoKSU_Kernel-*.zip`. `None` is not part of `all` and must be selected on its own.
 
 > [!TIP]
 > **Matrix Build Orchestration:** The matrix always produces exactly **1 artifact per variant** — the enabled features (Droidspaces and/or SUSFS) are applied to that single artifact. With all 5 variants selected, this yields **5 builds per sublevel for each kernel version**. Choosing `all` from the `kernel_version` dropdown compiles all configured sublevels across 6.1, 6.6 and 6.12 in parallel for a total of **35 concurrent jobs**.

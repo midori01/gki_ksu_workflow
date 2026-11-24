@@ -62,6 +62,8 @@
 | [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Branch Link` |
 | [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
+| NoKSU | ❌ | ❌ | `—` |
+| NoKSU-DS | ❌ | ✅ | `—` |
 
 > \* **MidoriSU-RX 与 MidoriSU-XX Hook 类型：** 可分别通过 `midorisu_rx_hook_mode` 与 `midorisu_xx_hook_mode` 进行配置。
 > - `midorisu_rx_hook_mode` — `manual`（默认）/ `tracepoint`
@@ -70,6 +72,7 @@
 >   - `syscall table tampering` — 利用 `CONFIG_KSU_TAMPER_SYSCALL_TABLE` 直接篡改 `sys_call_table` 表项，避免间接跳转（`blr`）开销且符合 Clang CFI 规范
 >   - `manual` — 通过 `scope-min-manual-hooks-v2.3.patch` 打入的手动 Hook
 > - `midorisu_xx_kpatch_compat` — 配合 `branch link hijacking` 使用，为 MidoriSU-XX 打入 KernelPatch 兼容修复（execve 回退与 syscall table mirror 跳过）
+> - `None` — 在 `ksu_variant` 中选择后构建不含任何 KernelSU 驱动的内核；跳过 KernelSU、Extra Features & Fixes 与 SUSFS，其余功能（Re:Kernel、VPNHide、NoMount、fgetpriority、Droidspaces、ADIOS 等）照常编译。产物命名为 `NoKSU_Kernel-*.zip`。`None` 不包含在 `all` 中，需单独选择。
 
 > [!TIP]
 > **矩阵构建编排：** 矩阵始终为每个变体产出恰好 **1 个构建产物** — 启用的各项功能（Droidspaces 和/或 SUSFS）均应用至该单一构建产物。选择全部 5 个变体时，每个内核版本的 **每个子版本产生 5 次构建**。从 `kernel_version` 下拉菜单中选择 `all` 将并行编译 6.1、6.6 与 6.12 的所有子版本，共 **35 个并发 Job**。
