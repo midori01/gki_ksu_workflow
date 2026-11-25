@@ -1,17 +1,17 @@
 {
   "6.1": {
     "android_version": "android14",
-    "default_sub_level": "192",
+    "default_sub_level": "193",
     "use_lts": true,
     "revisions": {
-      "192": {
+      "193": {
         "asb_date": "lts",
         "default_r": "r00",
         "supported_r": [
           "r00"
         ],
-        "commit": "019f83cc00a61a947a37abcfe240dab3eb9687b5",
-        "commit_date": "2026-11-24 12:32:42 +0000"
+        "commit": "d5e1e0991dbbe9d23cfdfd9340bd5a033059a196",
+        "commit_date": "2026-11-25 05:41:52 +0000"
       }
     },
     "default_clang": "r487747c",
@@ -21,17 +21,17 @@
   },
   "6.6": {
     "android_version": "android15",
-    "default_sub_level": "162",
+    "default_sub_level": "163",
     "use_lts": true,
     "revisions": {
-      "162": {
+      "163": {
         "asb_date": "lts",
         "default_r": "r00",
         "supported_r": [
           "r00"
         ],
-        "commit": "8e5968bb7acad6681669022aab8db9c83b3c2e69",
-        "commit_date": "2026-11-23 09:17:18 +0000"
+        "commit": "75935bb82f02aecb14e6ff43ac03116b7a6a4242",
+        "commit_date": "2026-11-25 15:33:44 +0000"
       }
     },
     "default_clang": "r510928",
@@ -56,13 +56,13 @@
       },
       "58": {
         "asb_date": "2025-12",
-        "default_r": "r63",
+        "default_r": "r64",
         "supported_r": [
-          "r63",
+          "r64",
           "none"
         ],
-        "commit": "a124140d6343a10e9d9da26261e075294a2ab784",
-        "commit_date": "2026-11-09 14:02:20 -0800"
+        "commit": "ecad2171b296ce9a853ff27b1343009413d9a45d",
+        "commit_date": "2026-11-18 04:14:59 -0800"
       },
       "69": {
         "asb_date": "2026-03",
@@ -94,14 +94,14 @@
         "commit": "a908c9588ef0783860228b3bb2a04db2255e0e93",
         "commit_date": "2026-11-19 18:12:55 -0800"
       },
-      "117": {
+      "119": {
         "asb_date": "lts",
         "default_r": "r00",
         "supported_r": [
           "r00"
         ],
-        "commit": "58f2449a557a99270b15eb9841152be2ead76472",
-        "commit_date": "2026-11-24 13:11:55 +0000"
+        "commit": "2b5d34ceceb6f9055905f60332e737525ef2bf8d",
+        "commit_date": "2026-11-25 17:49:19 +0000"
       }
     },
     "default_clang": "r536225",
