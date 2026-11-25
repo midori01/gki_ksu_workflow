@@ -57,7 +57,7 @@ on:
       midorisu_xx_branch:
         required: false
         type: string
-        default: 'midori01/KernelSU:xx~5'
+        default: 'midori01/KernelSU:xx~4'
       midorisu_rx_hook_mode:
         required: false
         type: string
@@ -322,7 +322,7 @@ jobs:
               kp resuki~1
               ;;
             MidoriSU-XX)
-              kp xx~3
+              kp xx~2
               kp xx~1
               ;;
           esac
