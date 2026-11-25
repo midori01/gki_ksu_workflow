@@ -65,6 +65,12 @@ jobs:
           git init -q
           git remote add origin https://android.googlesource.com/kernel/common.git
           git config --unset-all remote.origin.fetch
+          git ls-remote --heads origin > /tmp/remote_heads
+          MAIN_TIP="$(awk '$2 == "refs/heads/main" { print $1 }' /tmp/remote_heads)"
+          for STUB in $(awk -v m="$MAIN_TIP" '$1 == m && $2 != "refs/heads/main" { print $2 }' /tmp/remote_heads); do
+            echo "[+] Excluding unpopulated branch ${STUB#refs/heads/} (still at main)..."
+            git config --add remote.origin.fetch "^$STUB"
+          done
 
           git config core.sparseCheckout true
           mkdir -p .git/info
