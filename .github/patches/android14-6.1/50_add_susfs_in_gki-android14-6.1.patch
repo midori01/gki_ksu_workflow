@@ -1,8 +1,8 @@
 From: github-actions <actions@github.com>
-Date: Wed, 18 Nov 2026 23:21:06 +0000
+Date: Wed, 25 Nov 2026 23:40:22 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android14-6.1-lts
 X-Kernel-Target-Branch: android14-6.1-lts
-X-Kernel-Target-Commit: 32c8e7bb8f634f61dd3c764ccd86ac57794bb9f5
+X-Kernel-Target-Commit: d5e1e0991dbbe9d23cfdfd9340bd5a033059a196
 X-SUSFS-Source-Ref: origin/gki-android14-6.1
 X-SUSFS-Source-Commit: f76b81f2a6bf98e4029cc0c823c054edbec29803
 
@@ -127,7 +127,7 @@ index a73a0d1ccd..5288fb9097 100644
  obj-y +=	buffer.o direct-io.o mpage.o
  else
 diff --git a/fs/exec.c b/fs/exec.c
-index fe636ca198..0661b49105 100644
+index 3ac34dd23b..84430ed703 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
 @@ -64,6 +64,9 @@
@@ -140,7 +140,7 @@ index fe636ca198..0661b49105 100644
  
  #ifndef __GENKSYMS__
  #include <linux/dma-buf.h>
-@@ -1917,6 +1920,23 @@ static int bprm_execve(struct linux_binprm *bprm,
+@@ -1919,6 +1922,23 @@ static int bprm_execve(struct linux_binprm *bprm,
  	return retval;
  }
  
@@ -164,7 +164,7 @@ index fe636ca198..0661b49105 100644
  static int do_execveat_common(int fd, struct filename *filename,
  			      struct user_arg_ptr argv,
  			      struct user_arg_ptr envp,
-@@ -1924,10 +1944,42 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1926,10 +1946,42 @@ static int do_execveat_common(int fd, struct filename *filename,
  {
  	struct linux_binprm *bprm;
  	int retval;
@@ -207,7 +207,7 @@ index fe636ca198..0661b49105 100644
  	/*
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
-@@ -1994,6 +2046,22 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1996,6 +2048,22 @@ static int do_execveat_common(int fd, struct filename *filename,
  	}
  
  	retval = bprm_execve(bprm, fd, filename, flags);
@@ -673,7 +673,7 @@ index 3641fd5612..dcb7628315 100644
  	do_delayed_call(&done);
  	return res;
 diff --git a/fs/namespace.c b/fs/namespace.c
-index b37c28a61c..d932b3347f 100644
+index b7aaec62a1..21cab9f8d6 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -32,11 +32,21 @@
@@ -953,7 +953,7 @@ index b37c28a61c..d932b3347f 100644
  	atomic_inc(&sb->s_active);
  	mnt->mnt.mnt_userns = mnt_user_ns(&old->mnt);
  	if (!initial_idmapping(mnt->mnt.mnt_userns))
-@@ -3572,6 +3784,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
+@@ -3579,6 +3791,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
  	copy_flags = CL_COPY_UNBINDABLE | CL_EXPIRE;
  	if (user_ns != ns->user_ns)
  		copy_flags |= CL_SHARED_TO_SLAVE;
@@ -963,7 +963,7 @@ index b37c28a61c..d932b3347f 100644
  	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
  	if (IS_ERR(new)) {
  		namespace_unlock();
-@@ -4833,3 +5048,43 @@ static int __init init_fs_namespace_sysctls(void)
+@@ -4840,3 +5055,43 @@ static int __init init_fs_namespace_sysctls(void)
  fs_initcall(init_fs_namespace_sysctls);
  
  #endif /* CONFIG_SYSCTL */
@@ -1726,7 +1726,7 @@ index 846f9455ae..9f56335e14 100644
  }
  
 diff --git a/fs/read_write.c b/fs/read_write.c
-index 7a2ff6157e..72d14c8e92 100644
+index e0f5debf89..a96cccf769 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
 @@ -618,8 +618,18 @@ ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count)
@@ -2017,7 +2017,7 @@ index 9c53edb60c..af6f54f5ab 100644
  	if (error >= 0)
  		error = buf.error;
 diff --git a/fs/stat.c b/fs/stat.c
-index ef50573c72..60b31f5e40 100644
+index 5f48a36ce4..63c2c438fb 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
 @@ -19,12 +19,27 @@
@@ -2048,8 +2048,8 @@ index ef50573c72..60b31f5e40 100644
  /**
   * generic_fillattr - Fill in the basic attributes from the inode struct
   * @mnt_userns:	user namespace of the mount the inode was found from
-@@ -120,10 +135,51 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
- 				  STATX_ATTR_DAX);
+@@ -124,10 +139,51 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
+ 				  STATX_ATTR_VERITY);
  
  	mnt_userns = mnt_user_ns(path->mnt);
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
@@ -2101,7 +2101,7 @@ index ef50573c72..60b31f5e40 100644
  	generic_fillattr(mnt_userns, inode, stat);
  	return 0;
  }
-@@ -181,6 +237,10 @@ int vfs_fstat(int fd, struct kstat *stat)
+@@ -185,6 +241,10 @@ int vfs_fstat(int fd, struct kstat *stat)
  	if (!f.file)
  		return -EBADF;
  	error = vfs_getattr(&f.file->f_path, stat, STATX_BASIC_STATS, 0);
@@ -2112,7 +2112,7 @@ index ef50573c72..60b31f5e40 100644
  	fdput(f);
  	return error;
  }
-@@ -221,6 +281,18 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
+@@ -225,6 +285,18 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
  	unsigned int lookup_flags = getname_statx_lookup_flags(flags);
  	int error;
  
@@ -2131,7 +2131,7 @@ index ef50573c72..60b31f5e40 100644
  	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT | AT_EMPTY_PATH |
  		      AT_STATX_SYNC_TYPE))
  		return -EINVAL;
-@@ -232,7 +304,16 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
+@@ -236,7 +308,16 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
  
  	error = vfs_getattr(&path, stat, request_mask, flags);
  
@@ -2357,10 +2357,10 @@ index 5a3ae33650..b58e2ab39f 100644
  }
  
 diff --git a/kernel/reboot.c b/kernel/reboot.c
-index 344ceaf5ed..c2d1a782d5 100644
+index 64e726e23c..f1bc982ba7 100644
 --- a/kernel/reboot.c
 +++ b/kernel/reboot.c
-@@ -693,6 +693,9 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
+@@ -694,6 +694,9 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
  
  DEFINE_MUTEX(system_transition_mutex);
  
@@ -2370,7 +2370,7 @@ index 344ceaf5ed..c2d1a782d5 100644
  /*
   * Reboot system call: for obvious reasons only root may call it,
   * and even root needs to set up some magic numbers in the registers
-@@ -708,6 +711,15 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
+@@ -709,6 +712,15 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
  	char buffer[256];
  	int ret = 0;
  
@@ -2387,7 +2387,7 @@ index 344ceaf5ed..c2d1a782d5 100644
  	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
  		return -EPERM;
 diff --git a/kernel/sys.c b/kernel/sys.c
-index e608cbc99d..650790aa6b 100644
+index 50e53b9222..6eb375477b 100644
 --- a/kernel/sys.c
 +++ b/kernel/sys.c
 @@ -210,6 +210,10 @@ static int set_one_prio(struct task_struct *p, int niceval, int error)
@@ -2444,7 +2444,7 @@ index e608cbc99d..650790aa6b 100644
  	kruid = make_kuid(ns, ruid);
  	keuid = make_kuid(ns, euid);
  	ksuid = make_kuid(ns, suid);
-@@ -1298,12 +1317,21 @@ static int override_release(char __user *release, size_t len)
+@@ -1301,12 +1320,21 @@ static int override_release(char __user *release, size_t len)
  	return ret;
  }
  
@@ -2467,7 +2467,7 @@ index e608cbc99d..650790aa6b 100644
  	if (copy_to_user(name, &tmp, sizeof(tmp)))
  		return -EFAULT;
 diff --git a/mm/memory.c b/mm/memory.c
-index c17bdc64e1..584a3a426c 100644
+index 8eb79a9ca7..e60aab8105 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -79,6 +79,9 @@
@@ -2480,7 +2480,7 @@ index c17bdc64e1..584a3a426c 100644
  
  #include <trace/events/kmem.h>
  #include <trace/hooks/mm.h>
-@@ -5946,6 +5949,11 @@ int __access_remote_vm(struct mm_struct *mm, unsigned long addr, void *buf,
+@@ -5975,6 +5978,11 @@ int __access_remote_vm(struct mm_struct *mm, unsigned long addr, void *buf,
  		void *maddr;
  		struct page *page = NULL;
  

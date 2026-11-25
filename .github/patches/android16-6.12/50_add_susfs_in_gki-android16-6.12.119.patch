@@ -1,8 +1,8 @@
 From: github-actions <actions@github.com>
-Date: Tue, 17 Nov 2026 03:11:33 +0000
+Date: Wed, 25 Nov 2026 23:41:34 +0000
 Subject: [PATCH] SUSFS inline hooks for gki-android16-6.12-lts
 X-Kernel-Target-Branch: android16-6.12-lts
-X-Kernel-Target-Commit: c5e3d3a3d3b60eb95c36e3c49dbfe7a34c220c5a
+X-Kernel-Target-Commit: 2b5d34ceceb6f9055905f60332e737525ef2bf8d
 X-SUSFS-Source-Ref: origin/gki-android16-6.12
 X-SUSFS-Source-Commit: 9b0b13f069673b9b07b713a5c66977de4d62b175
 
@@ -86,7 +86,7 @@ index 73301a2614..a5fef05639 100644
  				break;
  
 diff --git a/drivers/input/input.c b/drivers/input/input.c
-index 372c9df905..66d671b769 100644
+index f3c5103c6f..1b1d10fca0 100644
 --- a/drivers/input/input.c
 +++ b/drivers/input/input.c
 @@ -354,6 +354,12 @@ static void input_event_dispose(struct input_dev *dev, int disposition,
@@ -1433,7 +1433,7 @@ index 92f0756394..4e24ede4d9 100644
  	show_fd_locks(m, file, files);
  	if (seq_has_overflowed(m))
 diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index a441f8cfa5..40381444b5 100644
+index efa5a45ce7..5154bc3f65 100644
 --- a/fs/proc/task_mmu.c
 +++ b/fs/proc/task_mmu.c
 @@ -27,6 +27,9 @@
@@ -2075,7 +2075,7 @@ index 6d29cab857..8b5c18dbeb 100644
  	if (error >= 0)
  		error = buf.error;
 diff --git a/fs/stat.c b/fs/stat.c
-index e7567ff811..b434712985 100644
+index 6467dff4ef..f1d6c3c1db 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
 @@ -20,12 +20,28 @@
@@ -2171,9 +2171,9 @@ index e7567ff811..b434712985 100644
  	fdput(f);
  	return error;
  }
-@@ -254,6 +316,19 @@ static int vfs_statx_path(struct path *path, int flags, struct kstat *stat,
- {
- 	int error = vfs_getattr(path, stat, request_mask, flags);
+@@ -256,6 +318,19 @@ static int vfs_statx_path(struct path *path, int flags, struct kstat *stat,
+ 	if (error)
+ 		return error;
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 +	if (stat->result_mask & (STATX_SUS_KSTAT_FUSE | STATX_SUS_KSTAT)) {
@@ -2191,7 +2191,7 @@ index e7567ff811..b434712985 100644
  	if (request_mask & STATX_MNT_ID_UNIQUE) {
  		stat->mnt_id = real_mount(path->mnt)->mnt_id_unique;
  		stat->result_mask |= STATX_MNT_ID_UNIQUE;
-@@ -262,6 +337,9 @@ static int vfs_statx_path(struct path *path, int flags, struct kstat *stat,
+@@ -264,6 +339,9 @@ static int vfs_statx_path(struct path *path, int flags, struct kstat *stat,
  		stat->result_mask |= STATX_MNT_ID;
  	}
  
@@ -2201,7 +2201,7 @@ index e7567ff811..b434712985 100644
  	if (path_mounted(path))
  		stat->attributes |= STATX_ATTR_MOUNT_ROOT;
  	stat->attributes_mask |= STATX_ATTR_MOUNT_ROOT;
-@@ -308,6 +386,17 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
+@@ -310,6 +388,17 @@ static int vfs_statx(int dfd, struct filename *filename, int flags,
  	unsigned int lookup_flags = getname_statx_lookup_flags(flags);
  	int error;
  
@@ -2428,7 +2428,7 @@ index 9d3f0c1cca..6105822e1c 100644
  }
  
 diff --git a/kernel/reboot.c b/kernel/reboot.c
-index f884a32c39..2fff0c33ba 100644
+index 8705768e55..6269a77a57 100644
 --- a/kernel/reboot.c
 +++ b/kernel/reboot.c
 @@ -718,6 +718,9 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
@@ -2538,7 +2538,7 @@ index af86b86ffb..4ba805ee73 100644
  	if (copy_to_user(name, &tmp, sizeof(tmp)))
  		return -EFAULT;
 diff --git a/mm/memory.c b/mm/memory.c
-index b4943fc680..61a058052e 100644
+index cd1636b2fe..201c7a0ddf 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -80,6 +80,9 @@
@@ -2551,7 +2551,7 @@ index b4943fc680..61a058052e 100644
  
  #include <trace/events/kmem.h>
  #include <trace/hooks/mm.h>
-@@ -6953,8 +6956,18 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
+@@ -7012,8 +7015,18 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
  		int bytes, offset;
  		void *maddr;
  		struct vm_area_struct *vma = NULL;
