@@ -50,15 +50,15 @@ on:
         required: false
         type: string
         default: 'tiann/KernelSU:main'
-      midorisu_rx_branch:
+      midorisu_bk_branch:
         required: false
         type: string
-        default: 'ReSukiSU/ReSukiSU:main'
+        default: 'Baka-SU/BakaSU:main'
       midorisu_xx_branch:
         required: false
         type: string
         default: 'midori01/KernelSU:xx~4'
-      midorisu_rx_hook_mode:
+      midorisu_bk_hook_mode:
         required: false
         type: string
         default: 'manual'
@@ -289,7 +289,7 @@ jobs:
             MidoriSU-KX) SPEC="${{ inputs.midorisu_kx_branch }}" ;;
             MidoriSU-NX) SPEC="${{ inputs.midorisu_nx_branch }}" ;;
             MidoriSU-OX) SPEC="${{ inputs.midorisu_ox_branch }}" ;;
-            MidoriSU-RX) SPEC="${{ inputs.midorisu_rx_branch }}" ;;
+            MidoriSU-BK) SPEC="${{ inputs.midorisu_bk_branch }}" ;;
             MidoriSU-XX) SPEC="${{ inputs.midorisu_xx_branch }}" ;;
           esac
           IFS=':' read -r REPO BRANCH <<< "$SPEC"
@@ -318,7 +318,8 @@ jobs:
               kp official~2
               kp official~1
               ;;
-            MidoriSU-RX)
+            MidoriSU-BK)
+              kp resuki~2
               kp resuki~1
               ;;
             MidoriSU-XX)
@@ -365,7 +366,7 @@ jobs:
             MidoriSU-OX)
               kp official
               ;;
-            MidoriSU-RX)
+            MidoriSU-BK)
               kp resuki
               ;;
             MidoriSU-XX)
@@ -390,17 +391,17 @@ jobs:
             fi
           done
 
-      - name: Setup Manual Hooks (RX/XX only)
+      - name: Setup Manual Hooks (BK/XX only)
         if: >-
           (inputs.variant == 'MidoriSU-XX' && inputs.midorisu_xx_hook_mode == 'manual') ||
-          (inputs.variant == 'MidoriSU-RX' && inputs.midorisu_rx_hook_mode == 'manual')
+          (inputs.variant == 'MidoriSU-BK' && inputs.midorisu_bk_hook_mode == 'manual')
         working-directory: kernel_workspace/common
         run: |
           case "${{ inputs.variant }}" in
             MidoriSU-XX)
               patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/scope-min-manual-hooks-v2.3.patch"
               ;;
-            MidoriSU-RX)
+            MidoriSU-BK)
               patch -p1 < "${{ github.workspace }}/.github/patches/${{ steps.cfg.outputs.kmi_version }}/resukisu-manual-hooks.patch"
               ;;
           esac
@@ -547,7 +548,7 @@ jobs:
           use_fgetpriority: ${{ inputs.use_fgetpriority }}
           use_adios: ${{ inputs.use_adios }}
           use_lz4_zstd: ${{ inputs.use_lz4_zstd }}
-          midorisu_rx_hook_mode: ${{ inputs.midorisu_rx_hook_mode }}
+          midorisu_bk_hook_mode: ${{ inputs.midorisu_bk_hook_mode }}
           midorisu_xx_hook_mode: ${{ inputs.midorisu_xx_hook_mode }}
           ksu_debug: ${{ inputs.ksu_debug }}
 
@@ -633,10 +634,10 @@ jobs:
               echo "${{ inputs.midorisu_ox_branch }}" | cut -d: -f1 > "$COMMIT_DIR/midorisu_ox_ksu_repo"
               save_susfs_commit
               ;;
-            MidoriSU-RX)
-              save_ksu_commit midorisu_rx
-              echo "${{ inputs.midorisu_rx_branch }}" | cut -d: -f1 | cut -d/ -f1 > "$COMMIT_DIR/midorisu_rx_ksu_author"
-              echo "${{ inputs.midorisu_rx_branch }}" | cut -d: -f1 > "$COMMIT_DIR/midorisu_rx_ksu_repo"
+            MidoriSU-BK)
+              save_ksu_commit midorisu_bk
+              echo "${{ inputs.midorisu_bk_branch }}" | cut -d: -f1 | cut -d/ -f1 > "$COMMIT_DIR/midorisu_bk_ksu_author"
+              echo "${{ inputs.midorisu_bk_branch }}" | cut -d: -f1 > "$COMMIT_DIR/midorisu_bk_ksu_repo"
               save_susfs_commit
               ;;
             MidoriSU-XX)

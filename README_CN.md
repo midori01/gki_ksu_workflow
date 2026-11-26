@@ -42,31 +42,31 @@
 
 | 变体 | SUSFS | Droidspaces | Hook 类型 |
 | :--- | :---: | :---: | :--- |
-| [MidoriSU-KX](https://github.com/KOWX712/KernelSU) | ❌ | ❌ | `Kprobes` |
-| [MidoriSU-KX-DS](https://github.com/KOWX712/KernelSU) | ❌ | ✅ | `Kprobes` |
+| [MidoriSU-KX](https://github.com/KOWX712/KernelSU) | ❌ | ❌ | `Tracepoint` |
+| [MidoriSU-KX-DS](https://github.com/KOWX712/KernelSU) | ❌ | ✅ | `Tracepoint` |
 | [MidoriSU-KX-SUSFS](https://github.com/KOWX712/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-KX-SUSFS-DS](https://github.com/KOWX712/KernelSU) | ✅ | ✅ | `De-inlined` |
 | [MidoriSU-NX](https://github.com/KernelSU-Next/KernelSU-Next) | ❌ | ❌ | `Tracepoint` |
 | [MidoriSU-NX-DS](https://github.com/KernelSU-Next/KernelSU-Next) | ❌ | ✅ | `Tracepoint` |
 | [MidoriSU-NX-SUSFS](https://github.com/KernelSU-Next/KernelSU-Next) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-NX-SUSFS-DS](https://github.com/KernelSU-Next/KernelSU-Next) | ✅ | ✅ | `De-inlined` |
-| [MidoriSU-OX](https://github.com/tiann/KernelSU) | ❌ | ❌ | `Kprobes` |
-| [MidoriSU-OX-DS](https://github.com/tiann/KernelSU) | ❌ | ✅ | `Kprobes` |
+| [MidoriSU-OX](https://github.com/tiann/KernelSU) | ❌ | ❌ | `Tracepoint` |
+| [MidoriSU-OX-DS](https://github.com/tiann/KernelSU) | ❌ | ✅ | `Tracepoint` |
 | [MidoriSU-OX-SUSFS](https://github.com/tiann/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-OX-SUSFS-DS](https://github.com/tiann/KernelSU) | ✅ | ✅ | `De-inlined` |
-| [MidoriSU-RX](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ❌ | `Manual` |
-| [MidoriSU-RX-DS](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | `Manual` |
-| [MidoriSU-RX-SUSFS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | `De-inlined` |
-| [MidoriSU-RX-SUSFS-DS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ✅ | `De-inlined` |
-| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Branch Link` |
-| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Branch Link` |
-| [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
-| [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
+| [MidoriSU-BK](https://github.com/Baka-SU/BakaSU) | ❌ | ❌ | `Manual` |
+| [MidoriSU-BK-DS](https://github.com/Baka-SU/BakaSU) | ❌ | ✅ | `Manual` |
+| [MidoriSU-BK-SUSFS](https://github.com/Baka-SU/BakaSU) | ✅ | ❌ | `De-inlined` |
+| [MidoriSU-BK-SUSFS-DS](https://github.com/Baka-SU/BakaSU) | ✅ | ✅ | `De-inlined` |
+| [MidoriSU-XX](https://github.com/RexxSU/KernelSU) | ❌ | ❌ | `Branch Link` |
+| [MidoriSU-XX-DS](https://github.com/RexxSU/KernelSU) | ❌ | ✅ | `Branch Link` |
+| [MidoriSU-XX-SUSFS](https://github.com/RexxSU/KernelSU) | ✅ | ❌ | `De-inlined` |
+| [MidoriSU-XX-SUSFS-DS](https://github.com/RexxSU/KernelSU) | ✅ | ✅ | `De-inlined` |
 | NoKSU | ❌ | ❌ | `—` |
 | NoKSU-DS | ❌ | ✅ | `—` |
 
-> \* **MidoriSU-RX 与 MidoriSU-XX Hook 类型：** 可分别通过 `midorisu_rx_hook_mode` 与 `midorisu_xx_hook_mode` 进行配置。
-> - `midorisu_rx_hook_mode` — `manual`（默认）/ `tracepoint`
+> \* **MidoriSU-BK 与 MidoriSU-XX Hook 类型：** 可分别通过 `midorisu_bk_hook_mode` 与 `midorisu_xx_hook_mode` 进行配置。
+> - `midorisu_bk_hook_mode` — `manual`（默认）/ `tracepoint`
 > - `midorisu_xx_hook_mode`：
 >   - `branch link hijacking` — MidoriSU-XX 的默认值；利用 `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` 扫描内核 text 段，直接将调用处的跳转指令（`b`/`bl`）覆写并重定向至 Hook，规避 trampoline 开销且符合 ARM64 CFI 规范
 >   - `syscall table tampering` — 利用 `CONFIG_KSU_TAMPER_SYSCALL_TABLE` 直接篡改 `sys_call_table` 表项，避免间接跳转（`blr`）开销且符合 Clang CFI 规范
@@ -81,7 +81,7 @@
 
 ## 📱 MidoriSU 管理器
 
-[**MidoriSU**](https://github.com/midori01/KernelSU) 是面向所有 MidoriSU 内核变体的官方配套应用。基于 [**KowSU**](https://github.com/KOWX712/KernelSU) 进行了深度定制与功能扩展，无缝兼容整个 MidoriSU 系列 — **KX、NX、OX、RX、XX** — 包括所有 SUSFS 与 Droidspaces 组合。
+[**MidoriSU**](https://github.com/midori01/KernelSU) 是面向所有 MidoriSU 内核变体的官方配套应用。基于 [**KowSU**](https://github.com/KOWX712/KernelSU) 进行了深度定制与功能扩展，无缝兼容整个 MidoriSU 系列 — **KX、NX、OX、BK、XX** — 包括所有 SUSFS 与 Droidspaces 组合。
 
 | 功能 | 描述 |
 | :--- | :--- |

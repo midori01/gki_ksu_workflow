@@ -16,10 +16,10 @@ inputs:
     required: false
     default: '0'
   variant:
-    description: 'KSU variant (MidoriSU-KX, MidoriSU-XX, MidoriSU-RX, etc.)'
+    description: 'KSU variant (MidoriSU-KX, MidoriSU-XX, MidoriSU-BK, etc.)'
     required: true
-  midorisu_rx_hook_mode:
-    description: 'MidoriSU-RX hook mode (manual, tracepoint)'
+  midorisu_bk_hook_mode:
+    description: 'MidoriSU-BK hook mode (manual, tracepoint)'
     required: false
     default: 'manual'
   midorisu_xx_hook_mode:
@@ -149,8 +149,8 @@ runs:
                 ;;
             esac
             ;;
-          MidoriSU-RX)
-            if [ "${{ inputs.midorisu_rx_hook_mode }}" = "tracepoint" ]; then
+          MidoriSU-BK)
+            if [ "${{ inputs.midorisu_bk_hook_mode }}" = "tracepoint" ]; then
               cat >> $DEFCONFIG <<-'EOF'
         CONFIG_KSU_TOOLKIT_SUPPORT=y
         CONFIG_KSU_TRACEPOINT_HOOK=y

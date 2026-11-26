@@ -42,31 +42,31 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 
 | Variant | SUSFS | Droidspaces | Hook Type |
 | :--- | :---: | :---: | :--- |
-| [MidoriSU-KX](https://github.com/KOWX712/KernelSU) | ❌ | ❌ | `Kprobes` |
-| [MidoriSU-KX-DS](https://github.com/KOWX712/KernelSU) | ❌ | ✅ | `Kprobes` |
+| [MidoriSU-KX](https://github.com/KOWX712/KernelSU) | ❌ | ❌ | `Tracepoint` |
+| [MidoriSU-KX-DS](https://github.com/KOWX712/KernelSU) | ❌ | ✅ | `Tracepoint` |
 | [MidoriSU-KX-SUSFS](https://github.com/KOWX712/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-KX-SUSFS-DS](https://github.com/KOWX712/KernelSU) | ✅ | ✅ | `De-inlined` |
 | [MidoriSU-NX](https://github.com/KernelSU-Next/KernelSU-Next) | ❌ | ❌ | `Tracepoint` |
 | [MidoriSU-NX-DS](https://github.com/KernelSU-Next/KernelSU-Next) | ❌ | ✅ | `Tracepoint` |
 | [MidoriSU-NX-SUSFS](https://github.com/KernelSU-Next/KernelSU-Next) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-NX-SUSFS-DS](https://github.com/KernelSU-Next/KernelSU-Next) | ✅ | ✅ | `De-inlined` |
-| [MidoriSU-OX](https://github.com/tiann/KernelSU) | ❌ | ❌ | `Kprobes` |
-| [MidoriSU-OX-DS](https://github.com/tiann/KernelSU) | ❌ | ✅ | `Kprobes` |
+| [MidoriSU-OX](https://github.com/tiann/KernelSU) | ❌ | ❌ | `Tracepoint` |
+| [MidoriSU-OX-DS](https://github.com/tiann/KernelSU) | ❌ | ✅ | `Tracepoint` |
 | [MidoriSU-OX-SUSFS](https://github.com/tiann/KernelSU) | ✅ | ❌ | `De-inlined` |
 | [MidoriSU-OX-SUSFS-DS](https://github.com/tiann/KernelSU) | ✅ | ✅ | `De-inlined` |
-| [MidoriSU-RX](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ❌ | `Manual` |
-| [MidoriSU-RX-DS](https://github.com/ReSukiSU/ReSukiSU) | ❌ | ✅ | `Manual` |
-| [MidoriSU-RX-SUSFS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ❌ | `De-inlined` |
-| [MidoriSU-RX-SUSFS-DS](https://github.com/ReSukiSU/ReSukiSU) | ✅ | ✅ | `De-inlined` |
-| [MidoriSU-XX](https://github.com/backslashxx/KernelSU) | ❌ | ❌ | `Branch Link` |
-| [MidoriSU-XX-DS](https://github.com/backslashxx/KernelSU) | ❌ | ✅ | `Branch Link` |
-| [MidoriSU-XX-SUSFS](https://github.com/backslashxx/KernelSU) | ✅ | ❌ | `De-inlined` |
-| [MidoriSU-XX-SUSFS-DS](https://github.com/backslashxx/KernelSU) | ✅ | ✅ | `De-inlined` |
+| [MidoriSU-BK](https://github.com/Baka-SU/BakaSU) | ❌ | ❌ | `Manual` |
+| [MidoriSU-BK-DS](https://github.com/Baka-SU/BakaSU) | ❌ | ✅ | `Manual` |
+| [MidoriSU-BK-SUSFS](https://github.com/Baka-SU/BakaSU) | ✅ | ❌ | `De-inlined` |
+| [MidoriSU-BK-SUSFS-DS](https://github.com/Baka-SU/BakaSU) | ✅ | ✅ | `De-inlined` |
+| [MidoriSU-XX](https://github.com/RexxSU/KernelSU) | ❌ | ❌ | `Branch Link` |
+| [MidoriSU-XX-DS](https://github.com/RexxSU/KernelSU) | ❌ | ✅ | `Branch Link` |
+| [MidoriSU-XX-SUSFS](https://github.com/RexxSU/KernelSU) | ✅ | ❌ | `De-inlined` |
+| [MidoriSU-XX-SUSFS-DS](https://github.com/RexxSU/KernelSU) | ✅ | ✅ | `De-inlined` |
 | NoKSU | ❌ | ❌ | `—` |
 | NoKSU-DS | ❌ | ✅ | `—` |
 
-> \* **MidoriSU-RX & MidoriSU-XX Hook Type:** Configured via `midorisu_rx_hook_mode` and `midorisu_xx_hook_mode`.
-> - `midorisu_rx_hook_mode` — `manual` (default) / `tracepoint`
+> \* **MidoriSU-BK & MidoriSU-XX Hook Type:** Configured via `midorisu_bk_hook_mode` and `midorisu_xx_hook_mode`.
+> - `midorisu_bk_hook_mode` — `manual` (default) / `tracepoint`
 > - `midorisu_xx_hook_mode`:
 >   - `branch link hijacking` — default for MidoriSU-XX; uses `CONFIG_KSU_HACK_ARM64_BRANCH_LINK` to scan kernel text and overwrite call-site branch instructions (`b`/`bl`) directly to hooks, bypassing trampoline overhead and complying with ARM64 CFI
 >   - `syscall table tampering` — uses `CONFIG_KSU_TAMPER_SYSCALL_TABLE` to directly tamper with `sys_call_table` entries, avoiding indirect branch (`blr`) overhead while complying with Clang CFI
@@ -81,7 +81,7 @@ All kernel version-specific settings are centralized in [`.github/config/kernel_
 
 ## 📱 MidoriSU Manager
 
-[**MidoriSU**](https://github.com/midori01/KernelSU) is the official companion app for all MidoriSU kernel variants. Based on [**KowSU**](https://github.com/KOWX712/KernelSU) with extensive customizations and extensions, it offers seamless out-of-the-box compatibility across all MidoriSU variants — **KX, NX, OX, RX, XX** — including all SUSFS and Droidspaces combinations.
+[**MidoriSU**](https://github.com/midori01/KernelSU) is the official companion app for all MidoriSU kernel variants. Based on [**KowSU**](https://github.com/KOWX712/KernelSU) with extensive customizations and extensions, it offers seamless out-of-the-box compatibility across all MidoriSU variants — **KX, NX, OX, BK, XX** — including all SUSFS and Droidspaces combinations.
 
 | Feature | Description |
 | :--- | :--- |
